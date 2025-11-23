@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/components/auth-provider'
 import { Database } from '@/types/database.types'
 import { Loader2 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { MarkdownEditor } from '@/components/markdown/editor'
 
 type Unit = Database['public']['Tables']['units']['Row']
 
@@ -131,16 +133,12 @@ export default function CreateReflectionPage() {
 
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Reflection</label>
-                    <textarea
-                        required
-                        className="flex min-h-[200px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    <MarkdownEditor
                         value={body}
-                        onChange={(e) => setBody(e.target.value)}
-                        placeholder="Write your reflection here..."
+                        onChange={setBody}
+                        placeholder="Write your reflection here... (markdown supported)"
+                        minLength={100}
                     />
-                    <p className="text-xs text-muted-foreground">
-                        Minimum length: 100 characters.
-                    </p>
                 </div>
 
                 {error && (

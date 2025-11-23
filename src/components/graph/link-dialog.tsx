@@ -215,14 +215,12 @@ export function LinkDialog({ open, onOpenChange, sourceNote, onLinkCreated }: Li
 
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Explanation</label>
-                    <textarea
-                        required
-                        className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    <MarkdownEditor
                         value={explanation}
-                        onChange={(e) => setExplanation(e.target.value)}
-                        placeholder="Why are these connected?"
+                        onChange={setExplanation}
+                        placeholder="Why are these connected? (markdown supported)"
+                        minLength={40}
                     />
-                    <p className="text-xs text-muted-foreground">Minimum length: 40 characters.</p>
                 </div>
 
                 {error && <div className="text-sm text-destructive">{error}</div>}
