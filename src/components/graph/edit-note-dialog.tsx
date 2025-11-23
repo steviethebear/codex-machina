@@ -10,6 +10,8 @@ import { Database } from '@/types/database.types'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { checkMeaning } from '@/lib/llm-stub'
+import { MarkdownEditor } from '@/components/markdown/editor'
+import { MarkdownRenderer } from '@/components/markdown/renderer'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 

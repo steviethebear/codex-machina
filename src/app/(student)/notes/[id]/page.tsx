@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Database } from '@/types/database.types'
 import Link from 'next/link'
 import { ArrowRight, Link as LinkIcon } from 'lucide-react'
+import { MarkdownRenderer } from '@/components/markdown/renderer'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row'] & {
     users: { codex_name: string | null } | null
@@ -96,9 +97,7 @@ export default function NoteDetailsPage() {
 
             <Card>
                 <CardContent className="pt-6">
-                    <p className="whitespace-pre-wrap leading-relaxed text-lg">
-                        {note.body}
-                    </p>
+                    <MarkdownRenderer content={note.body} />
                     {note.texts && (
                         <div className="mt-6 pt-4 border-t">
                             <span className="text-sm text-muted-foreground">Reference: </span>
@@ -129,7 +128,7 @@ export default function NoteDetailsPage() {
                                                 <span className="text-secondary">{link.to_text?.title}</span>
                                             )}
                                         </div>
-                                        <p className="text-xs text-muted-foreground">{link.explanation}</p>
+                                        <MarkdownRenderer content={link.explanation} className="text-xs text-muted-foreground" />
                                     </CardContent>
                                 </Card>
                             ))}
@@ -153,7 +152,7 @@ export default function NoteDetailsPage() {
                                             <ArrowRight className="h-3 w-3" />
                                             <span>{link.relation_type}</span>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">{link.explanation}</p>
+                                        <MarkdownRenderer content={link.explanation} className="text-xs text-muted-foreground" />
                                     </CardContent>
                                 </Card>
                             ))}

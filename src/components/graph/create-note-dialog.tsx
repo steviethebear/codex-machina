@@ -12,6 +12,8 @@ import { Combobox } from '@/components/ui/combobox'
 import { SimpleTooltip } from '@/components/ui/simple-tooltip'
 import { toast } from 'sonner'
 import { checkMeaningAsync } from '@/lib/actions/check-meaning-async'
+import { MarkdownEditor } from '@/components/markdown/editor'
+import { MarkdownRenderer } from '@/components/markdown/renderer'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 type Text = Database['public']['Tables']['texts']['Row']
@@ -167,7 +169,7 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
 
             {sourceAtom && (
                 <div className="mt-4 p-4 bg-muted/50 rounded-md text-sm text-muted-foreground max-h-[100px] overflow-y-auto">
-                    {sourceAtom.body}
+                    <MarkdownRenderer content={sourceAtom.body} />
                 </div>
             )}
 
@@ -235,15 +237,13 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
                 )}
 
                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Content</label>
-                    <textarea
-                        required
-                        className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    <label className="text-sm font-medium">Body</label>
+                    <MarkdownEditor
                         value={body}
-                        onChange={(e) => setBody(e.target.value)}
-                        placeholder="Write your thoughts here..."
+                        onChange={setBody}
+                        placeholder="Your idea, question, or insight... (markdown supported)"
+                        minLength={50}
                     />
-                    <p className="text-xs text-muted-foreground">Minimum length: 50 characters.</p>
                 </div>
 
                 {error && <div className="text-sm text-destructive">{error}</div>}
