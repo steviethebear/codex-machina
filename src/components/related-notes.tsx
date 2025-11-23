@@ -10,10 +10,11 @@ interface RelatedNotesProps {
     suggestions: SuggestionResults
     onView?: (noteId: string) => void
     onQuickLink?: (noteId: string) => void
+    onTextClick?: (textId: string) => void
     loading?: boolean
 }
 
-export function RelatedNotes({ suggestions, onView, onQuickLink, loading }: RelatedNotesProps) {
+export function RelatedNotes({ suggestions, onView, onQuickLink, onTextClick, loading }: RelatedNotesProps) {
     if (loading) {
         return (
             <div className="space-y-2">
@@ -100,7 +101,11 @@ export function RelatedNotes({ suggestions, onView, onQuickLink, loading }: Rela
                     <div className="space-y-2">
                         <div className="text-xs font-medium text-muted-foreground">Texts ({suggestions.texts.length})</div>
                         {suggestions.texts.map(({ text, score, reason }) => (
-                            <Card key={text.id} className="bg-blue-500/10 hover:bg-blue-500/20 transition-colors border-blue-500/20">
+                            <Card
+                                key={text.id}
+                                className="bg-blue-500/10 hover:bg-blue-500/20 transition-colors border-blue-500/20 cursor-pointer"
+                                onClick={() => onTextClick?.(text.id)}
+                            >
                                 <CardContent className="p-3">
                                     <div className="flex items-start gap-2">
                                         <Book className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />

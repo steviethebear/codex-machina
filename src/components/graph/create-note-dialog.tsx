@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Book } from 'lucide-react'
 import { Database } from '@/types/database.types'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Combobox } from '@/components/ui/combobox'
@@ -44,6 +44,7 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
     // Suggestions state
     const [suggestions, setSuggestions] = useState<SuggestionResults>({ notes: [], texts: [] })
     const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+    const [selectedSuggestedText, setSelectedSuggestedText] = useState<string | null>(null)
 
     // Debounced suggestion fetch
     useEffect(() => {
@@ -131,14 +132,15 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
             }
         }
 
-        // 3. Create link to target text if specified
-        if (targetText) {
+        // 3. Create link to target text if specified (from targetText prop or suggestion)
+        const textToLink = targetText?.id || selectedSuggestedText
+        if (textToLink) {
             // @ts-ignore
             const { error: textLinkError } = await supabase.from('links').insert({
                 from_note_id: atom.id,
-                to_text_id: targetText.id,
+                to_text_id: textToLink,
                 relation_type: 'supports' as any,
-                explanation: explanation || `Connected to ${targetText.title}`,
+                explanation: explanation || 'Connected to suggested text',
                 created_by: user.id
             })
 
@@ -282,9 +284,35 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
                 {/* Related Notes Suggestions */}
                 {title.length >= 3 && (
                     <div className="pt-4 border-t">
+                        {targetText && (
+                            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-md">
+                                <div className="text-sm font-medium text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                                    <Book className="h-4 w-4" />
+                                    Linking to: {targetText.title}
+                                </div>
+                            </div>
+                        )}
+                        {selectedSuggestedText && (
+                            <div className="mb-3 p-2 bg-blue-500/10 border border-blue-500/30 rounded text-xs flex items-center justify-between">
+                                <span className="text-blue-600 dark:text-blue-400 font-medium">✓ Text selected from suggestions</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-xs"
+                                    onClick={() => setSelectedSuggestedText(null)}
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                        )}
                         <RelatedNotes
                             suggestions={suggestions}
                             loading={suggestionsLoading}
+                            onTextClick={(textId) => {
+                                setSelectedSuggestedText(textId)
+                                toast.success('Text selected - will auto-link when creating atom')
+                            }}
                         />
                     </div>
                 )}
