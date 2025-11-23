@@ -155,7 +155,7 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
                     xp: 0,
                     sp_thinking: 0,
                     sp_reading: 1,
-                    description: `Linked atom to text: ${targetText.title}`,
+                    description: targetText ? `Linked atom to text: ${targetText.title}` : 'Linked atom to suggested text',
                 })
 
                 // Update Character Stats
