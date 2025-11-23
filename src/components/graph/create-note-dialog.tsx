@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 import { checkMeaningAsync } from '@/lib/actions/check-meaning-async'
 import { MarkdownEditor } from '@/components/markdown/editor'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
-import { findRelatedNotes, SuggestedNote } from '@/lib/suggestions'
+import { findRelatedNotes, SuggestionResults } from '@/lib/suggestions'
 import { RelatedNotes } from '@/components/related-notes'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
@@ -42,13 +42,13 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
     const [error, setError] = useState<string | null>(null)
 
     // Suggestions state
-    const [suggestions, setSuggestions] = useState<SuggestedNote[]>([])
+    const [suggestions, setSuggestions] = useState<SuggestionResults>({ notes: [], texts: [] })
     const [suggestionsLoading, setSuggestionsLoading] = useState(false)
 
     // Debounced suggestion fetch
     useEffect(() => {
         if (!open || !user || title.length < 3) {
-            setSuggestions([])
+            setSuggestions({ notes: [], texts: [] })
             return
         }
 
@@ -277,6 +277,8 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
                     />
                 </div>
 
+                {error && <div className="text-sm text-destructive">{error}</div>}
+
                 {/* Related Notes Suggestions */}
                 {title.length >= 3 && (
                     <div className="pt-4 border-t">
@@ -286,8 +288,6 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
                         />
                     </div>
                 )}
-
-                {error && <div className="text-sm text-destructive">{error}</div>}
 
                 <div className="flex justify-end gap-4">
                     <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

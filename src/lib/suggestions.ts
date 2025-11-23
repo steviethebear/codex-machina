@@ -2,11 +2,23 @@ import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
+type Text = Database['public']['Tables']['texts']['Row']
 
 export interface SuggestedNote {
     note: Note
     score: number
     reason: string
+}
+
+export interface SuggestedText {
+    text: Text
+    score: number
+    reason: string
+}
+
+export interface SuggestionResults {
+    notes: SuggestedNote[]
+    texts: SuggestedText[]
 }
 
 interface FindRelatedParams {
@@ -20,10 +32,10 @@ interface FindRelatedParams {
 }
 
 /**
- * Find related notes using simple text similarity
+ * Find related notes and texts using simple text similarity
  * Scoring: (title_matches * 3) + (same_text * 2) + (same_type * 1) + (keyword_matches * 0.5)
  */
-export async function findRelatedNotes(params: FindRelatedParams): Promise<SuggestedNote[]> {
+export async function findRelatedNotes(params: FindRelatedParams): Promise<SuggestionResults> {
     const { title, body, type, textId, excludeId, userId, limit = 5 } = params
 
     const supabase = createClient()
@@ -36,7 +48,11 @@ export async function findRelatedNotes(params: FindRelatedParams): Promise<Sugge
         .eq('hidden', false)
         .neq('id', excludeId || '')
 
-    if (!notes || notes.length === 0) return []
+    // Fetch non-archived texts
+    const { data: texts } = await supabase
+        .from('texts')
+        .select('*')
+        .eq('archived', false)
 
     // Extract keywords from title and body
     const titleWords = extractKeywords(title)
@@ -44,7 +60,7 @@ export async function findRelatedNotes(params: FindRelatedParams): Promise<Sugge
     const allWords = new Set([...titleWords, ...bodyWords])
 
     // Score each note
-    const scoredNotes: SuggestedNote[] = notes.map((note: Note) => {
+    const scoredNotes: SuggestedNote[] = (notes || []).map((note: Note) => {
         let score = 0
         const reasons: string[] = []
 
@@ -83,11 +99,49 @@ export async function findRelatedNotes(params: FindRelatedParams): Promise<Sugge
         }
     })
 
+    // Score each text
+    const scoredTexts: SuggestedText[] = (texts || []).map((text: Text) => {
+        let score = 0
+        const reasons: string[] = []
+
+        // 1. Title matching (weight: 3)
+        const textTitleWords = extractKeywords(text.title)
+        const titleMatches = textTitleWords.filter(word => titleWords.includes(word)).length
+        if (titleMatches > 0) {
+            score += titleMatches * 3
+            reasons.push(`${titleMatches} title word${titleMatches > 1 ? 's' : ''}`)
+        }
+
+        // 2. Author matching (weight: 1.5)
+        const authorWords = extractKeywords(text.author)
+        const authorMatches = authorWords.filter(word => allWords.has(word)).length
+        if (authorMatches > 0) {
+            score += authorMatches * 1.5
+            reasons.push('author match')
+        }
+
+        return {
+            text,
+            score,
+            reason: reasons.length > 0 ? reasons.join(', ') : 'related content'
+        }
+    })
+
     // Filter out zero scores and sort by score descending
-    return scoredNotes
+    const topNotes = scoredNotes
         .filter(s => s.score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
+
+    const topTexts = scoredTexts
+        .filter(s => s.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3) // Show fewer texts
+
+    return {
+        notes: topNotes,
+        texts: topTexts
+    }
 }
 
 /**
