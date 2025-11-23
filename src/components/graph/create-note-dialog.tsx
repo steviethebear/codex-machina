@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,8 @@ import { toast } from 'sonner'
 import { checkMeaningAsync } from '@/lib/actions/check-meaning-async'
 import { MarkdownEditor } from '@/components/markdown/editor'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
+import { findRelatedNotes, SuggestedNote } from '@/lib/suggestions'
+import { RelatedNotes } from '@/components/related-notes'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 type Text = Database['public']['Tables']['texts']['Row']
@@ -38,6 +40,35 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
 
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+
+    // Suggestions state
+    const [suggestions, setSuggestions] = useState<SuggestedNote[]>([])
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+
+    // Debounced suggestion fetch
+    useEffect(() => {
+        if (!open || !user || title.length < 3) {
+            setSuggestions([])
+            return
+        }
+
+        setSuggestionsLoading(true)
+        const timer = setTimeout(async () => {
+            const related = await findRelatedNotes({
+                title,
+                body,
+                type,
+                textId: sourceAtom?.text_id || targetText?.id,
+                excludeId: sourceAtom?.id,
+                userId: user.id,
+                limit: 5
+            })
+            setSuggestions(related)
+            setSuggestionsLoading(false)
+        }, 500) // Debounce 500ms
+
+        return () => clearTimeout(timer)
+    }, [title, body, type, open, user, sourceAtom, targetText])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -245,6 +276,16 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
                         minLength={50}
                     />
                 </div>
+
+                {/* Related Notes Suggestions */}
+                {title.length >= 3 && (
+                    <div className="pt-4 border-t">
+                        <RelatedNotes
+                            suggestions={suggestions}
+                            loading={suggestionsLoading}
+                        />
+                    </div>
+                )}
 
                 {error && <div className="text-sm text-destructive">{error}</div>}
 
