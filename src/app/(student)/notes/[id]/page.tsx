@@ -82,7 +82,9 @@ export default function NoteDetailsPage() {
         <div className="max-w-4xl mx-auto space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">{note.title}</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">
+                        <MarkdownRenderer content={note.title} className="prose-p:inline prose-p:m-0" />
+                    </h1>
                     <p className="text-muted-foreground mt-2">
                         By <span className="text-primary">{note.users?.codex_name || 'Unknown'}</span> • {note.type.toUpperCase()}
                     </p>

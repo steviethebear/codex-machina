@@ -20,7 +20,7 @@ export function MarkdownEditor({
     placeholder = 'Write your content using markdown...',
     minLength,
     className = '',
-    showPreview: defaultShowPreview = true
+    showPreview: defaultShowPreview = false
 }: MarkdownEditorProps) {
     const [showPreview, setShowPreview] = useState(defaultShowPreview)
     const charCount = value.length

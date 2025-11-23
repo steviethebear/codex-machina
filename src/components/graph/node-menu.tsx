@@ -4,6 +4,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogDescription } from '@/componen
 import { Button } from '@/components/ui/button'
 import { Database } from '@/types/database.types'
 import { GitBranch, Link, Edit3 } from 'lucide-react'
+import { MarkdownRenderer } from '@/components/markdown/renderer'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 
@@ -22,14 +23,16 @@ export function NodeMenu({ open, onOpenChange, note, onConnect, onBranch, onExpa
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogHeader onClose={() => onOpenChange(false)}>
-                <DialogTitle>{note.title}</DialogTitle>
+                <DialogTitle>
+                    <MarkdownRenderer content={note.title} className="prose-p:inline prose-p:m-0" />
+                </DialogTitle>
                 <DialogDescription>
                     What would you like to do with this idea?
                 </DialogDescription>
             </DialogHeader>
 
-            <div className="mt-4 p-4 bg-muted/50 rounded-md text-sm text-muted-foreground max-h-[200px] overflow-y-auto">
-                {note.body}
+            <div className="mt-4 p-4 bg-muted/50 rounded-md text-sm max-h-[200px] overflow-y-auto">
+                <MarkdownRenderer content={note.body} />
             </div>
 
             <div className="grid grid-cols-1 gap-4 mt-4">
