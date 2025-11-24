@@ -51,9 +51,14 @@ export default function DashboardPage() {
     return (
         <div className="container mx-auto p-6 space-y-6">
             <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-                <div className="text-sm text-muted-foreground">
-                    Welcome back, <span className="font-medium text-foreground">{character.users?.codex_name || 'Student'}</span>
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+                    <div className="text-sm text-muted-foreground mt-1">
+                        Welcome back, <span className="font-medium text-foreground">{character.users?.codex_name || 'Student'}</span>
+                        {character.title && (
+                            <span className="block text-xs italic text-primary mt-0.5">✨ {character.title}</span>
+                        )}
+                    </div>
                 </div>
             </div>
 

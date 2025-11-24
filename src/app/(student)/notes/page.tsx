@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Database } from '@/types/database.types'
 import Link from 'next/link'
 import { PlusCircle, Filter, GitBranch, Link as LinkIcon, Edit3, X } from 'lucide-react'
@@ -11,6 +11,7 @@ import { CreateNoteDialog } from '@/components/graph/create-note-dialog'
 import { LinkDialog } from '@/components/graph/link-dialog'
 import { EditNoteDialog } from '@/components/graph/edit-note-dialog'
 import { Combobox } from '@/components/ui/combobox'
+import { MarkdownRenderer } from '@/components/markdown/renderer'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row'] & {
     users: { codex_name: string | null } | null
@@ -43,7 +44,7 @@ export default function NotesPage() {
             .from('atomic_notes')
             .select(`
                 *,
-                users (codex_name),
+                users:users!atomic_notes_author_id_fkey (codex_name),
                 texts (title)
             `)
             .eq('hidden', false)
@@ -83,7 +84,7 @@ export default function NotesPage() {
             // Fetch recent notes (last 10)
             const { data: recent } = await supabase
                 .from('atomic_notes')
-                .select('*, users(codex_name)')
+                .select('*, users:users!atomic_notes_author_id_fkey(codex_name)')
                 .eq('hidden', false)
                 .neq('moderation_status', 'rejected')
                 .order('created_at', { ascending: false })
@@ -215,56 +216,103 @@ export default function NotesPage() {
                                 <p className="text-muted-foreground col-span-full">No atoms found.</p>
                             ) : (
                                 notes.map((note) => (
-                                    <Card key={note.id} className="flex flex-col h-full hover:bg-muted/50 transition-colors">
-                                        <Link href={`/notes/${note.id}`} className="flex-1">
-                                            <CardHeader className="pb-2">
-                                                <div className="flex justify-between items-start">
-                                                    <CardTitle className="text-lg line-clamp-1">{note.title}</CardTitle>
+                                    <Card key={note.id} className="flex flex-col h-[320px] hover:bg-muted/50 transition-colors group relative overflow-hidden border-muted-foreground/20">
+                                        <Link href={`/notes/${note.id}`} className="flex-1 flex flex-col p-5">
+                                            <div className="mb-3">
+                                                <h3 className="font-bold text-lg leading-tight mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                                                    <MarkdownRenderer content={note.title} className="prose-p:inline prose-p:m-0" />
+                                                </h3>
+                                                <div className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
                                                     <span
-                                                        className="text-xs font-mono px-2 py-0.5 rounded border"
+                                                        className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-sm border"
                                                         style={{
                                                             borderColor:
-                                                                note.type === 'idea' ? '#00f0ff' :
-                                                                    note.type === 'question' ? '#ff003c' :
-                                                                        note.type === 'quote' ? '#7000ff' :
-                                                                            note.type === 'insight' ? '#ffe600' : '#888',
+                                                                note.type === 'idea' ? '#00f0ff40' :
+                                                                    note.type === 'question' ? '#ff003c40' :
+                                                                        note.type === 'quote' ? '#7000ff40' :
+                                                                            note.type === 'insight' ? '#ffe60040' : '#888',
                                                             color:
                                                                 note.type === 'idea' ? '#00f0ff' :
                                                                     note.type === 'question' ? '#ff003c' :
                                                                         note.type === 'quote' ? '#7000ff' :
                                                                             note.type === 'insight' ? '#ffe600' : '#888',
                                                             backgroundColor:
-                                                                note.type === 'idea' ? '#00f0ff1a' :
-                                                                    note.type === 'question' ? '#ff003c1a' :
-                                                                        note.type === 'quote' ? '#7000ff1a' :
-                                                                            note.type === 'insight' ? '#ffe6001a' : '#8888881a'
+                                                                note.type === 'idea' ? '#00f0ff08' :
+                                                                    note.type === 'question' ? '#ff003c08' :
+                                                                        note.type === 'quote' ? '#7000ff08' :
+                                                                            note.type === 'insight' ? '#ffe60008' : '#88888808'
                                                         }}
                                                     >
-                                                        {note.type.charAt(0).toUpperCase() + note.type.slice(1)}
+                                                        {note.type}
                                                     </span>
-                                                </div>
-                                                <div className="flex justify-between text-xs text-muted-foreground">
+                                                    <span>•</span>
                                                     <span>by {note.users?.codex_name || 'Unknown'}</span>
-                                                    {note.texts?.title && <span className="italic truncate max-w-[120px]">{note.texts.title}</span>}
+                                                    {note.texts?.title && (
+                                                        <>
+                                                            <span className="text-muted-foreground/40">•</span>
+                                                            <span className="italic truncate max-w-[150px]">{note.texts.title}</span>
+                                                        </>
+                                                    )}
                                                 </div>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <p className="text-sm text-muted-foreground line-clamp-3">
-                                                    {note.body}
-                                                </p>
-                                            </CardContent>
+                                            </div>
+
+                                            <div className="flex-1 min-h-0 relative">
+                                                <div className="text-sm text-muted-foreground line-clamp-6 leading-relaxed">
+                                                    <MarkdownRenderer content={note.body} />
+                                                </div>
+                                                {/* Gradient overlay for text fade */}
+                                                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+                                            </div>
+
+                                            {/* Tags */}
+                                            {note.tags && note.tags.length > 0 && (
+                                                <div className="mt-4 flex flex-wrap gap-1">
+                                                    {note.tags.slice(0, 3).map(tag => (
+                                                        <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-muted rounded text-muted-foreground border border-border/50">
+                                                            #{tag}
+                                                        </span>
+                                                    ))}
+                                                    {note.tags.length > 3 && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 text-muted-foreground">
+                                                            +{note.tags.length - 3}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </Link>
-                                        <CardFooter className="pt-2 border-t flex justify-between bg-muted/20">
-                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => handleAction(note, 'connect')}>
-                                                <LinkIcon className="mr-1 h-3 w-3" /> Connect
-                                            </Button>
-                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => handleAction(note, 'branch')}>
-                                                <GitBranch className="mr-1 h-3 w-3" /> Branch
-                                            </Button>
-                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => handleAction(note, 'expand')}>
-                                                <Edit3 className="mr-1 h-3 w-3" /> Expand
-                                            </Button>
-                                        </CardFooter>
+
+                                        {/* Footer Area */}
+                                        <div className="p-3 pt-0 mt-auto flex flex-wrap items-center justify-between gap-y-2 border-t border-border/40 bg-muted/5">
+                                            {/* Action Buttons */}
+                                            <div className="flex items-center gap-1 mt-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 px-2 text-[10px] gap-1.5 text-muted-foreground hover:text-foreground"
+                                                    onClick={() => handleAction(note, 'connect')}
+                                                >
+                                                    <LinkIcon className="h-3 w-3" /> Connect
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 px-2 text-[10px] gap-1.5 text-muted-foreground hover:text-foreground"
+                                                    onClick={() => handleAction(note, 'branch')}
+                                                >
+                                                    <GitBranch className="h-3 w-3" /> Branch
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 px-2 text-[10px] gap-1.5 text-muted-foreground hover:text-foreground"
+                                                    onClick={() => handleAction(note, 'expand')}
+                                                >
+                                                    <Edit3 className="h-3 w-3" /> Expand
+                                                </Button>
+                                            </div>
+
+                                            {/* Type Label Removed */}
+                                        </div>
                                     </Card>
                                 ))
                             )}
@@ -288,7 +336,7 @@ export default function NotesPage() {
                                 recentNotes.map(note => (
                                     <Link key={note.id} href={`/notes/${note.id}`} className="block group">
                                         <div className="text-sm font-medium group-hover:text-primary transition-colors line-clamp-1">
-                                            {note.title}
+                                            <MarkdownRenderer content={note.title} className="prose-p:inline prose-p:m-0" />
                                         </div>
                                         <div className="text-xs text-muted-foreground flex justify-between mt-1">
                                             <span>{note.users?.codex_name || 'Unknown'}</span>

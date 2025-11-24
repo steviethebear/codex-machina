@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getAtomConnectionCount } from '@/lib/actions/check-hub-status'
+import { HubBadge } from '@/components/hub-badge'
 import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,6 +16,8 @@ import { findRelatedNotes, SuggestionResults } from '@/lib/suggestions'
 import { CreateNoteDialog } from '@/components/graph/create-note-dialog'
 import { LinkDialog } from '@/components/graph/link-dialog'
 import { EditNoteDialog } from '@/components/graph/edit-note-dialog'
+import { QualityBadge } from '@/components/quality-badge'
+import { useAuth } from '@/components/auth-provider'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row'] & {
     users: { codex_name: string | null } | null
@@ -35,6 +39,7 @@ export default function NoteDetailsPage() {
     const [outgoingLinks, setOutgoingLinks] = useState<LinkType[]>([])
     const [incomingLinks, setIncomingLinks] = useState<LinkType[]>([])
     const [relatedNotes, setRelatedNotes] = useState<SuggestionResults>({ notes: [], texts: [] })
+    const [connectionCount, setConnectionCount] = useState<number>(0)
     const [loading, setLoading] = useState(true)
 
     // Dialog States
@@ -48,7 +53,7 @@ export default function NoteDetailsPage() {
             .from('atomic_notes')
             .select(`
           *,
-          users (codex_name),
+          users:users!atomic_notes_author_id_fkey (codex_name),
           texts (title)
         `)
             .eq('id', id)
@@ -91,6 +96,10 @@ export default function NoteDetailsPage() {
                 userId: (await supabase.auth.getUser()).data.user?.id || ''
             })
 
+            // Get connection count
+            const count = await getAtomConnectionCount(id)
+            setConnectionCount(count)
+
             // Filter out notes that are already linked
             const linkedNoteIds = new Set([
                 ...(outData?.map(l => l.to_note_id) || []),
@@ -122,11 +131,17 @@ export default function NoteDetailsPage() {
         <div className="container mx-auto p-6 space-y-6 max-w-4xl">
             {/* Header */}
             <div className="flex items-start justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
+                <div className="flex-1">
+                    <h2 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3">
                         <MarkdownRenderer content={note.title} className="prose-p:inline prose-p:m-0" />
-                    </h1>
-                    <p className="text-muted-foreground mt-2">
+                        {connectionCount >= 5 && <HubBadge connectionCount={connectionCount} />}
+                    </h2>
+                    {note.quality_flag && (
+                        <div className="mb-3">
+                            <QualityBadge quality={note.quality_flag} />
+                        </div>
+                    )}
+                    <p className="text-muted-foreground mt-2 flex items-center gap-2">
                         By <span className="text-primary">{note.users?.codex_name || 'Unknown'}</span> • {note.type.toUpperCase()}
                     </p>
                 </div>

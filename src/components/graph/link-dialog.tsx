@@ -6,11 +6,11 @@ import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { Combobox } from '@/components/ui/combobox'
 import { Loader2 } from 'lucide-react'
-import { checkMeaning } from '@/lib/llm-stub'
 import { Database } from '@/types/database.types'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { MachineMessages } from '@/lib/machine-messages'
+import { checkContentQuality } from '@/lib/actions/check-content-quality'
 import { MarkdownEditor } from '@/components/markdown/editor'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
 
@@ -71,10 +71,10 @@ export function LinkDialog({ open, onOpenChange, sourceNote, onLinkCreated }: Li
             return
         }
 
-        // LLM Meaning Check
-        const meaning = await checkMeaning('Link Explanation', explanation)
-        if (meaning !== 'meaningful') {
-            const msg = `Connection rejected: Explanation is ${meaning}. Please elaborate.`
+        // Validate explanation using unified quality checker
+        const qualityCheck = await checkContentQuality({ body: explanation }, 'link', 40)
+        if (!qualityCheck.isValid) {
+            const msg = qualityCheck.feedback
             setError(msg)
             toast.error(MachineMessages.insufficientData)
             setLoading(false)
@@ -126,6 +126,18 @@ export function LinkDialog({ open, onOpenChange, sourceNote, onLinkCreated }: Li
         }
 
         toast.success(MachineMessages.linkCreated)
+
+        // Check for hub status (5+ connections)
+        const { checkHubStatus } = await import('@/lib/actions/check-hub-status')
+        const sourceHubStatus = await checkHubStatus(sourceNote.id)
+        const targetHubStatus = targetNoteId ? await checkHubStatus(targetNoteId) : null
+
+        if (sourceHubStatus.justBecameHub) {
+            toast.success("🌟 Your atom has become a hub! +50 XP, +10 Thinking SP")
+        }
+        if (targetHubStatus?.justBecameHub) {
+            toast.success("🌟 Connected atom is now a hub!")
+        }
 
         setLoading(false)
         // Reset form

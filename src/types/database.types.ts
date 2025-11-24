@@ -42,6 +42,7 @@ export interface Database {
                     sp_thinking: number
                     sp_writing: number
                     sp_engagement: number
+                    title: string | null
                     created_at: string
                 }
                 Insert: {
@@ -53,6 +54,7 @@ export interface Database {
                     sp_thinking?: number
                     sp_writing?: number
                     sp_engagement?: number
+                    title?: string | null
                     created_at?: string
                 }
                 Update: {
@@ -131,6 +133,12 @@ export interface Database {
                     tags: string[] | null
                     hidden: boolean
                     moderation_status: 'pending' | 'approved' | 'rejected'
+                    is_system_note: boolean
+                    discoverable_by: string | null
+                    quality_flag: 'exemplary' | 'interesting' | 'needs_revision' | null
+                    flag_visible_to_students: boolean
+                    flagged_by: string | null
+                    flagged_at: string | null
                     created_at: string
                 }
                 Insert: {

@@ -16,7 +16,7 @@ import { MarkdownEditor } from '@/components/markdown/editor'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
 import { findRelatedNotes, SuggestionResults } from '@/lib/suggestions'
 import { RelatedNotes } from '@/components/related-notes'
-import { analyzeAtomQuality, QualityAnalysisResult } from '@/lib/actions/analyze-atom-quality'
+import { checkContentQuality, ContentQualityResult } from '@/lib/actions/check-content-quality'
 import { QualityFeedbackCard } from '@/components/graph/quality-feedback-card'
 import { MachineMessages } from '@/lib/machine-messages'
 
@@ -51,7 +51,7 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
     const [selectedSuggestedNoteIds, setSelectedSuggestedNoteIds] = useState<Set<string>>(new Set())
 
     // Quality Analysis State
-    const [qualityAnalysis, setQualityAnalysis] = useState<QualityAnalysisResult | null>(null)
+    const [qualityAnalysis, setQualityAnalysis] = useState<ContentQualityResult | null>(null)
     const [isAnalyzing, setIsAnalyzing] = useState(false)
     const [bypassedQualityCheck, setBypassedQualityCheck] = useState(false)
     const [draftSaved, setDraftSaved] = useState(false)
@@ -132,10 +132,10 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
         if (!bypassedQualityCheck) {
             setIsAnalyzing(true)
             try {
-                const analysis = await analyzeAtomQuality({ title, body, type })
+                const analysis = await checkContentQuality({ title, body, type }, 'atom', 50)
                 setIsAnalyzing(false)
 
-                if (!analysis.isHighQuality) {
+                if (!analysis.isValid || analysis.quality === 'needs_work') {
                     setQualityAnalysis(analysis)
                     setLoading(false)
                     return // Stop submission to show feedback
@@ -274,7 +274,61 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
             }
         }
 
-        // 6. Success - points for creation will be awarded by async moderation
+        // 6. Award SP based on content classification
+        // Use the quality check category to determine SP award
+        if (qualityCheck && qualityCheck.category) {
+            let spReading = 0
+            let spThinking = 0
+            let spWriting = 0
+
+            switch (qualityCheck.category) {
+                case 'question':
+                case 'analysis':
+                case 'insight':
+                    spThinking = 5
+                    break
+                case 'definition':
+                    spWriting = 5
+                    break
+                case 'citation':
+                    spReading = 8 // Base + bonus for engaging with sources
+                    break
+            }
+
+            // Award to character
+            if (char && (spReading > 0 || spThinking > 0 || spWriting > 0)) {
+                // @ts-ignore
+                await supabase.from('characters').update({
+                    sp_reading: char.sp_reading + spReading,
+                    sp_thinking: char.sp_thinking + spThinking,
+                    sp_writing: char.sp_writing + spWriting,
+                }).eq('id', char.id)
+
+                // Log action
+                // @ts-ignore
+                await supabase.from('actions').insert({
+                    user_id: user.id,
+                    type: 'CREATE_ATOM',
+                    xp: 0,
+                    sp_reading: spReading,
+                    sp_thinking: spThinking,
+                    sp_writing: spWriting,
+                    description: `Created ${qualityCheck.category} atom: ${title}`,
+                    target_id: atom.id
+                })
+            }
+        }
+
+        // 7. Check for title award
+        if (user) {
+            const { calculateAndAwardTitle } = await import('@/lib/actions/calculate-title')
+            const newTitle = await calculateAndAwardTitle(user.id)
+            if (newTitle) {
+                toast.success(`🎭 New title earned: ${newTitle}!`)
+            }
+        }
+
+        // 8. Success - additional XP may be awarded by async moderation
 
         // Clear draft
         localStorage.removeItem(draftKey)
@@ -456,14 +510,14 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
                 )}
 
                 {/* Quality Feedback Overlay */}
-                {qualityAnalysis && !qualityAnalysis.isHighQuality && (
+                {qualityAnalysis && (qualityAnalysis.quality === 'needs_work' || qualityAnalysis.quality === 'good') && (
                     <div className="mb-4 animate-in fade-in slide-in-from-bottom-2">
                         <QualityFeedbackCard analysis={qualityAnalysis} />
                     </div>
                 )}
 
                 <div className="flex justify-end gap-2">
-                    {qualityAnalysis && !qualityAnalysis.isHighQuality ? (
+                    {qualityAnalysis && (qualityAnalysis.quality === 'needs_work' || qualityAnalysis.quality === 'good') ? (
                         <>
                             <Button type="button" variant="outline" onClick={() => {
                                 setQualityAnalysis(null) // Clear feedback to let them edit

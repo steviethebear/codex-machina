@@ -10,7 +10,7 @@ import { Database } from '@/types/database.types'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { MachineMessages } from '@/lib/machine-messages'
-import { checkMeaning } from '@/lib/llm-stub'
+import { checkContentQuality } from '@/lib/actions/check-content-quality'
 import { MarkdownEditor } from '@/components/markdown/editor'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
 
@@ -51,10 +51,10 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteUpdated }: Edit
             return
         }
 
-        // Meaning Check
-        const meaning = await checkMeaning('Update', body)
-        if (meaning !== 'meaningful') {
-            const msg = `Update rejected: Content is ${meaning}. Please elaborate.`
+        // Validate content using unified quality checker
+        const qualityCheck = await checkContentQuality({ title: note?.title, body }, 'atom', 50)
+        if (!qualityCheck.isValid) {
+            const msg = qualityCheck.feedback
             setError(msg)
             toast.error(MachineMessages.insufficientData)
             setLoading(false)

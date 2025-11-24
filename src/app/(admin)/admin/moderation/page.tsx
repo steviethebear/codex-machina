@@ -5,9 +5,14 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { moderateAtom } from '@/lib/actions/moderate-atom'
+import { setQualityFlag } from '@/lib/actions/set-quality-flag'
 import { toast } from 'sonner'
-import { CheckCircle, XCircle, Search } from 'lucide-react'
+import { CheckCircle, XCircle, Search, Star, Bookmark, Flag } from 'lucide-react'
 import { Combobox } from '@/components/ui/combobox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { useAuth } from '@/components/auth-provider'
 
 type Atom = {
     id: string

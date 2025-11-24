@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, FileText, Network, Trophy, LogOut, PlusCircle, ListChecks } from 'lucide-react'
+import { LayoutDashboard, FileText, Network, Trophy, LogOut, PlusCircle, ListChecks, BookOpen } from 'lucide-react'
 import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { ViewSwitcher } from '@/components/view-switcher'
@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Atoms', href: '/notes', icon: FileText },
+    { name: 'Notebook', href: '/notebook', icon: BookOpen },
     { name: 'Graph', href: '/graph', icon: Network },
     { name: 'My Submissions', href: '/my-submissions', icon: ListChecks },
     { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },

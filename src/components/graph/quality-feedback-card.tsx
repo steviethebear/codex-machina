@@ -2,17 +2,17 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle, CheckCircle2, Lightbulb } from 'lucide-react'
-import { QualityAnalysisResult } from '@/lib/actions/analyze-atom-quality'
+import { ContentQualityResult } from '@/lib/actions/check-content-quality'
 
 interface QualityFeedbackCardProps {
-    analysis: QualityAnalysisResult
+    analysis: ContentQualityResult
 }
 
 export function QualityFeedbackCard({ analysis }: QualityFeedbackCardProps) {
-    const { score, feedback, suggestions, isHighQuality } = analysis
+    const { quality, feedback, suggestions } = analysis
 
-    // Don't render anything if it's high quality (shouldn't happen in the dialog flow, but good for safety)
-    if (isHighQuality) return null
+    // Don't render anything if it's excellent quality
+    if (quality === 'excellent') return null
 
     return (
         <Card className="border-orange-500/30 bg-orange-500/5">
@@ -21,7 +21,7 @@ export function QualityFeedbackCard({ analysis }: QualityFeedbackCardProps) {
                     <Lightbulb className="h-4 w-4" />
                     Let's make this stronger!
                     <span className="ml-auto text-xs font-normal text-muted-foreground">
-                        Quality Score: {score}/10
+                        Quality: {quality === 'good' ? 'Good' : 'Needs Work'}
                     </span>
                 </CardTitle>
             </CardHeader>
