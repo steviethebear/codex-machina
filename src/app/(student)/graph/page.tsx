@@ -1,9 +1,13 @@
 'use client'
 
-import { PlusCircle } from 'lucide-react'
+import { PlusCircle, Search, User } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { useEffect, useState } from 'react'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent } from '@/components/ui/card'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import ForceGraph from '@/components/graph/force-graph'
 import { LinkDialog } from '@/components/graph/link-dialog'
@@ -12,6 +16,7 @@ import { TextMenu } from '@/components/graph/text-menu'
 import { CreateNoteDialog } from '@/components/graph/create-note-dialog'
 import { EditNoteDialog } from '@/components/graph/edit-note-dialog'
 import { Database } from '@/types/database.types'
+import { useAuth } from '@/components/auth-provider'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 type Text = Database['public']['Tables']['texts']['Row']
@@ -19,8 +24,15 @@ type LinkType = Database['public']['Tables']['links']['Row']
 
 export default function GraphPage() {
     const supabase = createClient()
+    const { user } = useAuth()
     const [data, setData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] })
     const [loading, setLoading] = useState(true)
+
+    // Control States
+    const [searchText, setSearchText] = useState('')
+    const [activeTypeFilter, setActiveTypeFilter] = useState<string | null>(null)
+    const [showMyAtomsOnly, setShowMyAtomsOnly] = useState(false)
+    const [hoveredNode, setHoveredNode] = useState<any | null>(null)
 
     // Dialog States
     const [menuOpen, setMenuOpen] = useState(false)
@@ -31,6 +43,35 @@ export default function GraphPage() {
 
     const [selectedNote, setSelectedNote] = useState<Note | null>(null)
     const [selectedText, setSelectedText] = useState<Text | null>(null)
+
+    // Calculate Highlighted Nodes
+    const highlightedNodeIds = useMemo(() => {
+        const ids = new Set<string>()
+        if (!searchText && !showMyAtomsOnly) return ids
+
+        data.nodes.forEach(node => {
+            let matches = true
+
+            // Search Text Filter
+            if (searchText) {
+                const searchLower = searchText.toLowerCase()
+                const titleMatch = node.name.toLowerCase().includes(searchLower)
+                // Could search body too if we had it in node data, but name is fast
+                if (!titleMatch) matches = false
+            }
+
+            // My Atoms Filter
+            if (showMyAtomsOnly && user) {
+                // Check if node author matches current user
+                // Note: Text nodes might not have author_id or it might be null
+                if (node.note?.author_id !== user.id) matches = false
+            }
+
+            if (matches) ids.add(node.id)
+        })
+
+        return ids
+    }, [data.nodes, searchText, showMyAtomsOnly, user])
 
     const fetchData = async () => {
         // Only show approved and pending atoms (not rejected)
@@ -115,43 +156,114 @@ export default function GraphPage() {
     }
 
     return (
-        <div className="flex flex-col flex-1 h-full">
-            <div className="flex justify-between items-center p-4">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Knowledge Graph</h2>
-                    <p className="text-muted-foreground">Visualizing the collective mind. Click an atom to interact.</p>
+        <div className="h-[calc(100vh-4rem)] w-full relative group">
+            <ForceGraph
+                data={data}
+                onNodeClick={handleNodeClick}
+                onNodeHover={setHoveredNode}
+                highlightNodes={highlightedNodeIds}
+                filterType={activeTypeFilter}
+            />
+
+            {/* Control Panel */}
+            <div className="absolute top-4 left-4 z-10 w-80 space-y-4">
+                <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl">
+                    <div className="p-4 space-y-4">
+                        {/* Search */}
+                        <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search atoms..."
+                                className="pl-8 bg-black/40 border-white/20 focus:border-primary"
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Type Filters */}
+                        <div className="flex flex-wrap gap-2">
+                            {['idea', 'question', 'quote', 'insight'].map(type => {
+                                const typeColors = {
+                                    idea: '#00f0ff',
+                                    question: '#ff003c',
+                                    quote: '#7000ff',
+                                    insight: '#ffe600'
+                                }
+                                const color = typeColors[type as keyof typeof typeColors]
+                                const isActive = activeTypeFilter === type
+
+                                return (
+                                    <Button
+                                        key={type}
+                                        variant="outline"
+                                        size="sm"
+                                        className={`h-7 text-xs capitalize ${isActive ? '' : 'bg-transparent hover:bg-white/5'
+                                            }`}
+                                        style={{
+                                            borderColor: color,
+                                            backgroundColor: isActive ? color : undefined,
+                                            color: isActive ? '#000' : color
+                                        }}
+                                        onClick={() => setActiveTypeFilter(activeTypeFilter === type ? null : type)}
+                                    >
+                                        {type}
+                                    </Button>
+                                )
+                            })}
+                        </div>
+
+                        {/* My Atoms Toggle */}
+                        <div className="flex items-center space-x-2 pt-2 border-t border-white/10">
+                            <Switch
+                                id="my-atoms"
+                                checked={showMyAtomsOnly}
+                                onCheckedChange={setShowMyAtomsOnly}
+                            />
+                            <Label htmlFor="my-atoms" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
+                                <User className="h-3 w-3" />
+                                My Atoms Only
+                            </Label>
+                        </div>
+                    </div>
                 </div>
-                <Button
-                    onClick={() => {
-                        setSelectedNote(null) // No source note for standalone creation
-                        setSelectedText(null) // No target text for standalone creation
-                        setCreateDialogOpen(true)
-                    }}
-                >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Create Atom
-                </Button>
             </div>
 
-            {loading ? (
-                <div className="flex-1 flex items-center justify-center">Loading simulation...</div>
-            ) : (
-                <div className="flex-1 flex justify-center relative border rounded-lg overflow-hidden bg-card">
-                    <ForceGraph data={data} onNodeClick={handleNodeClick} width="100%" height="100%" />
-
-                    {/* Legend Overlay */}
-                    <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur-sm p-3 rounded-md border shadow-sm text-xs space-y-2">
-                        <div className="font-semibold mb-1">Legend</div>
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#00f0ff]"></div><span>Idea</span></div>
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#ff003c]"></div><span>Question</span></div>
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#7000ff]"></div><span>Quote</span></div>
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#ffe600]"></div><span>Insight</span></div>
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#ffffff] border border-gray-500"></div><span>Text</span></div>
+            {/* Hover Preview */}
+            {hoveredNode && (
+                <div
+                    className="absolute z-20 pointer-events-none top-4 right-4"
+                >
+                    <div
+                        className="w-64 border-l-4 shadow-2xl bg-black/40 backdrop-blur-md border border-white/10 rounded-lg animate-in fade-in slide-in-from-top-2"
+                        style={{ borderLeftColor: hoveredNode.color }}
+                    >
+                        <div className="p-3">
+                            <div className="font-bold text-sm line-clamp-2">{hoveredNode.name}</div>
+                            <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
+                                <span className="capitalize">{hoveredNode.type}</span>
+                                {hoveredNode.note?.users?.codex_name && (
+                                    <span>by {hoveredNode.note.users.codex_name}</span>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* 1. The Atom Menu */}
+            <div className="absolute bottom-8 right-8 z-10">
+                <Button
+                    size="lg"
+                    className="shadow-lg"
+                    onClick={() => {
+                        setSelectedNote(null)
+                        setCreateDialogOpen(true)
+                    }}
+                >
+                    <PlusCircle className="mr-2 h-5 w-5" />
+                    Create Atom
+                </Button>
+            </div>
+            {/* Dialogs */}
             <NodeMenu
                 open={menuOpen}
                 onOpenChange={setMenuOpen}
@@ -161,7 +273,6 @@ export default function GraphPage() {
                 onExpand={() => setEditDialogOpen(true)}
             />
 
-            {/* Text Menu */}
             <TextMenu
                 open={textMenuOpen}
                 onOpenChange={setTextMenuOpen}
@@ -169,12 +280,11 @@ export default function GraphPage() {
                 onCreateLinkedAtom={() => setCreateDialogOpen(true)}
             />
 
-            {/* 2. The Actions */}
             <LinkDialog
                 open={linkDialogOpen}
                 onOpenChange={setLinkDialogOpen}
                 sourceNote={selectedNote}
-                onLinkCreated={handleRefresh}
+                onLinkCreated={fetchData}
             />
 
             <CreateNoteDialog
@@ -182,14 +292,14 @@ export default function GraphPage() {
                 onOpenChange={setCreateDialogOpen}
                 sourceAtom={selectedNote}
                 targetText={selectedText}
-                onAtomCreated={handleRefresh}
+                onAtomCreated={fetchData}
             />
 
             <EditNoteDialog
                 open={editDialogOpen}
                 onOpenChange={setEditDialogOpen}
                 note={selectedNote}
-                onNoteUpdated={handleRefresh}
+                onNoteUpdated={fetchData}
             />
         </div>
     )

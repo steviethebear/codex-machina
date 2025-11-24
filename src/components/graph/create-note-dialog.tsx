@@ -16,6 +16,9 @@ import { MarkdownEditor } from '@/components/markdown/editor'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
 import { findRelatedNotes, SuggestionResults } from '@/lib/suggestions'
 import { RelatedNotes } from '@/components/related-notes'
+import { analyzeAtomQuality, QualityAnalysisResult } from '@/lib/actions/analyze-atom-quality'
+import { QualityFeedbackCard } from '@/components/graph/quality-feedback-card'
+import { MachineMessages } from '@/lib/machine-messages'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 type Text = Database['public']['Tables']['texts']['Row']
@@ -45,6 +48,48 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
     const [suggestions, setSuggestions] = useState<SuggestionResults>({ notes: [], texts: [] })
     const [suggestionsLoading, setSuggestionsLoading] = useState(false)
     const [selectedSuggestedText, setSelectedSuggestedText] = useState<string | null>(null)
+    const [selectedSuggestedNoteIds, setSelectedSuggestedNoteIds] = useState<Set<string>>(new Set())
+
+    // Quality Analysis State
+    const [qualityAnalysis, setQualityAnalysis] = useState<QualityAnalysisResult | null>(null)
+    const [isAnalyzing, setIsAnalyzing] = useState(false)
+    const [bypassedQualityCheck, setBypassedQualityCheck] = useState(false)
+    const [draftSaved, setDraftSaved] = useState(false)
+
+    // Auto-save key
+    const draftKey = sourceAtom ? `draft_atom_branch_${sourceAtom.id}` : targetText ? `draft_atom_text_${targetText.id}` : 'draft_atom_new'
+
+    // Load draft on mount
+    useEffect(() => {
+        if (open) {
+            const savedDraft = localStorage.getItem(draftKey)
+            if (savedDraft) {
+                try {
+                    const { title: savedTitle, body: savedBody } = JSON.parse(savedDraft)
+                    if (savedTitle) setTitle(savedTitle)
+                    if (savedBody) setBody(savedBody)
+                    toast.info('Draft restored')
+                } catch (e) {
+                    console.error('Failed to parse draft', e)
+                }
+            }
+        }
+    }, [open, draftKey])
+
+    // Save draft on change (debounced)
+    useEffect(() => {
+        if (!open) return
+
+        const timer = setTimeout(() => {
+            if (title || body) {
+                localStorage.setItem(draftKey, JSON.stringify({ title, body }))
+                setDraftSaved(true)
+                setTimeout(() => setDraftSaved(false), 2000)
+            }
+        }, 1000)
+
+        return () => clearTimeout(timer)
+    }, [title, body, open, draftKey])
 
     // Debounced suggestion fetch
     useEffect(() => {
@@ -83,6 +128,25 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
             return
         }
 
+        // Quality Check (unless bypassed)
+        if (!bypassedQualityCheck) {
+            setIsAnalyzing(true)
+            try {
+                const analysis = await analyzeAtomQuality({ title, body, type })
+                setIsAnalyzing(false)
+
+                if (!analysis.isHighQuality) {
+                    setQualityAnalysis(analysis)
+                    setLoading(false)
+                    return // Stop submission to show feedback
+                }
+            } catch (err) {
+                console.error('Quality check failed', err)
+                setIsAnalyzing(false)
+                // Continue with submission if check fails
+            }
+        }
+
         // 1. Create the new atom (no blocking check)
         const { data: charData } = await supabase.from('characters').select('*').eq('user_id', user.id).single()
         if (!charData) {
@@ -109,7 +173,7 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
         if (noteError || !newAtom) {
             const msg = noteError?.message || 'Failed to create atom.'
             setError(msg)
-            toast.error(msg)
+            toast.error(MachineMessages.processingFailed)
             setLoading(false)
             return
         }
@@ -132,6 +196,22 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
             }
         }
 
+        // 4. Create links to selected suggested atoms
+        if (selectedSuggestedNoteIds.size > 0) {
+            const linkPromises = Array.from(selectedSuggestedNoteIds).map(async (noteId) => {
+                // @ts-ignore
+                return supabase.from('links').insert({
+                    from_note_id: atom.id,
+                    to_note_id: noteId,
+                    relation_type: 'supports', // Default relation
+                    explanation: 'Connected via suggestion',
+                    created_by: user.id
+                })
+            })
+
+            await Promise.all(linkPromises)
+        }
+
         // 3. Create link to target text if specified (from targetText prop or suggestion)
         const textToLink = targetText?.id || selectedSuggestedText
         if (textToLink) {
@@ -145,7 +225,7 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
             })
 
             if (textLinkError) {
-                console.error('Error creating text link:', textLinkError)
+                console.error('Error linking to text:', textLinkError)
             } else {
                 // Award points for text link (1 SP reading)
                 // @ts-ignore
@@ -168,13 +248,42 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
             }
         }
 
-        // 3. Success - points will be awarded by async moderation
+        // 5. Award points for Atom Connections (Expansion Bonus)
+        // +1 SP Thinking for each connection to another atom (source or suggested)
+        const atomConnectionsCount = (sourceAtom ? 1 : 0) + selectedSuggestedNoteIds.size
+        if (atomConnectionsCount > 0) {
+            const spReward = atomConnectionsCount * 1 // 1 SP per connection
+
+            // @ts-ignore
+            await supabase.from('actions').insert({
+                user_id: user.id,
+                type: 'LINK_NOTE',
+                xp: 0,
+                sp_thinking: spReward,
+                sp_reading: 0,
+                description: `Connected atom to ${atomConnectionsCount} other note(s)`,
+                target_id: atom.id
+            })
+
+            // Update Character Stats
+            if (char) {
+                // @ts-ignore
+                await supabase.from('characters').update({
+                    sp_thinking: char.sp_thinking + spReward,
+                }).eq('id', char.id)
+            }
+        }
+
+        // 6. Success - points for creation will be awarded by async moderation
+
+        // Clear draft
+        localStorage.removeItem(draftKey)
 
         setLoading(false)
         setTitle('')
         setBody('')
         setExplanation('')
-        toast.success(sourceAtom ? 'Branch created successfully!' : 'Atom created successfully!')
+        toast.success(sourceAtom ? MachineMessages.atomBranched : MachineMessages.atomCreated)
         onOpenChange(false)
 
         // Trigger async moderation (don't await)
@@ -189,7 +298,10 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogHeader onClose={() => onOpenChange(false)}>
                 <DialogTitle>
-                    {sourceAtom ? `Branch from: ${sourceAtom.title}` : targetText ? `Create Atom for: ${targetText.title}` : 'Create New Atom'}
+                    <div className="flex items-center gap-2">
+                        {sourceAtom ? `Branch from: ${sourceAtom.title}` : targetText ? `Create Atom for: ${targetText.title}` : 'Create New Atom'}
+                        {draftSaved && <span className="text-xs font-normal text-muted-foreground animate-pulse">(Draft saved)</span>}
+                    </div>
                 </DialogTitle>
                 <DialogDescription>
                     {sourceAtom
@@ -306,25 +418,80 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
                                 </Button>
                             </div>
                         )}
+                        {selectedSuggestedNoteIds.size > 0 && (
+                            <div className="mb-3 p-2 bg-primary/10 border border-primary/30 rounded text-xs flex items-center justify-between">
+                                <span className="text-primary font-medium">✓ {selectedSuggestedNoteIds.size} atom(s) selected to connect</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-xs"
+                                    onClick={() => setSelectedSuggestedNoteIds(new Set())}
+                                >
+                                    Clear All
+                                </Button>
+                            </div>
+                        )}
                         <RelatedNotes
                             suggestions={suggestions}
                             loading={suggestionsLoading}
                             onTextClick={(textId) => {
                                 setSelectedSuggestedText(textId)
-                                toast.success('Text selected - will auto-link when creating atom')
+                                toast.success(MachineMessages.textSelected)
                             }}
+                            onQuickLink={(noteId) => {
+                                const newSet = new Set(selectedSuggestedNoteIds)
+                                if (newSet.has(noteId)) {
+                                    newSet.delete(noteId)
+                                    toast.info('Connection removed')
+                                } else {
+                                    newSet.add(noteId)
+                                    toast.success(MachineMessages.atomSelected)
+                                }
+                                setSelectedSuggestedNoteIds(newSet)
+                            }}
+                            selectedNoteIds={selectedSuggestedNoteIds}
                         />
                     </div>
                 )}
 
-                <div className="flex justify-end gap-4">
-                    <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-                        Cancel
-                    </Button>
-                    <Button type="submit" disabled={loading}>
-                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {sourceAtom ? 'Create Branch' : 'Create Atom'}
-                    </Button>
+                {/* Quality Feedback Overlay */}
+                {qualityAnalysis && !qualityAnalysis.isHighQuality && (
+                    <div className="mb-4 animate-in fade-in slide-in-from-bottom-2">
+                        <QualityFeedbackCard analysis={qualityAnalysis} />
+                    </div>
+                )}
+
+                <div className="flex justify-end gap-2">
+                    {qualityAnalysis && !qualityAnalysis.isHighQuality ? (
+                        <>
+                            <Button type="button" variant="outline" onClick={() => {
+                                setQualityAnalysis(null) // Clear feedback to let them edit
+                            }}>
+                                Revise
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={(e) => {
+                                    setBypassedQualityCheck(true)
+                                    handleSubmit(e)
+                                }}
+                                disabled={loading}
+                            >
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit Anyway'}
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={loading || isAnalyzing}>
+                                {loading || isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Atom'}
+                            </Button>
+                        </>
+                    )}
                 </div>
             </form>
         </Dialog>

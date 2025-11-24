@@ -8,7 +8,9 @@ import { Database } from '@/types/database.types'
 import { Brain, BookOpen, PenTool, Share2, Zap } from 'lucide-react'
 import Link from 'next/link'
 
-type Character = Database['public']['Tables']['characters']['Row']
+type Character = Database['public']['Tables']['characters']['Row'] & {
+    users: { codex_name: string | null } | null
+}
 type Action = Database['public']['Tables']['actions']['Row']
 
 export default function DashboardPage() {
@@ -24,7 +26,7 @@ export default function DashboardPage() {
             // Fetch character
             const { data: charData } = await supabase
                 .from('characters')
-                .select('*')
+                .select('*, users(codex_name)')
                 .eq('user_id', user.id)
                 .single()
 
@@ -47,10 +49,12 @@ export default function DashboardPage() {
     if (!character) return <div className="p-8">Loading stats...</div>
 
     return (
-        <div className="space-y-8">
-            <div>
+        <div className="container mx-auto p-6 space-y-6">
+            <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-                <p className="text-muted-foreground">Welcome back, Agent.</p>
+                <div className="text-sm text-muted-foreground">
+                    Welcome back, <span className="font-medium text-foreground">{character.users?.codex_name || 'Student'}</span>
+                </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

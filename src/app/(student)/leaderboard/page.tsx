@@ -34,7 +34,7 @@ export default function LeaderboardPage() {
     }, [supabase, sortBy])
 
     return (
-        <div className="space-y-8">
+        <div className="container mx-auto p-6 space-y-6">
             <div>
                 <h2 className="text-3xl font-bold tracking-tight">Leaderboard</h2>
                 <p className="text-muted-foreground">Top performing agents in the simulation.</p>

@@ -9,6 +9,7 @@ import { Database } from '@/types/database.types'
 import { Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { MachineMessages } from '@/lib/machine-messages'
 import { MarkdownEditor } from '@/components/markdown/editor'
 
 type Unit = Database['public']['Tables']['units']['Row']
@@ -98,15 +99,15 @@ export default function CreateReflectionPage() {
             }).eq('id', char.id)
         }
 
-        toast.success('Reflection submitted successfully!')
+        toast.success(MachineMessages.reflectionSubmitted)
         router.push('/dashboard')
         router.refresh()
     }
 
     return (
-        <div className="max-w-2xl mx-auto space-y-8">
+        <div className="container mx-auto p-6 space-y-6 max-w-2xl">
             <div>
-                <h2 className="text-3xl font-bold tracking-tight">Submit Reflection</h2>
+                <h2 className="text-3xl font-bold tracking-tight">Write Reflection</h2>
                 <p className="text-muted-foreground">Synthesize your learning for the unit.</p>
             </div>
 

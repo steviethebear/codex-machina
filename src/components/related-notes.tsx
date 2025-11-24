@@ -12,9 +12,10 @@ interface RelatedNotesProps {
     onQuickLink?: (noteId: string) => void
     onTextClick?: (textId: string) => void
     loading?: boolean
+    selectedNoteIds?: Set<string>
 }
 
-export function RelatedNotes({ suggestions, onView, onQuickLink, onTextClick, loading }: RelatedNotesProps) {
+export function RelatedNotes({ suggestions, onView, onQuickLink, onTextClick, loading, selectedNoteIds }: RelatedNotesProps) {
     if (loading) {
         return (
             <div className="space-y-2">
@@ -58,9 +59,10 @@ export function RelatedNotes({ suggestions, onView, onQuickLink, onTextClick, lo
                                 }
                             }
                             const colors = getColors(note.type)
+                            const isSelected = selectedNoteIds?.has(note.id)
 
                             return (
-                                <Card key={note.id} className={`${colors.bg} ${colors.border} border transition-colors`}>
+                                <Card key={note.id} className={`${colors.bg} ${colors.border} border transition-colors ${isSelected ? 'ring-2 ring-primary ring-offset-1' : ''}`}>
                                     <CardContent className="p-3">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="flex-1 min-w-0">
@@ -91,11 +93,11 @@ export function RelatedNotes({ suggestions, onView, onQuickLink, onTextClick, lo
                                                     )}
                                                     {onQuickLink && (
                                                         <Button
-                                                            variant="ghost"
+                                                            variant={isSelected ? "default" : "ghost"}
                                                             size="sm"
-                                                            className="h-7 w-7 p-0"
+                                                            className={`h-7 w-7 p-0 ${isSelected ? 'bg-primary text-primary-foreground' : ''}`}
                                                             onClick={() => onQuickLink(note.id)}
-                                                            title="Link to this note"
+                                                            title={isSelected ? "Remove connection" : "Connect to this note"}
                                                         >
                                                             <LinkIcon className="h-3 w-3" />
                                                         </Button>

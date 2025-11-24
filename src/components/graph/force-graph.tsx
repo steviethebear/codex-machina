@@ -16,11 +16,14 @@ interface GraphData {
 interface ForceGraphProps {
     data: GraphData
     onNodeClick?: (node: any) => void
+    onNodeHover?: (node: any) => void
+    highlightNodes?: Set<string>
+    filterType?: string | null
 }
 
-export default function ForceGraph({ data, onNodeClick }: ForceGraphProps) {
+export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNodes, filterType }: ForceGraphProps) {
     const containerRef = useRef<HTMLDivElement>(null)
-    const [graphWidth, setGraphWidth] = useState(800) // Default or initial values
+    const [graphWidth, setGraphWidth] = useState(800)
     const [graphHeight, setGraphHeight] = useState(600)
 
     useEffect(() => {
@@ -31,33 +34,44 @@ export default function ForceGraph({ data, onNodeClick }: ForceGraphProps) {
             }
         }
 
-        // Initial dimensions
         updateDimensions()
-
-        // Set up ResizeObserver
         const observer = new ResizeObserver(updateDimensions)
-        if (containerRef.current) {
-            observer.observe(containerRef.current)
-        }
+        if (containerRef.current) observer.observe(containerRef.current)
 
-        // Cleanup
         return () => {
-            if (containerRef.current) {
-                observer.unobserve(containerRef.current)
-            }
+            if (containerRef.current) observer.unobserve(containerRef.current)
         }
     }, [])
 
+    const getNodeColor = (node: any) => {
+        // If a filter is active and node doesn't match, dim it
+        if (filterType && node.type !== filterType && node.type !== 'text') return '#333'
+
+        // If search/highlight is active and node isn't in set, dim it
+        if (highlightNodes && highlightNodes.size > 0 && !highlightNodes.has(node.id)) return '#333'
+
+        return node.color || '#00f0ff'
+    }
+
+    const getNodeVal = (node: any) => {
+        let val = node.val || 1
+        // Make highlighted nodes slightly larger
+        if (highlightNodes && highlightNodes.has(node.id)) val *= 1.5
+        return val
+    }
+
     return (
-        <div ref={containerRef} className="border rounded-lg overflow-hidden bg-card w-full h-full">
+        <div ref={containerRef} className="w-full h-full relative bg-[#0a0a0f]">
             <ForceGraph2D
                 graphData={data}
                 nodeLabel="name"
-                nodeColor={(node: any) => node.color || '#00f0ff'}
-                linkColor={() => '#555'}
+                nodeColor={getNodeColor}
+                nodeVal={getNodeVal}
+                linkColor={() => '#444'}
                 backgroundColor="#0a0a0f"
                 onNodeClick={onNodeClick}
-                nodeRelSize={6}
+                onNodeHover={onNodeHover}
+                nodeRelSize={8}
                 linkDirectionalParticles={2}
                 linkDirectionalParticleSpeed={0.005}
                 width={graphWidth}

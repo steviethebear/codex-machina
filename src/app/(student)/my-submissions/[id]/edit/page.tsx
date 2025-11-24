@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { MachineMessages } from '@/lib/machine-messages'
 import { checkMeaningAsync } from '@/lib/actions/check-meaning-async'
 
 export default function EditAtomPage({ params }: { params: { id: string } }) {
@@ -36,7 +37,7 @@ export default function EditAtomPage({ params }: { params: { id: string } }) {
                 setTitle((data as any).title)
                 setBody((data as any).body)
             } else {
-                toast.error('Atom not found or unauthorized')
+                toast.error(MachineMessages.atomNotFound)
                 router.push('/my-submissions')
             }
             setLoading(false)
@@ -50,7 +51,7 @@ export default function EditAtomPage({ params }: { params: { id: string } }) {
         if (!user || !atom) return
 
         if (body.length < 50) {
-            toast.error('Atom body must be at least 50 characters.')
+            toast.error(MachineMessages.insufficientData)
             return
         }
 
@@ -67,12 +68,12 @@ export default function EditAtomPage({ params }: { params: { id: string } }) {
         }).eq('id', atom.id)
 
         if (error) {
-            toast.error('Failed to update atom')
+            toast.error(MachineMessages.processingFailed)
             setSubmitting(false)
             return
         }
 
-        toast.success('Atom resubmitted for review!')
+        toast.success(MachineMessages.atomResubmitted)
 
         // Trigger async moderation
         checkMeaningAsync(atom.id).catch((err) => {

@@ -72,17 +72,18 @@ export async function findRelatedNotes(params: FindRelatedParams): Promise<Sugge
         .eq('archived', false)
 
     // Prepare input tokens
-    const titleLower = title.toLowerCase()
-    const titleWords = extractKeywords(title)
-    const bodyWords = extractKeywords(body)
+    const titleLower = (title || '').toLowerCase()
+    const titleWords = extractKeywords(title || '')
+    const bodyWords = extractKeywords(body || '')
     const allInputWords = new Set([...titleWords, ...bodyWords])
 
     // Helper for scoring
     const calculateScore = (itemTitle: string, itemBody: string | null, itemType: string | null, itemTextId: string | null, isText: boolean) => {
         let score = 0
         const reasons: string[] = []
-        const itemTitleLower = itemTitle.toLowerCase()
-        const itemTitleWords = extractKeywords(itemTitle)
+        const safeItemTitle = itemTitle || ''
+        const itemTitleLower = safeItemTitle.toLowerCase()
+        const itemTitleWords = extractKeywords(safeItemTitle)
 
         // 1. Exact Phrase Match (High Value)
         if (titleLower.length > 3 && itemTitleLower.includes(titleLower)) {

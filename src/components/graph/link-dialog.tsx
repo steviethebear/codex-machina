@@ -10,6 +10,7 @@ import { checkMeaning } from '@/lib/llm-stub'
 import { Database } from '@/types/database.types'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { MachineMessages } from '@/lib/machine-messages'
 import { MarkdownEditor } from '@/components/markdown/editor'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
 
@@ -65,7 +66,7 @@ export function LinkDialog({ open, onOpenChange, sourceNote, onLinkCreated }: Li
         if (explanation.length < 40) {
             const msg = 'Explanation must be at least 40 characters.'
             setError(msg)
-            toast.error(msg)
+            toast.error(MachineMessages.insufficientData)
             setLoading(false)
             return
         }
@@ -75,7 +76,7 @@ export function LinkDialog({ open, onOpenChange, sourceNote, onLinkCreated }: Li
         if (meaning !== 'meaningful') {
             const msg = `Connection rejected: Explanation is ${meaning}. Please elaborate.`
             setError(msg)
-            toast.error(msg)
+            toast.error(MachineMessages.insufficientData)
             setLoading(false)
             return
         }
@@ -94,7 +95,7 @@ export function LinkDialog({ open, onOpenChange, sourceNote, onLinkCreated }: Li
         if (linkError) {
             const msg = linkError.message
             setError(msg)
-            toast.error(msg)
+            toast.error(MachineMessages.processingFailed)
             setLoading(false)
             return
         }
@@ -124,7 +125,7 @@ export function LinkDialog({ open, onOpenChange, sourceNote, onLinkCreated }: Li
             }).eq('id', char.id)
         }
 
-        toast.success('Connection created successfully!')
+        toast.success(MachineMessages.linkCreated)
 
         setLoading(false)
         // Reset form

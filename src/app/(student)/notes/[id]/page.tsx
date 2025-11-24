@@ -7,8 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Database } from '@/types/database.types'
 import Link from 'next/link'
-import { ArrowRight, Link as LinkIcon } from 'lucide-react'
+import { ArrowRight, Link as LinkIcon, GitBranch, Edit3 } from 'lucide-react'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
+import { RelatedNotes } from '@/components/related-notes'
+import { findRelatedNotes, SuggestionResults } from '@/lib/suggestions'
+import { CreateNoteDialog } from '@/components/graph/create-note-dialog'
+import { LinkDialog } from '@/components/graph/link-dialog'
+import { EditNoteDialog } from '@/components/graph/edit-note-dialog'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row'] & {
     users: { codex_name: string | null } | null
@@ -29,49 +34,84 @@ export default function NoteDetailsPage() {
     const [note, setNote] = useState<Note | null>(null)
     const [outgoingLinks, setOutgoingLinks] = useState<LinkType[]>([])
     const [incomingLinks, setIncomingLinks] = useState<LinkType[]>([])
+    const [relatedNotes, setRelatedNotes] = useState<SuggestionResults>({ notes: [], texts: [] })
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        const fetchNote = async () => {
-            // Fetch Note
-            const { data: noteData, error } = await supabase
-                .from('atomic_notes')
-                .select(`
+    // Dialog States
+    const [createDialogOpen, setCreateDialogOpen] = useState(false)
+    const [linkDialogOpen, setLinkDialogOpen] = useState(false)
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+
+    const fetchNote = async () => {
+        // Fetch Note
+        const { data: noteData, error } = await supabase
+            .from('atomic_notes')
+            .select(`
           *,
           users (codex_name),
           texts (title)
         `)
-                .eq('id', id)
-                .single()
+            .eq('id', id)
+            .single()
 
-            if (noteData) setNote(noteData as any) // Type assertion needed due to join
+        if (noteData) setNote(noteData as any) // Type assertion needed due to join
 
-            // Fetch Outgoing Links
-            const { data: outData } = await supabase
-                .from('links')
-                .select(`
+        // Fetch Outgoing Links
+        const { data: outData } = await supabase
+            .from('links')
+            .select(`
           *,
           to_note:atomic_notes!links_to_note_id_fkey(title),
           to_text:texts(title)
         `)
-                .eq('from_note_id', id)
+            .eq('from_note_id', id)
 
-            if (outData) setOutgoingLinks(outData as any)
+        if (outData) setOutgoingLinks(outData as any)
 
-            // Fetch Incoming Links
-            const { data: inData } = await supabase
-                .from('links')
-                .select(`
+        // Fetch Incoming Links
+        const { data: inData } = await supabase
+            .from('links')
+            .select(`
           *,
           from_note:atomic_notes!links_from_note_id_fkey(title)
         `)
-                .eq('to_note_id', id)
+            .eq('to_note_id', id)
 
-            if (inData) setIncomingLinks(inData as any)
+        if (inData) setIncomingLinks(inData as any)
 
-            setLoading(false)
+        // Find Related Notes (if note exists)
+        if (noteData) {
+            // @ts-ignore
+            const suggestions = await findRelatedNotes(supabase, {
+                title: noteData.title,
+                body: noteData.body,
+                type: noteData.type,
+                textId: noteData.text_id,
+                excludeId: id,
+                userId: (await supabase.auth.getUser()).data.user?.id || ''
+            })
+
+            // Filter out notes that are already linked
+            const linkedNoteIds = new Set([
+                ...(outData?.map(l => l.to_note_id) || []),
+                ...(inData?.map(l => l.from_note_id) || [])
+            ])
+
+            // Filter out texts that are already linked
+            const linkedTextIds = new Set([
+                ...(outData?.map(l => l.to_text_id) || [])
+            ])
+
+            setRelatedNotes({
+                notes: suggestions.notes.filter(s => !linkedNoteIds.has(s.note.id)),
+                texts: suggestions.texts.filter(s => !linkedTextIds.has(s.text.id))
+            })
         }
 
+        setLoading(false)
+    }
+
+    useEffect(() => {
         if (id) fetchNote()
     }, [id, supabase])
 
@@ -79,8 +119,9 @@ export default function NoteDetailsPage() {
     if (!note) return <div className="p-8">Note not found.</div>
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
-            <div className="flex items-center justify-between">
+        <div className="container mx-auto p-6 space-y-6 max-w-4xl">
+            {/* Header */}
+            <div className="flex items-start justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">
                         <MarkdownRenderer content={note.title} className="prose-p:inline prose-p:m-0" />
@@ -89,12 +130,20 @@ export default function NoteDetailsPage() {
                         By <span className="text-primary">{note.users?.codex_name || 'Unknown'}</span> • {note.type.toUpperCase()}
                     </p>
                 </div>
-                <Link href={`/links/create?fromId=${note.id}`}>
-                    <Button className="gap-2">
-                        <LinkIcon className="h-4 w-4" />
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setLinkDialogOpen(true)}>
+                        <LinkIcon className="mr-2 h-4 w-4" />
                         Connect
                     </Button>
-                </Link>
+                    <Button variant="outline" size="sm" onClick={() => setCreateDialogOpen(true)}>
+                        <GitBranch className="mr-2 h-4 w-4" />
+                        Branch
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
+                        <Edit3 className="mr-2 h-4 w-4" />
+                        Expand
+                    </Button>
+                </div>
             </div>
 
             <Card>
@@ -115,22 +164,26 @@ export default function NoteDetailsPage() {
                     {outgoingLinks.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No outgoing links.</p>
                     ) : (
-                        <div className="space-y-2">
-                            {outgoingLinks.map((link) => (
-                                <Card key={link.id} className="bg-muted/50">
+                        <div className="space-y-4">
+                            {outgoingLinks.map(link => (
+                                <Card key={link.id}>
                                     <CardContent className="p-4">
-                                        <div className="flex items-center gap-2 text-sm font-medium mb-1">
-                                            <span>{link.relation_type}</span>
-                                            <ArrowRight className="h-3 w-3" />
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-xs font-mono px-2 py-0.5 rounded border bg-muted">
+                                                {link.relation_type}
+                                            </span>
+                                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
                                             {link.to_note ? (
-                                                <Link href={`/notes/${link.to_note_id}`} className="hover:underline text-primary">
+                                                <Link href={`/notes/${link.to_note_id}`} className="text-sm font-medium hover:underline">
                                                     {link.to_note.title}
                                                 </Link>
-                                            ) : (
-                                                <span className="text-secondary">{link.to_text?.title}</span>
-                                            )}
+                                            ) : link.to_text ? (
+                                                <span className="text-sm font-medium text-muted-foreground">
+                                                    {link.to_text.title} (Text)
+                                                </span>
+                                            ) : null}
                                         </div>
-                                        <MarkdownRenderer content={link.explanation} className="text-xs text-muted-foreground" />
+                                        <p className="text-sm text-muted-foreground">{link.explanation}</p>
                                     </CardContent>
                                 </Card>
                             ))}
@@ -143,18 +196,24 @@ export default function NoteDetailsPage() {
                     {incomingLinks.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No incoming links.</p>
                     ) : (
-                        <div className="space-y-2">
-                            {incomingLinks.map((link) => (
-                                <Card key={link.id} className="bg-muted/50">
+                        <div className="space-y-4">
+                            {incomingLinks.map(link => (
+                                <Card key={link.id}>
                                     <CardContent className="p-4">
-                                        <div className="flex items-center gap-2 text-sm font-medium mb-1">
-                                            <Link href={`/notes/${link.from_note_id}`} className="hover:underline text-primary">
-                                                {link.from_note?.title}
-                                            </Link>
-                                            <ArrowRight className="h-3 w-3" />
-                                            <span>{link.relation_type}</span>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            {link.from_note ? (
+                                                <Link href={`/notes/${link.from_note_id}`} className="text-sm font-medium hover:underline">
+                                                    {link.from_note.title}
+                                                </Link>
+                                            ) : (
+                                                <span className="text-sm font-medium">Unknown</span>
+                                            )}
+                                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-xs font-mono px-2 py-0.5 rounded border bg-muted">
+                                                {link.relation_type}
+                                            </span>
                                         </div>
-                                        <MarkdownRenderer content={link.explanation} className="text-xs text-muted-foreground" />
+                                        <p className="text-sm text-muted-foreground">{link.explanation}</p>
                                     </CardContent>
                                 </Card>
                             ))}
@@ -162,6 +221,46 @@ export default function NoteDetailsPage() {
                     )}
                 </div>
             </div>
+
+            {/* Related Signals */}
+            {(relatedNotes.notes.length > 0 || relatedNotes.texts.length > 0) && (
+                <div className="space-y-4 pt-4 border-t">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                        Related Signals
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        The Machine has detected resonance with these existing atoms.
+                    </p>
+                    <RelatedNotes
+                        suggestions={relatedNotes}
+                        onSelectText={() => { }}
+                        onSelectNote={(note) => {
+                            window.location.href = `/notes/${note.id}`
+                        }}
+                    />
+                </div>
+            )}
+
+            {/* Dialogs */}
+            <CreateNoteDialog
+                open={createDialogOpen}
+                onOpenChange={setCreateDialogOpen}
+                sourceAtom={note}
+                onAtomCreated={fetchNote}
+            />
+            <LinkDialog
+                open={linkDialogOpen}
+                onOpenChange={setLinkDialogOpen}
+                sourceNote={note}
+                onLinkCreated={fetchNote}
+            />
+            <EditNoteDialog
+                open={editDialogOpen}
+                onOpenChange={setEditDialogOpen}
+                note={note}
+                onNoteUpdated={fetchNote}
+            />
         </div>
     )
 }

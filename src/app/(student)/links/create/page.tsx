@@ -115,7 +115,7 @@ export default function CreateLinkPage() {
     if (!fromNote) return <div className="p-8">Loading...</div>
 
     return (
-        <div className="max-w-2xl mx-auto space-y-8">
+        <div className="container mx-auto p-6 space-y-6 max-w-2xl">
             <div>
                 <h2 className="text-3xl font-bold tracking-tight">Create Connection</h2>
                 <p className="text-muted-foreground">Link <span className="font-semibold text-primary">{fromNote.title}</span> to another concept.</p>

@@ -6,6 +6,7 @@ import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { Clock, CheckCircle, XCircle, Edit } from 'lucide-react'
+import { CreateNoteDialog } from '@/components/graph/create-note-dialog'
 
 type Atom = {
     id: string
@@ -25,6 +26,7 @@ export default function MySubmissionsPage() {
     const [atoms, setAtoms] = useState<Atom[]>([])
     const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending')
     const [loading, setLoading] = useState(true)
+    const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
     const fetchAtoms = async () => {
         if (!user) return
@@ -79,10 +81,15 @@ export default function MySubmissionsPage() {
     }
 
     return (
-        <div className="space-y-8">
-            <div>
-                <h2 className="text-3xl font-bold tracking-tight">My Submissions</h2>
-                <p className="text-muted-foreground">Track the status of your atoms</p>
+        <div className="container mx-auto p-6 space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">My Submissions</h2>
+                    <p className="text-muted-foreground">Track the status of your atomic notes.</p>
+                </div>
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                    Create New Atom
+                </Button>
             </div>
 
             <div className="flex gap-2">
@@ -175,6 +182,13 @@ export default function MySubmissionsPage() {
                     ))}
                 </div>
             )}
+
+            <CreateNoteDialog
+                open={createDialogOpen}
+                onOpenChange={setCreateDialogOpen}
+                sourceAtom={null}
+                onAtomCreated={fetchAtoms}
+            />
         </div>
     )
 }

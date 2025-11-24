@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react'
 import { Database } from '@/types/database.types'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { MachineMessages } from '@/lib/machine-messages'
 import { checkMeaning } from '@/lib/llm-stub'
 import { MarkdownEditor } from '@/components/markdown/editor'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
@@ -55,7 +56,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteUpdated }: Edit
         if (meaning !== 'meaningful') {
             const msg = `Update rejected: Content is ${meaning}. Please elaborate.`
             setError(msg)
-            toast.error(msg)
+            toast.error(MachineMessages.insufficientData)
             setLoading(false)
             return
         }
@@ -71,7 +72,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteUpdated }: Edit
         if (updateError) {
             const msg = updateError.message
             setError(msg)
-            toast.error(msg)
+            toast.error(MachineMessages.processingFailed)
             setLoading(false)
             return
         }
@@ -104,7 +105,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteUpdated }: Edit
             }
         }
 
-        toast.success('Atom updated successfully!')
+        toast.success(MachineMessages.atomUpdated)
 
         setLoading(false)
         setBody('') // Reset form
@@ -131,12 +132,11 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteUpdated }: Edit
             <form onSubmit={handleSubmit} className="space-y-6 mt-4">
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Additions</label>
-                    <textarea
-                        required
-                        className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    <MarkdownEditor
                         value={body}
-                        onChange={(e) => setBody(e.target.value)}
+                        onChange={setBody}
                         placeholder="Write your additional thoughts here..."
+                        minHeight="150px"
                     />
                 </div>
 
