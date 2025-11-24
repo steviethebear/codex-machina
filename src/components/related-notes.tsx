@@ -46,53 +46,67 @@ export function RelatedNotes({ suggestions, onView, onQuickLink, onTextClick, lo
                 {suggestions.notes.length > 0 && (
                     <div className="space-y-2">
                         <div className="text-xs font-medium text-muted-foreground">Atoms ({suggestions.notes.length})</div>
-                        {suggestions.notes.map(({ note, score, reason }) => (
-                            <Card key={note.id} className="bg-muted/30 hover:bg-muted/50 transition-colors">
-                                <CardContent className="p-3">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <Badge variant="outline" className="text-xs capitalize">
-                                                    {note.type}
-                                                </Badge>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {reason}
-                                                </span>
+                        {suggestions.notes.map(({ note, score, reason }) => {
+                            // Color mapping
+                            const getColors = (type: string) => {
+                                switch (type) {
+                                    case 'idea': return { bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', text: 'text-cyan-500', badge: 'border-cyan-500/30 text-cyan-500' }
+                                    case 'question': return { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-500', badge: 'border-red-500/30 text-red-500' }
+                                    case 'quote': return { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-500', badge: 'border-purple-500/30 text-purple-500' }
+                                    case 'insight': return { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-500', badge: 'border-yellow-500/30 text-yellow-500' }
+                                    default: return { bg: 'bg-muted/30', border: 'border-transparent', text: 'text-muted-foreground', badge: 'text-muted-foreground' }
+                                }
+                            }
+                            const colors = getColors(note.type)
+
+                            return (
+                                <Card key={note.id} className={`${colors.bg} ${colors.border} border transition-colors`}>
+                                    <CardContent className="p-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Badge variant="outline" className={`text-xs capitalize ${colors.bg} ${colors.badge}`}>
+                                                        {note.type}
+                                                    </Badge>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {reason}
+                                                    </span>
+                                                </div>
+                                                <div className={`font-medium text-sm truncate ${colors.text}`}>
+                                                    {note.title}
+                                                </div>
                                             </div>
-                                            <div className="font-medium text-sm truncate">
-                                                {note.title}
-                                            </div>
+                                            {(onView || onQuickLink) && (
+                                                <div className="flex gap-1 flex-shrink-0">
+                                                    {onView && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-7 w-7 p-0"
+                                                            onClick={() => onView(note.id)}
+                                                            title="View full note"
+                                                        >
+                                                            <Eye className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
+                                                    {onQuickLink && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-7 w-7 p-0"
+                                                            onClick={() => onQuickLink(note.id)}
+                                                            title="Link to this note"
+                                                        >
+                                                            <LinkIcon className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
-                                        {(onView || onQuickLink) && (
-                                            <div className="flex gap-1 flex-shrink-0">
-                                                {onView && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-7 w-7 p-0"
-                                                        onClick={() => onView(note.id)}
-                                                        title="View full note"
-                                                    >
-                                                        <Eye className="h-3 w-3" />
-                                                    </Button>
-                                                )}
-                                                {onQuickLink && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-7 w-7 p-0"
-                                                        onClick={() => onQuickLink(note.id)}
-                                                        title="Link to this note"
-                                                    >
-                                                        <LinkIcon className="h-3 w-3" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                    </CardContent>
+                                </Card>
+                            )
+                        })}
                     </div>
                 )}
 

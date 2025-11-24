@@ -130,6 +130,7 @@ export interface Database {
                     type: 'idea' | 'question' | 'quote' | 'insight'
                     tags: string[] | null
                     hidden: boolean
+                    moderation_status: 'pending' | 'approved' | 'rejected'
                     created_at: string
                 }
                 Insert: {

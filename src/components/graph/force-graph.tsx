@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef, useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
@@ -18,8 +19,37 @@ interface ForceGraphProps {
 }
 
 export default function ForceGraph({ data, onNodeClick }: ForceGraphProps) {
+    const containerRef = useRef<HTMLDivElement>(null)
+    const [graphWidth, setGraphWidth] = useState(800) // Default or initial values
+    const [graphHeight, setGraphHeight] = useState(600)
+
+    useEffect(() => {
+        const updateDimensions = () => {
+            if (containerRef.current) {
+                setGraphWidth(containerRef.current.offsetWidth)
+                setGraphHeight(containerRef.current.offsetHeight)
+            }
+        }
+
+        // Initial dimensions
+        updateDimensions()
+
+        // Set up ResizeObserver
+        const observer = new ResizeObserver(updateDimensions)
+        if (containerRef.current) {
+            observer.observe(containerRef.current)
+        }
+
+        // Cleanup
+        return () => {
+            if (containerRef.current) {
+                observer.unobserve(containerRef.current)
+            }
+        }
+    }, [])
+
     return (
-        <div className="border rounded-lg overflow-hidden bg-card">
+        <div ref={containerRef} className="border rounded-lg overflow-hidden bg-card w-full h-full">
             <ForceGraph2D
                 graphData={data}
                 nodeLabel="name"
@@ -30,8 +60,8 @@ export default function ForceGraph({ data, onNodeClick }: ForceGraphProps) {
                 nodeRelSize={6}
                 linkDirectionalParticles={2}
                 linkDirectionalParticleSpeed={0.005}
-                width={800} // Should be responsive, but fixed for now or use a wrapper ref
-                height={600}
+                width={graphWidth}
+                height={graphHeight}
             />
         </div>
     )

@@ -41,12 +41,29 @@ export async function findRelatedNotes(params: FindRelatedParams): Promise<Sugge
     const supabase = createClient()
 
     // Fetch approved and pending notes (not rejected or hidden)
-    const { data: notes } = await supabase
+    let query = supabase
         .from('atomic_notes')
         .select('*')
-        .neq('moderation_status', 'rejected')
         .eq('hidden', false)
-        .neq('id', excludeId || '')
+
+    if (excludeId) {
+        query = query.neq('id', excludeId)
+    }
+
+    const { data: rawNotes, error } = await query
+
+    if (error) {
+        console.error('Suggestion Fetch Error:', error)
+    }
+
+    // Filter in memory to be safe
+    const notes = (rawNotes as Note[])?.filter(n => n.moderation_status !== 'rejected')
+
+    console.log('Suggestion Debug - Fetching:', {
+        inputTitle: title,
+        totalNotesFound: notes?.length,
+        notesSample: (notes as Note[])?.slice(0, 3).map(n => n.title)
+    })
 
     // Fetch non-archived texts
     const { data: texts } = await supabase
@@ -54,80 +71,101 @@ export async function findRelatedNotes(params: FindRelatedParams): Promise<Sugge
         .select('*')
         .eq('archived', false)
 
-    // Extract keywords from title and body
+    // Prepare input tokens
+    const titleLower = title.toLowerCase()
     const titleWords = extractKeywords(title)
     const bodyWords = extractKeywords(body)
-    const allWords = new Set([...titleWords, ...bodyWords])
+    const allInputWords = new Set([...titleWords, ...bodyWords])
 
-    // Score each note
-    const scoredNotes: SuggestedNote[] = (notes || []).map((note: Note) => {
+    // Helper for scoring
+    const calculateScore = (itemTitle: string, itemBody: string | null, itemType: string | null, itemTextId: string | null, isText: boolean) => {
         let score = 0
         const reasons: string[] = []
+        const itemTitleLower = itemTitle.toLowerCase()
+        const itemTitleWords = extractKeywords(itemTitle)
 
-        // 1. Title matching (weight: 3)
-        const noteTitleWords = extractKeywords(note.title)
-        const titleMatches = noteTitleWords.filter(word => titleWords.includes(word)).length
-        if (titleMatches > 0) {
-            score += titleMatches * 3
-            reasons.push(`${titleMatches} title word${titleMatches > 1 ? 's' : ''}`)
+        // 1. Exact Phrase Match (High Value)
+        if (titleLower.length > 3 && itemTitleLower.includes(titleLower)) {
+            score += 10
+            reasons.push('exact phrase match')
         }
 
-        // 2. Same text reference (weight: 2)
-        if (textId && note.text_id === textId) {
+        // 2. Title Word Matching (Exact & Partial)
+        let titleMatchScore = 0
+        let matchCount = 0
+
+        // Check each word in the ITEM's title against INPUT title words
+        itemTitleWords.forEach(itemWord => {
+            // Exact match
+            if (titleWords.includes(itemWord)) {
+                titleMatchScore += 3
+                matchCount++
+            }
+            // Partial match (if word is long enough)
+            else if (itemWord.length > 3) {
+                const partialMatch = titleWords.some(inputWord =>
+                    (inputWord.length > 3 && (itemWord.includes(inputWord) || inputWord.includes(itemWord)))
+                )
+                if (partialMatch) {
+                    titleMatchScore += 1
+                    matchCount++
+                }
+            }
+        })
+
+        if (titleMatchScore > 0) {
+            score += titleMatchScore
+            reasons.push(`${matchCount} title match${matchCount > 1 ? 'es' : ''}`)
+        }
+
+        // 3. Same Source (Notes only)
+        if (!isText && textId && itemTextId === textId) {
             score += 2
             reasons.push('same source')
         }
 
-        // 3. Same type (weight: 1)
-        if (note.type === type) {
+        // 4. Same Type (Notes only)
+        if (!isText && itemType === type) {
             score += 1
             reasons.push('same type')
         }
 
-        // 4. Body keyword matching (weight: 0.5)
-        const noteBodyWords = extractKeywords(note.body)
-        const bodyMatches = noteBodyWords.filter(word => allWords.has(word)).length
-        if (bodyMatches > 0) {
-            score += bodyMatches * 0.5
-            reasons.push(`${bodyMatches} keyword${bodyMatches > 1 ? 's' : ''}`)
+        // 5. Body/Author Keyword Matching
+        // For texts, we check Author. For notes, we check Body.
+        if (isText) {
+            // Check Author
+            const authorWords = extractKeywords(itemBody || '') // itemBody passed as author for texts
+            const authorMatches = authorWords.filter(word => allInputWords.has(word)).length
+            if (authorMatches > 0) {
+                score += authorMatches * 1.5
+                reasons.push('author match')
+            }
+        } else {
+            // Check Body
+            const noteBodyWords = extractKeywords(itemBody || '')
+            const bodyMatches = noteBodyWords.filter(word => allInputWords.has(word)).length
+            if (bodyMatches > 0) {
+                score += bodyMatches * 0.5
+                reasons.push(`${bodyMatches} keyword${bodyMatches > 1 ? 's' : ''}`)
+            }
         }
 
-        return {
-            note,
-            score,
-            reason: reasons.join(', ')
-        }
+        return { score, reasons }
+    }
+
+    // Score Notes
+    const scoredNotes: SuggestedNote[] = (notes || []).map((note: Note) => {
+        const { score, reasons } = calculateScore(note.title, note.body, note.type, note.text_id, false)
+        return { note, score, reason: reasons.join(', ') }
     })
 
-    // Score each text
+    // Score Texts
     const scoredTexts: SuggestedText[] = (texts || []).map((text: Text) => {
-        let score = 0
-        const reasons: string[] = []
-
-        // 1. Title matching (weight: 3)
-        const textTitleWords = extractKeywords(text.title)
-        const titleMatches = textTitleWords.filter(word => titleWords.includes(word)).length
-        if (titleMatches > 0) {
-            score += titleMatches * 3
-            reasons.push(`${titleMatches} title word${titleMatches > 1 ? 's' : ''}`)
-        }
-
-        // 2. Author matching (weight: 1.5)
-        const authorWords = extractKeywords(text.author)
-        const authorMatches = authorWords.filter(word => allWords.has(word)).length
-        if (authorMatches > 0) {
-            score += authorMatches * 1.5
-            reasons.push('author match')
-        }
-
-        return {
-            text,
-            score,
-            reason: reasons.length > 0 ? reasons.join(', ') : 'related content'
-        }
+        const { score, reasons } = calculateScore(text.title, text.author, 'text', null, true)
+        return { text, score, reason: reasons.length > 0 ? reasons.join(', ') : 'related content' }
     })
 
-    // Filter out zero scores and sort by score descending
+    // Filter and Sort
     const topNotes = scoredNotes
         .filter(s => s.score > 0)
         .sort((a, b) => b.score - a.score)
@@ -136,7 +174,13 @@ export async function findRelatedNotes(params: FindRelatedParams): Promise<Sugge
     const topTexts = scoredTexts
         .filter(s => s.score > 0)
         .sort((a, b) => b.score - a.score)
-        .slice(0, 3) // Show fewer texts
+        .slice(0, 3)
+
+    console.log('Suggestion Debug - Results:', {
+        topNotesCount: topNotes.length,
+        topNotes: topNotes.map(n => ({ title: n.note.title, score: n.score, reason: n.reason })),
+        topTextsCount: topTexts.length
+    })
 
     return {
         notes: topNotes,

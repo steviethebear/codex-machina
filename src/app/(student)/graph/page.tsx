@@ -115,8 +115,8 @@ export default function GraphPage() {
     }
 
     return (
-        <div className="space-y-8 relative">
-            <div className="flex justify-between items-center">
+        <div className="flex flex-col flex-1 h-full">
+            <div className="flex justify-between items-center p-4">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Knowledge Graph</h2>
                     <p className="text-muted-foreground">Visualizing the collective mind. Click an atom to interact.</p>
@@ -134,34 +134,19 @@ export default function GraphPage() {
             </div>
 
             {loading ? (
-                <div>Loading simulation...</div>
+                <div className="flex-1 flex items-center justify-center">Loading simulation...</div>
             ) : (
-                <div className="h-[600px] w-full flex justify-center relative border rounded-lg overflow-hidden bg-card">
-                    <ForceGraph data={data} onNodeClick={handleNodeClick} />
+                <div className="flex-1 flex justify-center relative border rounded-lg overflow-hidden bg-card">
+                    <ForceGraph data={data} onNodeClick={handleNodeClick} width="100%" height="100%" />
 
                     {/* Legend Overlay */}
                     <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur-sm p-3 rounded-md border shadow-sm text-xs space-y-2">
                         <div className="font-semibold mb-1">Legend</div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-[#00f0ff]"></div>
-                            <span>Idea</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-[#ff003c]"></div>
-                            <span>Question</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-[#7000ff]"></div>
-                            <span>Quote</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-[#ffe600]"></div>
-                            <span>Insight</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-[#ffffff] border border-gray-500"></div>
-                            <span>Text</span>
-                        </div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#00f0ff]"></div><span>Idea</span></div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#ff003c]"></div><span>Question</span></div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#7000ff]"></div><span>Quote</span></div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#ffe600]"></div><span>Insight</span></div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#ffffff] border border-gray-500"></div><span>Text</span></div>
                     </div>
                 </div>
             )}
