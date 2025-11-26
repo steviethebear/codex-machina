@@ -17,10 +17,12 @@ import { CreateNoteDialog } from '@/components/graph/create-note-dialog'
 import { EditNoteDialog } from '@/components/graph/edit-note-dialog'
 import { Database } from '@/types/database.types'
 import { useAuth } from '@/components/auth-provider'
+import { TagFilter } from '@/components/tags/tag-filter'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 type Text = Database['public']['Tables']['texts']['Row']
 type LinkType = Database['public']['Tables']['links']['Row']
+type Tag = Database['public']['Tables']['tags']['Row']
 
 export default function GraphPage() {
     const supabase = createClient()
@@ -32,6 +34,8 @@ export default function GraphPage() {
     const [searchText, setSearchText] = useState('')
     const [activeTypeFilter, setActiveTypeFilter] = useState<string | null>(null)
     const [showMyAtomsOnly, setShowMyAtomsOnly] = useState(false)
+    const [selectedTagFilter, setSelectedTagFilter] = useState<Tag[]>([])
+    const [availableTags, setAvailableTags] = useState<Tag[]>([])
     const [hoveredNode, setHoveredNode] = useState<any | null>(null)
 
     // Dialog States
@@ -67,17 +71,31 @@ export default function GraphPage() {
                 if (node.note?.author_id !== user.id) matches = false
             }
 
+            // Tag Filter (notes must have ALL selected tags)
+            if (selectedTagFilter.length > 0 && node.note) {
+                const noteTags = node.note.tags || []
+                const hasAllTags = selectedTagFilter.every(selectedTag =>
+                    noteTags.some((noteTag: any) => noteTag.id === selectedTag.id)
+                )
+                if (!hasAllTags) matches = false
+            }
+
             if (matches) ids.add(node.id)
         })
 
         return ids
-    }, [data.nodes, searchText, showMyAtomsOnly, user])
+    }, [data.nodes, searchText, showMyAtomsOnly, user, activeTypeFilter, selectedTagFilter])
 
     const fetchData = async () => {
         // Only show approved and pending atoms (not rejected)
         const { data: notes } = await supabase
             .from('atomic_notes')
-            .select('*')
+            .select(`
+                *,
+                note_tags!note_tags_note_id_fkey(
+                    tags(id, name, display_name, usage_count)
+                )
+            `)
             .eq('hidden', false)
             .neq('moderation_status', 'rejected') // Exclude rejected atoms
 
@@ -85,12 +103,27 @@ export default function GraphPage() {
         const { data: links } = await supabase.from('links').select('*')
 
         if (notes && links) {
-            const nodes: any[] = notes.map((n: any) => ({
-                id: n.id,
-                name: n.title,
+            // Transform notes to include tags array
+            const transformedNotes = (notes || []).map((note: any) => ({
+                ...note,
+                tags: (note.note_tags || []).map((noteTag: any) => noteTag.tags).filter(Boolean) || []
+            }))
+
+            // Extract unique tags
+            const tagsMap = new Map()
+            transformedNotes.forEach((note: any) => {
+                note.tags?.forEach((tag: any) => {
+                    if (!tagsMap.has(tag.id)) {
+                        tagsMap.set(tag.id, tag)
+                    }
+                })
+            })
+            setAvailableTags(Array.from(tagsMap.values()).sort((a: any, b: any) => b.usage_count - a.usage_count))
+
+            const nodes: any[] = transformedNotes.map((note: any) => ({
+                id: note.id,
+                name: note.title,
                 val: 1, // Size based on connections?
-                type: n.type,
-                color: getColor(n.type),
                 note: n, // Store full atom for dialog
                 isPending: n.moderation_status === 'pending' // Mark pending for visual indicator
             }))
@@ -224,6 +257,17 @@ export default function GraphPage() {
                                 My Atoms Only
                             </Label>
                         </div>
+
+                        {/* Tag Filter */}
+                        {availableTags.length > 0 && (
+                            <div className="pt-3 border-t border-white/10 mt-3">
+                                <TagFilter
+                                    availableTags={availableTags}
+                                    selectedTags={selectedTagFilter}
+                                    onTagsChange={setSelectedTagFilter}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

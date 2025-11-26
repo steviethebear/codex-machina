@@ -19,9 +19,10 @@ interface ForceGraphProps {
     onNodeHover?: (node: any) => void
     highlightNodes?: Set<string>
     filterType?: string | null
+    nodeRelSize?: number
 }
 
-export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNodes, filterType }: ForceGraphProps) {
+export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNodes, filterType, nodeRelSize = 8 }: ForceGraphProps) {
     const containerRef = useRef<HTMLDivElement>(null)
     const [graphWidth, setGraphWidth] = useState(800)
     const [graphHeight, setGraphHeight] = useState(600)
@@ -71,7 +72,7 @@ export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNo
                 backgroundColor="#0a0a0f"
                 onNodeClick={onNodeClick}
                 onNodeHover={onNodeHover}
-                nodeRelSize={8}
+                nodeRelSize={nodeRelSize}
                 linkDirectionalParticles={2}
                 linkDirectionalParticleSpeed={0.005}
                 width={graphWidth}

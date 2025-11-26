@@ -13,8 +13,11 @@ import { MachineMessages } from '@/lib/machine-messages'
 import { checkContentQuality } from '@/lib/actions/check-content-quality'
 import { MarkdownEditor } from '@/components/markdown/editor'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
+import { TagInput } from '@/components/notes/tag-input'
+import { getTagsForNote, addTagToNote, removeTagFromNote } from '@/lib/tags/operations'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
+type Tag = Database['public']['Tables']['tags']['Row']
 
 interface EditNoteDialogProps {
     open: boolean
@@ -32,12 +35,20 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteUpdated }: Edit
 
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [selectedTags, setSelectedTags] = useState<Tag[]>([])
+    const [initialTags, setInitialTags] = useState<Tag[]>([])
 
     useEffect(() => {
-        if (open) { // Reset body when dialog opens for appending
-            setBody('')
+        const loadTags = async () => {
+            if (open && note) {
+                const tags = await getTagsForNote(note.id)
+                setSelectedTags(tags)
+                setInitialTags(tags)
+                setBody('')
+            }
         }
-    }, [open])
+        loadTags()
+    }, [open, note])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -75,6 +86,28 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteUpdated }: Edit
             toast.error(MachineMessages.processingFailed)
             setLoading(false)
             return
+        }
+
+        // Save tag changes
+        if (user) {
+            // Find tags to add (in selected but not in initial)
+            const tagsToAdd = selectedTags.filter(tag =>
+                !initialTags.some(it => it.id === tag.id)
+            )
+            // Find tags to remove (in initial but not in selected)
+            const tagsToRemove = initialTags.filter(tag =>
+                !selectedTags.some(st => st.id === tag.id)
+            )
+
+            // Add new tags
+            for (const tag of tagsToAdd) {
+                await addTagToNote(note.id, tag.id, user.id)
+            }
+
+            // Remove old tags
+            for (const tag of tagsToRemove) {
+                await removeTagFromNote(note.id, tag.id)
+            }
         }
 
         // Award Points for "Expanding" (Engagement)
@@ -138,6 +171,18 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteUpdated }: Edit
                         placeholder="Write your additional thoughts here..."
                         minHeight="150px"
                     />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Tags</label>
+                    {user && (
+                        <TagInput
+                            selectedTags={selectedTags}
+                            onTagsChange={setSelectedTags}
+                            userId={user.id}
+                            placeholder="Manage tags..."
+                        />
+                    )}
                 </div>
 
                 {error && <div className="text-sm text-destructive">{error}</div>}

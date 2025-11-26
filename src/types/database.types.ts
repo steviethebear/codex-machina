@@ -262,12 +262,273 @@ export interface Database {
                     created_at?: string
                 }
             }
+            tags: {
+                Row: {
+                    id: string
+                    name: string
+                    display_name: string
+                    created_at: string
+                    created_by: string | null
+                    usage_count: number
+                }
+                Insert: {
+                    id?: string
+                    name: string
+                    display_name: string
+                    created_at?: string
+                    created_by?: string | null
+                    usage_count?: number
+                }
+                Update: {
+                    id?: string
+                    name?: string
+                    display_name?: string
+                    created_at?: string
+                    created_by?: string | null
+                    usage_count?: number
+                }
+            }
+            note_tags: {
+                Row: {
+                    id: string
+                    note_id: string
+                    tag_id: string
+                    created_at: string
+                    created_by: string | null
+                }
+                Insert: {
+                    id?: string
+                    note_id: string
+                    tag_id: string
+                    created_at?: string
+                    created_by?: string | null
+                }
+                Update: {
+                    id?: string
+                    note_id?: string
+                    tag_id?: string
+                    created_at?: string
+                    created_by?: string | null
+                }
+            }
+            streaks: {
+                Row: {
+                    id: string
+                    user_id: string
+                    current_streak: number
+                    longest_streak: number
+                    last_contribution_date: string | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    current_streak?: number
+                    longest_streak?: number
+                    last_contribution_date?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    current_streak?: number
+                    longest_streak?: number
+                    last_contribution_date?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+            }
+            bonus_rewards: {
+                Row: {
+                    id: string
+                    user_id: string
+                    bonus_type: string
+                    trigger_id: string | null
+                    xp_awarded: number
+                    sp_awarded: Json
+                    metadata: Json
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    bonus_type: string
+                    trigger_id?: string | null
+                    xp_awarded?: number
+                    sp_awarded?: Json
+                    metadata?: Json
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    bonus_type?: string
+                    trigger_id?: string | null
+                    xp_awarded?: number
+                    sp_awarded?: Json
+                    metadata?: Json
+                    created_at?: string
+                }
+            }
+            achievements: {
+                Row: {
+                    id: string
+                    key: string
+                    name: string
+                    description: string
+                    category: string
+                    xp_reward: number
+                    icon: string | null
+                    tier: number
+                    requirement_type: string
+                    requirement_value: number | null
+                    requirement_metadata: Json
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    key: string
+                    name: string
+                    description: string
+                    category: string
+                    xp_reward?: number
+                    icon?: string | null
+                    tier?: number
+                    requirement_type: string
+                    requirement_value?: number | null
+                    requirement_metadata?: Json
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    key?: string
+                    name?: string
+                    description?: string
+                    category?: string
+                    xp_reward?: number
+                    icon?: string | null
+                    tier?: number
+                    requirement_type?: string
+                    requirement_value?: number | null
+                    requirement_metadata?: Json
+                    created_at?: string
+                }
+            }
+            user_achievements: {
+                Row: {
+                    id: string
+                    user_id: string
+                    achievement_id: string
+                    unlocked_at: string | null
+                    progress: number
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    achievement_id: string
+                    unlocked_at?: string | null
+                    progress?: number
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    achievement_id?: string
+                    unlocked_at?: string | null
+                    progress?: number
+                }
+            }
+            notifications: {
+                Row: {
+                    id: string
+                    user_id: string
+                    type: string
+                    title: string
+                    message: string
+                    link_url: string | null
+                    metadata: Json
+                    read: boolean
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    type: string
+                    title: string
+                    message: string
+                    link_url?: string | null
+                    metadata?: Json
+                    read?: boolean
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    type?: string
+                    title?: string
+                    message?: string
+                    link_url?: string | null
+                    metadata?: Json
+                    read?: boolean
+                    created_at?: string
+                }
+            }
         }
         Views: {
             hub_stats: {
                 Row: {
                     note_id: string
                     incoming_links_count: number
+                }
+            }
+            tags: {
+                Row: {
+                    id: string
+                    name: string
+                    display_name: string
+                    created_at: string
+                    created_by: string | null
+                    usage_count: number
+                }
+                Insert: {
+                    id?: string
+                    name: string
+                    display_name: string
+                    created_at?: string
+                    created_by?: string | null
+                    usage_count?: number
+                }
+                Update: {
+                    id?: string
+                    name?: string
+                    display_name?: string
+                    created_at?: string
+                    created_by?: string | null
+                    usage_count?: number
+                }
+            }
+            note_tags: {
+                Row: {
+                    id: string
+                    note_id: string
+                    tag_id: string
+                    created_at: string
+                    created_by: string | null
+                }
+                Insert: {
+                    id?: string
+                    note_id: string
+                    tag_id: string
+                    created_at?: string
+                    created_by?: string | null
+                }
+                Update: {
+                    id?: string
+                    note_id?: string
+                    tag_id?: string
+                    created_at?: string
+                    created_by?: string | null
                 }
             }
         }

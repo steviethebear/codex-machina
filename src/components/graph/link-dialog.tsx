@@ -13,6 +13,10 @@ import { MachineMessages } from '@/lib/machine-messages'
 import { checkContentQuality } from '@/lib/actions/check-content-quality'
 import { MarkdownEditor } from '@/components/markdown/editor'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
+import { detectBridgeBuilder } from '@/lib/rewards/bonus-detector'
+import { awardBonus, getBonusMessage } from '@/lib/rewards/bonus-awards'
+import { checkAchievements } from '@/lib/achievements/tracker'
+import { detectBadFaith } from '@/lib/actions/detect-bad-faith'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 type Text = Database['public']['Tables']['texts']['Row']
@@ -81,6 +85,19 @@ export function LinkDialog({ open, onOpenChange, sourceNote, onLinkCreated }: Li
             return
         }
 
+        // Check for bad faith / low-effort content
+        const badFaithCheck = await detectBadFaith(explanation, 'link')
+        if (badFaithCheck.isBadFaith) {
+            const msg = badFaithCheck.feedback
+            setError(msg)
+            toast.error(badFaithCheck.feedback, {
+                description: badFaithCheck.suggestions.join(' • '),
+                duration: 8000
+            })
+            setLoading(false)
+            return
+        }
+
         // Create Link
         // @ts-ignore
         const { error: linkError } = await supabase.from('links').insert({
@@ -137,6 +154,28 @@ export function LinkDialog({ open, onOpenChange, sourceNote, onLinkCreated }: Li
         }
         if (targetHubStatus?.justBecameHub) {
             toast.success("🌟 Connected atom is now a hub!")
+        }
+
+        // Detect and award Bridge Builder bonus
+        if (targetType === 'note' && linkData) {
+            const bridgeBonus = await detectBridgeBuilder(linkData.id, sourceNote.id, targetNoteId)
+            if (bridgeBonus) {
+                await awardBonus(user.id, bridgeBonus, linkData.id)
+                const message = getBonusMessage(bridgeBonus)
+                toast.success(`${message.icon} ${message.title}`, {
+                    description: `${message.description} +${bridgeBonus.xp} XP`
+                })
+            }
+        }
+
+        // Check for achievement unlocks
+        const unlockedAchievements = await checkAchievements(user.id, 'link_created', { linkId: linkData?.id })
+        if (unlockedAchievements.length > 0) {
+            unlockedAchievements.forEach(achievement => {
+                toast.success(`🏆 Achievement Unlocked: ${achievement.name}!`, {
+                    description: `${achievement.description} +${achievement.xp_reward} XP`
+                })
+            })
         }
 
         setLoading(false)

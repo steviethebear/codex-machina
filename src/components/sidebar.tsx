@@ -23,6 +23,7 @@ export function Sidebar() {
     const pathname = usePathname()
     const { signOut, user } = useAuth()
     const [isAdmin, setIsAdmin] = useState(false)
+    const [noteCount, setNoteCount] = useState(0)
     const supabase = createClient()
 
     useEffect(() => {
@@ -38,6 +39,19 @@ export function Sidebar() {
             }
         }
         checkAdmin()
+
+        // Fetch note count
+        const fetchNoteCount = async () => {
+            if (user) {
+                const { count } = await supabase
+                    .from('atomic_notes')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('author_id', user.id)
+                    .eq('moderation_status', 'approved')
+                setNoteCount(count || 0)
+            }
+        }
+        fetchNoteCount()
     }, [user, supabase])
 
     return (
@@ -70,7 +84,12 @@ export function Sidebar() {
                                     )}
                                     aria-hidden="true"
                                 />
-                                {item.name}
+                                <span className="flex-1">{item.name}</span>
+                                {item.name === 'Notebook' && noteCount > 0 && (
+                                    <span className="ml-auto inline-flex items-center justify-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
+                                        {noteCount}
+                                    </span>
+                                )}
                             </Link>
                         )
                     })}

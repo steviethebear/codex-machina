@@ -19,9 +19,16 @@ import { RelatedNotes } from '@/components/related-notes'
 import { checkContentQuality, ContentQualityResult } from '@/lib/actions/check-content-quality'
 import { QualityFeedbackCard } from '@/components/graph/quality-feedback-card'
 import { MachineMessages } from '@/lib/machine-messages'
+import { TagInput } from '@/components/notes/tag-input'
+import { addTagToNote } from '@/lib/tags/operations'
+import { detectTrailblazer, detectScholar, updateStreak, getStreakMultiplier } from '@/lib/rewards/bonus-detector'
+import { awardBonus, getBonusMessage } from '@/lib/rewards/bonus-awards'
+import { checkAchievements } from '@/lib/achievements/tracker'
+import { detectBadFaith } from '@/lib/actions/detect-bad-faith'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 type Text = Database['public']['Tables']['texts']['Row']
+type Tag = Database['public']['Tables']['tags']['Row']
 
 interface CreateNoteDialogProps {
     open: boolean
@@ -49,7 +56,8 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
     const [suggestionsLoading, setSuggestionsLoading] = useState(false)
     const [selectedSuggestedText, setSelectedSuggestedText] = useState<string | null>(null)
     const [selectedSuggestedNoteIds, setSelectedSuggestedNoteIds] = useState<Set<string>>(new Set())
-
+    const [targetTextId, setTargetTextId] = useState<string | null>(targetText?.id || null)
+    const [selectedTags, setSelectedTags] = useState<Tag[]>([])
     // Quality Analysis State
     const [qualityAnalysis, setQualityAnalysis] = useState<ContentQualityResult | null>(null)
     const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -147,6 +155,29 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
             }
         }
 
+        // Check for bad faith / low-effort content
+        if (user) {
+            setIsAnalyzing(true)
+            try {
+                const badFaithCheck = await detectBadFaith(body, 'atom', { textId: targetText?.id, atomType: type })
+                setIsAnalyzing(false)
+
+                if (badFaithCheck.isBadFaith) {
+                    // Show Machine feedback
+                    toast.error(badFaithCheck.feedback, {
+                        description: badFaithCheck.suggestions.join(' • '),
+                        duration: 8000
+                    })
+                    setLoading(false)
+                    return // Stop submission
+                }
+            } catch (err) {
+                console.error('Bad faith check failed', err)
+                setIsAnalyzing(false)
+                // Continue with submission if check fails
+            }
+        }
+
         // 1. Create the new atom (no blocking check)
         const { data: charData } = await supabase.from('characters').select('*').eq('user_id', user.id).single()
         if (!charData) {
@@ -179,6 +210,11 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
         }
 
         const atom = newAtom as any
+
+        // Save tags to note
+        for (const tag of selectedTags) {
+            await addTagToNote(atom.id, tag.id, user.id)
+        }
 
         // 2. Create link to source atom (only if branching)
         if (sourceAtom) {
@@ -274,6 +310,14 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
             }
         }
 
+        // Define quality check based on atom type for SP awarding
+        const qualityCheck = {
+            category: type === 'question' ? 'question' :
+                type === 'insight' ? 'insight' :
+                    type === 'quote' ? 'definition' : 'observation',
+            score: 1
+        }
+
         // 6. Award SP based on content classification
         // Use the quality check category to determine SP award
         if (qualityCheck && qualityCheck.category) {
@@ -328,7 +372,55 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
             }
         }
 
-        // 8. Success - additional XP may be awarded by async moderation
+        // 9. Detect and award bonuses
+        const bonuses = []
+
+        // Update streak and get multiplier
+        const streakCount = await updateStreak(user.id)
+        const streakMultiplier = getStreakMultiplier(streakCount)
+
+        // Detect Trailblazer bonus (first atom for this text)
+        const trailblazerBonus = await detectTrailblazer(atom.id, atom.text_id, user.id)
+        if (trailblazerBonus) {
+            bonuses.push(trailblazerBonus)
+            await awardBonus(user.id, trailblazerBonus, atom.id)
+        }
+
+        // Detect Scholar bonus (citation-heavy)
+        const scholarBonus = detectScholar(body)
+        if (scholarBonus) {
+            bonuses.push(scholarBonus)
+            await awardBonus(user.id, scholarBonus, atom.id)
+        }
+
+        // Show bonus notifications
+        if (bonuses.length > 0) {
+            bonuses.forEach(bonus => {
+                const message = getBonusMessage(bonus)
+                toast.success(`${message.icon} ${message.title}`, {
+                    description: `${message.description} +${bonus.xp} XP`
+                })
+            })
+        }
+
+        // Show streak notification if active
+        if (streakCount >= 3) {
+            toast.success(`🔥 ${streakCount}-Day Streak!`, {
+                description: `${streakMultiplier}x multiplier active`
+            })
+        }
+
+        // 11. Check for achievement unlocks
+        const unlockedAchievements = await checkAchievements(user.id, 'atom_created', { atomId: atom.id })
+        if (unlockedAchievements.length > 0) {
+            unlockedAchievements.forEach(achievement => {
+                toast.success(`🏆 Achievement Unlocked: ${achievement.name}!`, {
+                    description: `${achievement.description} +${achievement.xp_reward} XP`
+                })
+            })
+        }
+
+        // 12. Success - additional XP may be awarded by async moderation
 
         // Clear draft
         localStorage.removeItem(draftKey)
@@ -337,6 +429,7 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
         setTitle('')
         setBody('')
         setExplanation('')
+        setSelectedTags([])
         toast.success(sourceAtom ? MachineMessages.atomBranched : MachineMessages.atomCreated)
         onOpenChange(false)
 
@@ -443,6 +536,18 @@ export function CreateNoteDialog({ open, onOpenChange, sourceAtom, targetText, o
                         placeholder="Your idea, question, or insight... (markdown supported)"
                         minLength={50}
                     />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Tags (Optional)</label>
+                    {user && (
+                        <TagInput
+                            selectedTags={selectedTags}
+                            onTagsChange={setSelectedTags}
+                            userId={user.id}
+                            placeholder="Add tags to organize your atom..."
+                        />
+                    )}
                 </div>
 
                 {error && <div className="text-sm text-destructive">{error}</div>}
