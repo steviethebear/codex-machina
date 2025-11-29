@@ -169,7 +169,6 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteUpdated }: Edit
                         value={body}
                         onChange={setBody}
                         placeholder="Write your additional thoughts here..."
-                        minHeight="150px"
                     />
                 </div>
 

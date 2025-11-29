@@ -72,8 +72,8 @@ export default function StudentsPage() {
         if (student) {
             // @ts-ignore
             const { error: updateError } = await supabase.from('characters').update({
-                xp_total: student.xp_total + xp,
-                sp_thinking: student.sp_thinking + spThinking
+                xp_total: (student.xp_total || 0) + xp,
+                sp_thinking: (student.sp_thinking || 0) + spThinking
             }).eq('id', student.id)
 
             if (updateError) {

@@ -3,7 +3,9 @@ import { FileText, Network, BookOpen, Zap, Activity, Star, Link as LinkIcon } fr
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 
-type Action = Database['public']['Tables']['actions']['Row']
+type Action = Database['public']['Tables']['actions']['Row'] & {
+    target_id?: string
+}
 
 interface ActivityFeedProps {
     actions: Action[]
@@ -89,27 +91,27 @@ export function ActivityFeed({ actions }: ActivityFeedProps) {
 
                                 {/* Points Breakdown */}
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                                    {action.xp > 0 && (
+                                    {(action.xp || 0) > 0 && (
                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400">
                                             +{action.xp} XP
                                         </span>
                                     )}
-                                    {action.sp_reading > 0 && (
+                                    {(action.sp_reading || 0) > 0 && (
                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400">
                                             +{action.sp_reading} Reading
                                         </span>
                                     )}
-                                    {action.sp_thinking > 0 && (
+                                    {(action.sp_thinking || 0) > 0 && (
                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400">
                                             +{action.sp_thinking} Thinking
                                         </span>
                                     )}
-                                    {action.sp_writing > 0 && (
+                                    {(action.sp_writing || 0) > 0 && (
                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold border-green-500/20 bg-green-500/10 text-green-600 dark:text-green-400">
                                             +{action.sp_writing} Writing
                                         </span>
                                     )}
-                                    {action.sp_engagement > 0 && (
+                                    {(action.sp_engagement || 0) > 0 && (
                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold border-pink-500/20 bg-pink-500/10 text-pink-600 dark:text-pink-400">
                                             +{action.sp_engagement} Engagement
                                         </span>
@@ -138,27 +140,27 @@ export function ActivityFeed({ actions }: ActivityFeedProps) {
 
                                 {/* Points Breakdown */}
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                                    {action.xp > 0 && (
+                                    {(action.xp || 0) > 0 && (
                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400">
                                             +{action.xp} XP
                                         </span>
                                     )}
-                                    {action.sp_reading > 0 && (
+                                    {(action.sp_reading || 0) > 0 && (
                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400">
                                             +{action.sp_reading} Reading
                                         </span>
                                     )}
-                                    {action.sp_thinking > 0 && (
+                                    {(action.sp_thinking || 0) > 0 && (
                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400">
                                             +{action.sp_thinking} Thinking
                                         </span>
                                     )}
-                                    {action.sp_writing > 0 && (
+                                    {(action.sp_writing || 0) > 0 && (
                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold border-green-500/20 bg-green-500/10 text-green-600 dark:text-green-400">
                                             +{action.sp_writing} Writing
                                         </span>
                                     )}
-                                    {action.sp_engagement > 0 && (
+                                    {(action.sp_engagement || 0) > 0 && (
                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold border-pink-500/20 bg-pink-500/10 text-pink-600 dark:text-pink-400">
                                             +{action.sp_engagement} Engagement
                                         </span>

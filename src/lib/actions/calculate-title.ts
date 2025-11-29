@@ -53,8 +53,7 @@ const TITLES = [
  * Calculate and award appropriate title for a user
  */
 export async function calculateAndAwardTitle(userId: string): Promise<string | null> {
-    const cookieStore = await cookies()
-    const supabase = await createClient(cookieStore)
+    const supabase = await createClient()
 
     // Get user's character
     const { data: character } = await supabase
@@ -142,8 +141,7 @@ export async function calculateAndAwardTitle(userId: string): Promise<string | n
  * Get available titles and progress
  */
 export async function getTitleProgress(userId: string) {
-    const cookieStore = await cookies()
-    const supabase = await createClient(cookieStore)
+    const supabase = await createClient()
 
     // Get stats (similar to calculateAndAwardTitle but return progress)
     const { data: atoms } = await supabase

@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 
-type BonusReward = {
-    type: 'trailblazer' | 'scholar' | 'bridge_builder' | 'streak' | 'combo'
+export type BonusReward = {
+    type: 'trailblazer' | 'scholar' | 'bridge_builder' | 'streak' | 'combo' | 'hub_formation'
     xp: number
     sp: {
         reading?: number
@@ -58,11 +58,11 @@ export async function awardBonus(
         await supabase
             .from('characters')
             .update({
-                xp_total: character.xp_total + bonus.xp,
-                sp_reading: character.sp_reading + (bonus.sp.reading || 0),
-                sp_thinking: character.sp_thinking + (bonus.sp.thinking || 0),
-                sp_writing: character.sp_writing + (bonus.sp.writing || 0),
-                sp_engagement: character.sp_engagement + (bonus.sp.engagement || 0)
+                xp_total: (character.xp_total || 0) + bonus.xp,
+                sp_reading: (character.sp_reading || 0) + (bonus.sp.reading || 0),
+                sp_thinking: (character.sp_thinking || 0) + (bonus.sp.thinking || 0),
+                sp_writing: (character.sp_writing || 0) + (bonus.sp.writing || 0),
+                sp_engagement: (character.sp_engagement || 0) + (bonus.sp.engagement || 0)
             })
             .eq('user_id', userId)
     }
@@ -136,9 +136,14 @@ export function getBonusMessage(bonus: BonusReward): {
             icon: '🔥'
         },
         combo: {
-            title: `⚡ Quality Combo x${bonus.metadata?.combo_length}!`,
-            description: 'The Machine recognizes your excellence.',
-            icon: '⚡'
+            title: 'Combo Streak!',
+            description: 'Multiple quality atoms in sequence',
+            icon: '🔥'
+        },
+        hub_formation: {
+            title: 'Hub Formed',
+            description: 'Your insight has become a knowledge nexus',
+            icon: '🌐'
         }
     }
 

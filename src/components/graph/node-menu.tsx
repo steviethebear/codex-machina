@@ -3,7 +3,8 @@
 import { Dialog, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Database } from '@/types/database.types'
-import { GitBranch, Link, Edit3 } from 'lucide-react'
+import { GitBranch, Link as LinkIcon, Edit3, Book } from 'lucide-react'
+import Link from 'next/link'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
@@ -44,7 +45,7 @@ export function NodeMenu({ open, onOpenChange, note, onConnect, onBranch, onExpa
                         onConnect()
                     }}
                 >
-                    <Link className="h-6 w-6" />
+                    <LinkIcon className="h-6 w-6" />
                     <div className="text-center">
                         <div className="font-semibold">Connect</div>
                         <div className="text-xs text-muted-foreground">Link to an existing atom or text</div>
@@ -80,6 +81,18 @@ export function NodeMenu({ open, onOpenChange, note, onConnect, onBranch, onExpa
                         <div className="text-xs text-muted-foreground">Add more ideas to this atom</div>
                     </div>
                 </Button>
+                <Link href={`/notebook?noteId=${note.id}`} className="w-full">
+                    <Button
+                        variant="outline"
+                        className="w-full h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/10 hover:border-primary"
+                    >
+                        <Book className="h-6 w-6" />
+                        <div className="text-center">
+                            <div className="font-semibold">Open in Notebook</div>
+                            <div className="text-xs text-muted-foreground">View and edit in full notebook</div>
+                        </div>
+                    </Button>
+                </Link>
             </div>
         </Dialog>
     )

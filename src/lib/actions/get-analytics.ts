@@ -7,8 +7,7 @@ import { cookies } from 'next/headers'
  * Get activity heatmap data for a date range
  */
 export async function getActivityHeatmap(userId?: string, days: number = 90) {
-    const cookieStore = await cookies()
-    const supabase = await createClient(cookieStore)
+    const supabase = await createClient()
 
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
@@ -39,8 +38,7 @@ export async function getActivityHeatmap(userId?: string, days: number = 90) {
  * Get SP/XP trends over time for a student
  */
 export async function getSPTrends(userId: string, days: number = 30) {
-    const cookieStore = await cookies()
-    const supabase = await createClient(cookieStore)
+    const supabase = await createClient()
 
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
@@ -97,8 +95,7 @@ export async function getSPTrends(userId: string, days: number = 30) {
  * Get atoms count per unit
  */
 export async function getNodesPerUnit() {
-    const cookieStore = await cookies()
-    const supabase = await createClient(cookieStore)
+    const supabase = await createClient()
 
     const { data: units } = await supabase
         .from('units')
@@ -110,10 +107,10 @@ export async function getNodesPerUnit() {
     const stats = await Promise.all(units.map(async (unit) => {
         const { data: reflections } = await supabase
             .from('reflections')
-            .select('id, author_id')
+            .select('id, user_id')
             .eq('unit_id', unit.id)
 
-        const authorIds = reflections?.map(r => r.author_id) || []
+        const authorIds = reflections?.map(r => r.user_id) || []
 
         // Count atoms by students who submitted reflections for this unit
         const { data: atoms, count } = await supabase
@@ -142,8 +139,7 @@ export async function getNodesPerUnit() {
  * Get link density statistics
  */
 export async function getLinkDensity() {
-    const cookieStore = await cookies()
-    const supabase = await createClient(cookieStore)
+    const supabase = await createClient()
 
     const { data: atoms, count: atomCount } = await supabase
         .from('atomic_notes')

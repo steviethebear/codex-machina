@@ -9,8 +9,7 @@ export async function setQualityFlag(
     visibleToStudents: boolean,
     adminId: string
 ) {
-    const cookieStore = await cookies()
-    const supabase = await createClient(cookieStore)
+    const supabase = await createClient()
 
     const { error } = await supabase
         .from('atomic_notes')

@@ -16,8 +16,7 @@ export async function checkHubStatus(atomId: string): Promise<{
     justBecameHub: boolean
     connectionCount: number
 }> {
-    const cookieStore = await cookies()
-    const supabase = await createClient(cookieStore)
+    const supabase = await createClient()
 
     // Count total connections for this atom
     const { data: links, error } = await supabase
@@ -62,8 +61,8 @@ export async function checkHubStatus(atomId: string): Promise<{
                 await supabase
                     .from('characters')
                     .update({
-                        xp_total: char.xp_total + HUB_XP_BONUS,
-                        sp_thinking: char.sp_thinking + HUB_SP_BONUS
+                        xp_total: (char.xp_total || 0) + HUB_XP_BONUS,
+                        sp_thinking: (char.sp_thinking || 0) + HUB_SP_BONUS
                     })
                     .eq('id', atomData.character_id)
 
@@ -79,8 +78,7 @@ export async function checkHubStatus(atomId: string): Promise<{
  * Get connection count for an atom (for display purposes)
  */
 export async function getAtomConnectionCount(atomId: string): Promise<number> {
-    const cookieStore = await cookies()
-    const supabase = await createClient(cookieStore)
+    const supabase = await createClient()
 
     const { data: links } = await supabase
         .from('links')

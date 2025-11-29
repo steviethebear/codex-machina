@@ -8,7 +8,7 @@ import { Database } from '@/types/database.types'
 import Link from 'next/link'
 import { PlusCircle, Filter, GitBranch, Link as LinkIcon, Edit3, X } from 'lucide-react'
 import { CreateNoteDialog } from '@/components/graph/create-note-dialog'
-import { LinkDialog } from '@/components/graph/link-dialog'
+// LinkDialog removed - functionality moved to LinkingModal in /notebook
 import { EditNoteDialog } from '@/components/graph/edit-note-dialog'
 import { Combobox } from '@/components/ui/combobox'
 import { MarkdownRenderer } from '@/components/markdown/renderer'
@@ -357,12 +357,13 @@ export default function NotesPage() {
                 sourceAtom={selectedNote}
                 onAtomCreated={fetchData}
             />
-            <LinkDialog
+            {/* LinkDialog temporarily disabled - use /notebook for linking functionality */}
+            {/* <LinkDialog
                 open={linkDialogOpen}
                 onOpenChange={setLinkDialogOpen}
                 sourceNote={selectedNote}
                 onLinkCreated={fetchData}
-            />
+            /> */}
             <EditNoteDialog
                 open={editDialogOpen}
                 onOpenChange={setEditDialogOpen}

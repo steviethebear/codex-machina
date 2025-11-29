@@ -14,7 +14,7 @@ import { MarkdownRenderer } from '@/components/markdown/renderer'
 import { RelatedNotes } from '@/components/related-notes'
 import { findRelatedNotes, SuggestionResults } from '@/lib/suggestions'
 import { CreateNoteDialog } from '@/components/graph/create-note-dialog'
-import { LinkDialog } from '@/components/graph/link-dialog'
+// LinkDialog removed - functionality moved to LinkingModal in /notebook
 import { EditNoteDialog } from '@/components/graph/edit-note-dialog'
 import { QualityBadge } from '@/components/quality-badge'
 import { useAuth } from '@/components/auth-provider'
@@ -138,7 +138,7 @@ export default function NoteDetailsPage() {
                     </h2>
                     {note.quality_flag && (
                         <div className="mb-3">
-                            <QualityBadge quality={note.quality_flag} />
+                            <QualityBadge quality={note.quality_flag as any} />
                         </div>
                     )}
                     <p className="text-muted-foreground mt-2 flex items-center gap-2">
@@ -249,9 +249,8 @@ export default function NoteDetailsPage() {
                     </p>
                     <RelatedNotes
                         suggestions={relatedNotes}
-                        onSelectText={() => { }}
-                        onSelectNote={(note) => {
-                            window.location.href = `/notes/${note.id}`
+                        onView={(noteId) => {
+                            window.location.href = `/notes/${noteId}`
                         }}
                     />
                 </div>
@@ -264,12 +263,13 @@ export default function NoteDetailsPage() {
                 sourceAtom={note}
                 onAtomCreated={fetchNote}
             />
-            <LinkDialog
+            {/* LinkDialog temporarily disabled - use /notebook for linking functionality */}
+            {/* <LinkDialog
                 open={linkDialogOpen}
                 onOpenChange={setLinkDialogOpen}
                 sourceNote={note}
                 onLinkCreated={fetchNote}
-            />
+            /> */}
             <EditNoteDialog
                 open={editDialogOpen}
                 onOpenChange={setEditDialogOpen}

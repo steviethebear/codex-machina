@@ -25,8 +25,28 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeSanitize, rehypeHighlight]}
+                components={{
+                    a: ({ href, children }) => {
+                        if (href?.startsWith('/')) {
+                            // Handle internal links (including wikilinks)
+                            return (
+                                <a
+                                    href={href}
+                                    onClick={(e) => {
+                                        // Optional: intercept click if we want custom handling
+                                        // For now, let it navigate or use Link if we import it
+                                    }}
+                                    className="text-blue-400 hover:underline cursor-pointer"
+                                >
+                                    {children}
+                                </a>
+                            )
+                        }
+                        return <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{children}</a>
+                    }
+                }}
             >
-                {content}
+                {content.replace(/\[\[(.*?)\]\]/g, (match, title) => `[${title}](/notebook?search=${encodeURIComponent(title)})`)}
             </ReactMarkdown>
         </div>
     )

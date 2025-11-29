@@ -28,15 +28,22 @@ export async function checkAchievements(
         .select('*')
         .eq('user_id', userId)
 
+    // Track which ones are actually unlocked
     const unlockedIds = new Set(
         userAchievements
             ?.filter(ua => ua.unlocked_at !== null)
             .map(ua => ua.achievement_id) || []
     )
 
+    console.log('[Achievement Check] Event:', eventType, 'Unlocked count:', unlockedIds.size)
+
     // Filter achievements relevant to this event
     const relevantAchievements = allAchievements.filter(achievement => {
-        if (unlockedIds.has(achievement.id)) return false // Already unlocked
+        // Skip if already unlocked
+        if (unlockedIds.has(achievement.id)) {
+            console.log(`[Achievement Check] Skipping ${achievement.name} - already unlocked`)
+            return false
+        }
 
         const metadata = achievement.requirement_metadata as any
 
@@ -56,13 +63,20 @@ export async function checkAchievements(
         }
     })
 
+    console.log('[Achievement Check] Relevant achievements to check:', relevantAchievements.map(a => a.name))
+
     // Check each relevant achievement
     for (const achievement of relevantAchievements) {
         const shouldUnlock = await checkRequirement(userId, achievement, eventType, eventData)
 
         if (shouldUnlock) {
-            await unlockAchievement(userId, achievement)
-            unlockedAchievements.push(achievement)
+            const wasUnlocked = await unlockAchievement(userId, achievement)
+            if (wasUnlocked) {
+                console.log(`[Achievement Check] ✅ Newly unlocked: ${achievement.name}`)
+                unlockedAchievements.push(achievement)
+            } else {
+                console.log(`[Achievement Check] ⚠️ Already unlocked (defensive skip): ${achievement.name}`)
+            }
         } else {
             // Update progress
             await updateProgress(userId, achievement, eventType)
@@ -164,8 +178,9 @@ async function checkRequirement(
 
 /**
  * Unlock an achievement for a user
+ * Returns true if newly unlocked, false if already unlocked
  */
-async function unlockAchievement(userId: string, achievement: Achievement): Promise<void> {
+async function unlockAchievement(userId: string, achievement: Achievement): Promise<boolean> {
     const supabase = createClient()
 
     // Double-check if already unlocked (defensive)
@@ -177,9 +192,11 @@ async function unlockAchievement(userId: string, achievement: Achievement): Prom
         .single()
 
     if (existing?.unlocked_at) {
-        console.log(`Achievement ${achievement.name} already unlocked, skipping`)
-        return // Already unlocked, don't do it again
+        console.log(`[Unlock] Achievement ${achievement.name} already unlocked, skipping`)
+        return false // Already unlocked
     }
+
+    console.log(`[Unlock] Unlocking achievement: ${achievement.name}`)
 
     // Create or update user_achievement record
     await supabase
@@ -191,11 +208,11 @@ async function unlockAchievement(userId: string, achievement: Achievement): Prom
             progress: achievement.requirement_value || 0
         }, {
             onConflict: 'user_id,achievement_id',
-            ignoreDuplicates: false // Update if exists
+            ignoreDuplicates: false
         })
 
     // Award XP
-    if (achievement.xp_reward > 0) {
+    if ((achievement.xp_reward || 0) > 0) {
         await supabase.from('actions').insert({
             user_id: userId,
             type: 'ACHIEVEMENT',
@@ -219,11 +236,13 @@ async function unlockAchievement(userId: string, achievement: Achievement): Prom
             await supabase
                 .from('characters')
                 .update({
-                    xp_total: character.xp_total + achievement.xp_reward
+                    xp_total: (character.xp_total || 0) + (achievement.xp_reward || 0)
                 })
                 .eq('user_id', userId)
         }
     }
+
+    return true // Successfully unlocked
 }
 
 /**

@@ -85,14 +85,29 @@ export async function detectBridgeBuilder(
         .or(`and(from_note_id.eq.${fromNoteId},to_note_id.eq.${toNoteId}),and(from_note_id.eq.${toNoteId},to_note_id.eq.${fromNoteId})`)
 
     if (count === 0) {
-        // No previous direct connection - this is a bridge!
-        return {
-            type: 'bridge_builder',
-            xp: 40,
-            sp: { thinking: 20 },
-            metadata: {
-                from_note_id: fromNoteId,
-                to_note_id: toNoteId
+        // Get text_ids for both notes to ensure they are from different sources
+        const { data: notes } = await supabase
+            .from('atomic_notes')
+            .select('id, text_id')
+            .in('id', [fromNoteId, toNoteId])
+
+        if (notes && notes.length === 2) {
+            const noteA = notes.find(n => n.id === fromNoteId)
+            const noteB = notes.find(n => n.id === toNoteId)
+
+            // Bridge Builder Requirement: Must connect two different texts
+            // Both notes must have a text_id, and they must be different
+            if (noteA?.text_id && noteB?.text_id && noteA.text_id !== noteB.text_id) {
+                return {
+                    type: 'bridge_builder',
+                    xp: 25, // Reduced from 40
+                    sp: { thinking: 10 }, // Reduced from 20
+                    metadata: {
+                        from_note_id: fromNoteId,
+                        to_note_id: toNoteId,
+                        cross_text: true
+                    }
+                }
             }
         }
     }
@@ -125,19 +140,19 @@ export async function updateStreak(userId: string): Promise<number> {
         return 1
     }
 
-    const lastDate = new Date(streak.last_contribution_date)
+    const lastDate = new Date(streak.last_contribution_date || 0)
     const todayDate = new Date(today)
     const daysDiff = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
 
     if (daysDiff === 0) {
         // Same day, no change
-        return streak.current_streak
+        return streak.current_streak || 0
     } else if (daysDiff === 1) {
         // Consecutive day, increment streak
-        const newStreak = streak.current_streak + 1
+        const newStreak = (streak.current_streak || 0) + 1
         await supabase.from('streaks').update({
             current_streak: newStreak,
-            longest_streak: Math.max(newStreak, streak.longest_streak),
+            longest_streak: Math.max(newStreak, streak.longest_streak || 0),
             last_contribution_date: today
         }).eq('user_id', userId)
         return newStreak

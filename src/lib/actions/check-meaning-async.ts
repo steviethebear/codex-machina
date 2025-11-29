@@ -1,6 +1,7 @@
 'use server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@/lib/supabase/server'
+import { updateNoteEmbedding } from '@/lib/llm/generate-embeddings'
 
 export async function checkMeaningAsync(atomId: string) {
     try {
@@ -165,6 +166,11 @@ export async function checkMeaningAsync(atomId: string) {
                 }
 
                 console.log(`[Async Moderation ${atomId}] XP/SP awarded successfully`)
+
+                // Generate embedding for semantic search
+                updateNoteEmbedding(atomId).catch(err => {
+                    console.error(`[Async Moderation ${atomId}] Failed to generate embedding:`, err)
+                })
             } catch (awardError) {
                 console.error(`[Async Moderation ${atomId}] Failed to award XP/SP:`, awardError)
             }

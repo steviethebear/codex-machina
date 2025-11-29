@@ -37,7 +37,7 @@ export default function AdminUnitsPage() {
             // Update existing unit
             const { error } = await supabase
                 .from('units')
-                .update(data)
+                .update(data as any)
                 .eq('id', selectedUnit.id)
 
             if (error) throw error
@@ -46,7 +46,7 @@ export default function AdminUnitsPage() {
             // Create new unit
             const { error } = await supabase
                 .from('units')
-                .insert([data])
+                .insert([data] as any)
 
             if (error) throw error
             toast.success('Unit created successfully')

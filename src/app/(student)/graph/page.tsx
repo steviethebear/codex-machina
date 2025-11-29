@@ -1,7 +1,8 @@
 'use client'
 
-import { PlusCircle, Search, User } from 'lucide-react'
+import { PlusCircle, Search, User, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -10,7 +11,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import ForceGraph from '@/components/graph/force-graph'
-import { LinkDialog } from '@/components/graph/link-dialog'
+import { GraphSidebar } from '@/components/graph/graph-sidebar'
+import { LinkingModal } from '@/components/notebook/linking-modal'
 import { NodeMenu } from '@/components/graph/node-menu'
 import { TextMenu } from '@/components/graph/text-menu'
 import { CreateNoteDialog } from '@/components/graph/create-note-dialog'
@@ -18,6 +20,7 @@ import { EditNoteDialog } from '@/components/graph/edit-note-dialog'
 import { Database } from '@/types/database.types'
 import { useAuth } from '@/components/auth-provider'
 import { TagFilter } from '@/components/tags/tag-filter'
+import { toast } from 'sonner'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 type Text = Database['public']['Tables']['texts']['Row']
@@ -25,6 +28,9 @@ type LinkType = Database['public']['Tables']['links']['Row']
 type Tag = Database['public']['Tables']['tags']['Row']
 
 export default function GraphPage() {
+    const searchParams = useSearchParams()
+    const highlightNodeId = searchParams.get('highlightNode')
+    const newInsight = searchParams.get('newInsight') === 'true'
     const supabase = createClient()
     const { user } = useAuth()
     const [data, setData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] })
@@ -51,7 +57,11 @@ export default function GraphPage() {
     // Calculate Highlighted Nodes
     const highlightedNodeIds = useMemo(() => {
         const ids = new Set<string>()
-        if (!searchText && !showMyAtomsOnly) return ids
+        if (highlightNodeId) {
+            ids.add(highlightNodeId)
+        }
+
+        if (!searchText && !showMyAtomsOnly && !highlightNodeId) return ids
 
         data.nodes.forEach(node => {
             let matches = true
@@ -84,10 +94,10 @@ export default function GraphPage() {
         })
 
         return ids
-    }, [data.nodes, searchText, showMyAtomsOnly, user, activeTypeFilter, selectedTagFilter])
+    }, [data.nodes, searchText, showMyAtomsOnly, user, activeTypeFilter, selectedTagFilter, highlightNodeId])
 
     const fetchData = async () => {
-        // Only show approved and pending atoms (not rejected)
+        // Fetch notes with connection data
         const { data: notes } = await supabase
             .from('atomic_notes')
             .select(`
@@ -97,7 +107,7 @@ export default function GraphPage() {
                 )
             `)
             .eq('hidden', false)
-            .neq('moderation_status', 'rejected') // Exclude rejected atoms
+            .neq('moderation_status', 'rejected')
 
 
         const { data: links } = await supabase.from('links').select('*')
@@ -123,15 +133,17 @@ export default function GraphPage() {
             const nodes: any[] = transformedNotes.map((note: any) => ({
                 id: note.id,
                 name: note.title,
-                val: 1, // Size based on connections?
-                note: n, // Store full atom for dialog
-                isPending: n.moderation_status === 'pending' // Mark pending for visual indicator
+                val: 1,
+                note: note,
+                isPending: note.moderation_status === 'pending',
+                connection_count: note.connection_count || 0, // v0.3.2: Add connection count
+                is_hub: note.is_hub || false // v0.3.2: Add hub status
             }))
 
             const graphLinks = links.map((l: any) => ({
                 source: l.from_note_id,
-                target: l.to_note_id || l.to_text_id, // Handle text nodes if we include them
-            })).filter(l => l.target) // Filter out null targets
+                target: l.to_note_id || l.to_text_id,
+            })).filter(l => l.target)
 
             // Add all active (non-archived) text nodes
             const { data: texts } = await supabase
@@ -147,7 +159,9 @@ export default function GraphPage() {
                         val: 2,
                         type: 'text',
                         color: '#ffffff',
-                        text: t // Store full text object
+                        text: t,
+                        connection_count: 0, // Texts don't have connection counts
+                        is_hub: false
                     })
                 })
             }
@@ -175,11 +189,13 @@ export default function GraphPage() {
         if (node.note) {
             // This is an atom node
             setSelectedNote(node.note)
-            setMenuOpen(true)
+            setSelectedText(null)
+            // setMenuOpen(true) // Don't open menu, show sidebar preview instead
         } else if (node.text) {
             // This is a text node
             setSelectedText(node.text)
-            setTextMenuOpen(true)
+            setSelectedNote(null)
+            // setTextMenuOpen(true) // Don't open menu, show sidebar preview instead
         }
     }
 
@@ -187,6 +203,12 @@ export default function GraphPage() {
         // Refresh graph data
         fetchData()
     }
+
+    const selectedNodeForSidebar = selectedNote
+        ? { id: selectedNote.id, name: selectedNote.title, note: selectedNote, type: 'note' }
+        : selectedText
+            ? { id: selectedText.id, name: selectedText.title, text: selectedText, type: 'text' }
+            : null
 
     return (
         <div className="h-[calc(100vh-4rem)] w-full relative group">
@@ -196,84 +218,36 @@ export default function GraphPage() {
                 onNodeHover={setHoveredNode}
                 highlightNodes={highlightedNodeIds}
                 filterType={activeTypeFilter}
+                newInsight={newInsight}
             />
 
-            {/* Control Panel */}
-            <div className="absolute top-4 left-4 z-10 w-80 space-y-4">
-                <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl">
-                    <div className="p-4 space-y-4">
-                        {/* Search */}
-                        <div className="relative">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search atoms..."
-                                className="pl-8 bg-black/40 border-white/20 focus:border-primary"
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
-                            />
-                        </div>
+            <GraphSidebar
+                searchText={searchText}
+                onSearchChange={setSearchText}
+                activeTypeFilter={activeTypeFilter}
+                onTypeFilterChange={setActiveTypeFilter}
+                showMyAtomsOnly={showMyAtomsOnly}
+                onShowMyAtomsOnlyChange={setShowMyAtomsOnly}
+                availableTags={availableTags}
+                selectedTags={selectedTagFilter}
+                onTagsChange={setSelectedTagFilter}
 
-                        {/* Type Filters */}
-                        <div className="flex flex-wrap gap-2">
-                            {['idea', 'question', 'quote', 'insight'].map(type => {
-                                const typeColors = {
-                                    idea: '#00f0ff',
-                                    question: '#ff003c',
-                                    quote: '#7000ff',
-                                    insight: '#ffe600'
-                                }
-                                const color = typeColors[type as keyof typeof typeColors]
-                                const isActive = activeTypeFilter === type
+                selectedNode={selectedNodeForSidebar}
+                onClosePreview={() => {
+                    setSelectedNote(null)
+                    setSelectedText(null)
+                }}
+                onConnect={() => setLinkDialogOpen(true)}
+                onOpenInNotebook={() => {
+                    if (selectedNote) {
+                        window.location.href = `/notebook?noteId=${selectedNote.id}`
+                    }
+                }}
+                onCreateAtom={() => setCreateDialogOpen(true)}
+            />
 
-                                return (
-                                    <Button
-                                        key={type}
-                                        variant="outline"
-                                        size="sm"
-                                        className={`h-7 text-xs capitalize ${isActive ? '' : 'bg-transparent hover:bg-white/5'
-                                            }`}
-                                        style={{
-                                            borderColor: color,
-                                            backgroundColor: isActive ? color : undefined,
-                                            color: isActive ? '#000' : color
-                                        }}
-                                        onClick={() => setActiveTypeFilter(activeTypeFilter === type ? null : type)}
-                                    >
-                                        {type}
-                                    </Button>
-                                )
-                            })}
-                        </div>
-
-                        {/* My Atoms Toggle */}
-                        <div className="flex items-center space-x-2 pt-2 border-t border-white/10">
-                            <Switch
-                                id="my-atoms"
-                                checked={showMyAtomsOnly}
-                                onCheckedChange={setShowMyAtomsOnly}
-                            />
-                            <Label htmlFor="my-atoms" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
-                                <User className="h-3 w-3" />
-                                My Atoms Only
-                            </Label>
-                        </div>
-
-                        {/* Tag Filter */}
-                        {availableTags.length > 0 && (
-                            <div className="pt-3 border-t border-white/10 mt-3">
-                                <TagFilter
-                                    availableTags={availableTags}
-                                    selectedTags={selectedTagFilter}
-                                    onTagsChange={setSelectedTagFilter}
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Hover Preview */}
-            {hoveredNode && (
+            {/* Hover Preview (Only show if no node selected) */}
+            {hoveredNode && !selectedNodeForSidebar && (
                 <div
                     className="absolute z-20 pointer-events-none top-4 right-4"
                 >
@@ -324,12 +298,35 @@ export default function GraphPage() {
                 onCreateLinkedAtom={() => setCreateDialogOpen(true)}
             />
 
-            <LinkDialog
-                open={linkDialogOpen}
-                onOpenChange={setLinkDialogOpen}
-                sourceNote={selectedNote}
-                onLinkCreated={fetchData}
-            />
+            {selectedNote && (
+                <LinkingModal
+                    isOpen={linkDialogOpen}
+                    onClose={() => setLinkDialogOpen(false)}
+                    currentNoteId={selectedNote.id}
+                    currentNoteTitle={selectedNote.title}
+                    allNotes={data.nodes.filter(n => n.note).map(n => n.note)}
+                    allTexts={data.nodes.filter(n => n.text).map(n => n.text)}
+                    onCreateLink={async (targetNoteId: string | null, targetTextId: string | null, explanation: string) => {
+                        const { error } = await supabase.from('links').insert({
+                            from_note_id: selectedNote.id,
+                            to_note_id: targetNoteId,
+                            to_text_id: targetTextId,
+                            relation_type: 'connects_to', // Default or derived? LinkingModal doesn't ask for type yet
+                            explanation: explanation,
+                            created_by: user?.id
+                        } as any)
+
+                        if (error) {
+                            console.error('Error creating link:', error)
+                        } else {
+                            fetchData()
+                            toast.success('Connection strengthened', {
+                                description: '+1 SP'
+                            })
+                        }
+                    }}
+                />
+            )}
 
             <CreateNoteDialog
                 open={createDialogOpen}
