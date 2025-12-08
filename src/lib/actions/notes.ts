@@ -81,10 +81,7 @@ export async function getNotes(filters?: {
 
     let query = supabase
         .from('notes')
-        .select(`
-      *,
-      user:users!user_id(codex_name)
-    `)
+        .select('*')
         .order('created_at', { ascending: false })
 
     if (filters?.userId) {
@@ -112,10 +109,7 @@ export async function getNote(id: string) {
 
     const { data, error } = await supabase
         .from('notes')
-        .select(`
-      *,
-      user:users!user_id(codex_name)
-    `)
+        .select('*')
         .eq('id', id)
         .single()
 
