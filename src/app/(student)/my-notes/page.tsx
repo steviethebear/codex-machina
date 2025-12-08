@@ -79,9 +79,8 @@ export default function MyNotesPage() {
 
         // Auto-generate title for fleeting notes: first 30 chars of content or timestamp
         let noteTitle = title.trim()
-        if (createType === 'fleeting' && !noteTitle) {
-            noteTitle = content.trim().slice(0, 30) + (content.length > 30 ? '...' : '')
-            if (!noteTitle) noteTitle = `Fleeting ${new Date().toLocaleString()}`
+        if (createType === 'fleeting') {
+            noteTitle = '' // Fleeting notes have no title
         }
 
         const result = await createNote({
@@ -298,7 +297,9 @@ export default function MyNotesPage() {
                                         <Badge variant="secondary" className={getTypeColor(note.type)}>
                                             {getTypeIcon(note.type)}
                                         </Badge>
-                                        <CardTitle className="text-base truncate">{note.title}</CardTitle>
+                                        <CardTitle className="text-base truncate">
+                                            {note.title || note.content.slice(0, 40) + (note.content.length > 40 ? '...' : '')}
+                                        </CardTitle>
                                     </div>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Link href={`/notes/${note.id}`}>
