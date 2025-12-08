@@ -38,13 +38,14 @@ export default function MyNotesPage() {
     const [activeTab, setActiveTab] = useState('all')
     const [searchTerm, setSearchTerm] = useState('')
 
-    // Create Note State
+    // Inbox = Fleeting, Notes = Permanent, Sources = Literature
     const [isCreating, setIsCreating] = useState(false)
     const [createType, setCreateType] = useState<'fleeting' | 'literature' | 'permanent'>('fleeting')
     const [title, setTitle] = useState('')
     const [content, setContent] = useState('')
     const [citation, setCitation] = useState('')
     const [pageNumber, setPageNumber] = useState('')
+    const [promotingFromId, setPromotingFromId] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     useEffect(() => {
@@ -95,6 +96,12 @@ export default function MyNotesPage() {
 
         if (!result.error && result.data) {
             setNotes([result.data as Note, ...notes])
+
+            // If promoting, delete the old note
+            if (promotingFromId) {
+                await deleteNote(promotingFromId)
+                setNotes(prev => prev.filter(n => n.id !== promotingFromId))
+            }
             resetForm()
         }
         setIsSubmitting(false)
@@ -115,6 +122,16 @@ export default function MyNotesPage() {
         setContent('')
         setCitation('')
         setPageNumber('')
+        setPromotingFromId(null)
+        setCreateType('fleeting') // Default resets to Inbox
+    }
+
+    const handlePromote = (note: Note) => {
+        setPromotingFromId(note.id)
+        setCreateType('permanent')
+        setContent(note.content)
+        setTitle('')
+        setIsCreating(true)
     }
 
     const getTypeIcon = (type: string) => {
@@ -162,17 +179,27 @@ export default function MyNotesPage() {
 
                     {/* Type Selector */}
                     <div className="flex gap-2">
-                        {(['fleeting', 'literature', 'permanent'] as const).map(type => (
-                            <Button
-                                key={type}
-                                variant={createType === type ? 'default' : 'outline'}
-                                onClick={() => setCreateType(type)}
-                                className="flex-1 capitalize"
-                            >
-                                {getTypeIcon(type)}
-                                <span className="ml-2">{type}</span>
-                            </Button>
-                        ))}
+                        <Button
+                            variant={createType === 'fleeting' ? 'default' : 'outline'}
+                            onClick={() => setCreateType('fleeting')}
+                            className="flex-1 gap-2"
+                        >
+                            <Lightbulb className="h-4 w-4" /> Inbox
+                        </Button>
+                        <Button
+                            variant={createType === 'permanent' ? 'default' : 'outline'}
+                            onClick={() => setCreateType('permanent')}
+                            className="flex-1 gap-2"
+                        >
+                            <Brain className="h-4 w-4" /> Note
+                        </Button>
+                        <Button
+                            variant={createType === 'literature' ? 'default' : 'outline'}
+                            onClick={() => setCreateType('literature')}
+                            className="flex-1 gap-2"
+                        >
+                            <BookOpen className="h-4 w-4" /> Source
+                        </Button>
                     </div>
 
                     {/* Form Fields */}
@@ -258,13 +285,13 @@ export default function MyNotesPage() {
                     <TabsList>
                         <TabsTrigger value="all">All</TabsTrigger>
                         <TabsTrigger value="fleeting" className="gap-1">
-                            <Lightbulb className="h-3 w-3" /> Fleeting
-                        </TabsTrigger>
-                        <TabsTrigger value="literature" className="gap-1">
-                            <BookOpen className="h-3 w-3" /> Literature
+                            <Lightbulb className="h-3 w-3" /> Inbox
                         </TabsTrigger>
                         <TabsTrigger value="permanent" className="gap-1">
-                            <Brain className="h-3 w-3" /> Permanent
+                            <Brain className="h-3 w-3" /> Notes
+                        </TabsTrigger>
+                        <TabsTrigger value="literature" className="gap-1">
+                            <BookOpen className="h-3 w-3" /> Sources
                         </TabsTrigger>
                     </TabsList>
                 </Tabs>
@@ -279,7 +306,9 @@ export default function MyNotesPage() {
                         <p className="text-muted-foreground mb-4">
                             {activeTab === 'all'
                                 ? 'Start building your Zettelkasten by creating your first note.'
-                                : `You don't have any ${activeTab} notes yet.`}
+                                : activeTab === 'fleeting' ? "Your inbox is empty. Capture a fleeting thought!"
+                                    : activeTab === 'permanent' ? "No permanent notes yet. Promote an idea from your inbox!"
+                                        : "No sources yet. Add a literature note from your readings."}
                         </p>
                         <Button onClick={() => setIsCreating(true)}>
                             <PlusCircle className="mr-2 h-4 w-4" />
@@ -302,6 +331,19 @@ export default function MyNotesPage() {
                                         </CardTitle>
                                     </div>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {/* Promote Button for Fleeting Notes */}
+                                        {note.type === 'fleeting' && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-green-500 hover:text-green-600"
+                                                title="Promote to Permanent Note"
+                                                onClick={() => handlePromote(note)}
+                                            >
+                                                <Brain className="h-3.5 w-3.5" />
+                                            </Button>
+                                        )}
+
                                         <Link href={`/notes/${note.id}`}>
                                             <Button variant="ghost" size="icon" className="h-7 w-7">
                                                 <Eye className="h-3.5 w-3.5" />
