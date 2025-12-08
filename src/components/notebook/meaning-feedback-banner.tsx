@@ -1,9 +1,10 @@
 'use client'
 
 import { AlertCircle, CheckCircle, AlertTriangle, X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface MeaningFeedbackBannerProps {
+    noteId: string
     status: 'approved' | 'pending' | 'rejected' | null
     result: string | null
     awards?: {
@@ -18,13 +19,39 @@ interface MeaningFeedbackBannerProps {
     onDismiss?: () => void
 }
 
-export function MeaningFeedbackBanner({ status, result, awards, onDismiss }: MeaningFeedbackBannerProps) {
+export function MeaningFeedbackBanner({ noteId, status, result, awards, onDismiss }: MeaningFeedbackBannerProps) {
     const [dismissed, setDismissed] = useState(false)
+
+    // Check localStorage on mount to see if this banner was previously dismissed
+    useEffect(() => {
+        const dismissedBanners = localStorage.getItem('dismissedMeaningBanners')
+        if (dismissedBanners) {
+            try {
+                const parsed = JSON.parse(dismissedBanners)
+                if (parsed[noteId]) {
+                    setDismissed(true)
+                }
+            } catch (e) {
+                console.error('Error parsing dismissed banners:', e)
+            }
+        }
+    }, [noteId])
 
     if (!status || !result || dismissed) return null
 
     const handleDismiss = () => {
         setDismissed(true)
+
+        // Save to localStorage
+        try {
+            const dismissedBanners = localStorage.getItem('dismissedMeaningBanners')
+            const parsed = dismissedBanners ? JSON.parse(dismissedBanners) : {}
+            parsed[noteId] = true
+            localStorage.setItem('dismissedMeaningBanners', JSON.stringify(parsed))
+        } catch (e) {
+            console.error('Error saving dismissed state:', e)
+        }
+
         onDismiss?.()
     }
 

@@ -119,8 +119,22 @@ export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNo
         // Draw node
         ctx.beginPath()
         ctx.arc(node.x, node.y, nodeRadius, 0, 2 * Math.PI)
-        ctx.fillStyle = getNodeColor(node)
-        ctx.fill()
+
+        if (node.type === 'question') {
+            ctx.fillStyle = '#f59e0b' // Amber-500
+            ctx.fill()
+
+            // Draw Question Mark
+            ctx.fillStyle = '#000' // Black text for contrast
+            const fontSize = Math.max(8, nodeRadius * 1.2)
+            ctx.font = `bold ${fontSize}px Sans-Serif`
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            ctx.fillText('?', node.x, node.y)
+        } else {
+            ctx.fillStyle = getNodeColor(node)
+            ctx.fill()
+        }
 
         // Draw label only if enabled (SMALLER fonts)
         if (showLabels) {

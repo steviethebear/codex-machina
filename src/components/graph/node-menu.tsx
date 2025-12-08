@@ -16,9 +16,10 @@ interface NodeMenuProps {
     onConnect: () => void
     onBranch: () => void
     onExpand: () => void
+    onAskQuestion: () => void
 }
 
-export function NodeMenu({ open, onOpenChange, note, onConnect, onBranch, onExpand }: NodeMenuProps) {
+export function NodeMenu({ open, onOpenChange, note, onConnect, onBranch, onExpand, onAskQuestion }: NodeMenuProps) {
     if (!note) return null
 
     return (
@@ -79,6 +80,19 @@ export function NodeMenu({ open, onOpenChange, note, onConnect, onBranch, onExpa
                     <div className="text-center">
                         <div className="font-semibold">Expand</div>
                         <div className="text-xs text-muted-foreground">Add more ideas to this atom</div>
+                    </div>
+                </Button>
+                <Button
+                    variant="outline"
+                    className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/10 hover:border-primary"
+                    onClick={() => {
+                        onOpenChange(false)
+                        onAskQuestion()
+                    }}
+                >
+                    <div className="text-center">
+                        <div className="font-semibold">Ask Question</div>
+                        <div className="text-xs text-muted-foreground">Ask the community about this idea</div>
                     </div>
                 </Button>
                 <Link href={`/notebook?noteId=${note.id}`} className="w-full">

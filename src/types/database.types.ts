@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       achievements: {
@@ -345,9 +320,11 @@ export type Database = {
           created_by: string
           explanation: string
           from_note_id: string
+          from_question_id: string | null
           id: string
           relation_type: string
           to_note_id: string | null
+          to_question_id: string | null
           to_text_id: string | null
         }
         Insert: {
@@ -355,9 +332,11 @@ export type Database = {
           created_by: string
           explanation: string
           from_note_id: string
+          from_question_id?: string | null
           id?: string
           relation_type: string
           to_note_id?: string | null
+          to_question_id?: string | null
           to_text_id?: string | null
         }
         Update: {
@@ -365,9 +344,11 @@ export type Database = {
           created_by?: string
           explanation?: string
           from_note_id?: string
+          from_question_id?: string | null
           id?: string
           relation_type?: string
           to_note_id?: string | null
+          to_question_id?: string | null
           to_text_id?: string | null
         }
         Relationships: [
@@ -386,10 +367,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "links_from_question_id_fkey"
+            columns: ["from_question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "links_to_note_id_fkey"
             columns: ["to_note_id"]
             isOneToOne: false
             referencedRelation: "atomic_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "links_to_question_id_fkey"
+            columns: ["to_question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
             referencedColumns: ["id"]
           },
           {
@@ -491,6 +486,107 @@ export type Database = {
           },
         ]
       }
+      questions: {
+        Row: {
+          accepted_atom_id: string | null
+          author_id: string
+          body: string
+          character_id: string
+          created_at: string | null
+          embedding: string | null
+          flagged_at: string | null
+          flagged_by: string | null
+          id: string
+          is_resolved: boolean | null
+          moderation_result: string | null
+          moderation_status: string | null
+          reply_count: number | null
+          resolved_at: string | null
+          tags: string[] | null
+          text_id: string | null
+          title: string
+          unit_id: string | null
+          updated_at: string | null
+          upvote_count: number | null
+          view_count: number | null
+        }
+        Insert: {
+          accepted_atom_id?: string | null
+          author_id: string
+          body: string
+          character_id: string
+          created_at?: string | null
+          embedding?: string | null
+          flagged_at?: string | null
+          flagged_by?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          moderation_result?: string | null
+          moderation_status?: string | null
+          reply_count?: number | null
+          resolved_at?: string | null
+          tags?: string[] | null
+          text_id?: string | null
+          title: string
+          unit_id?: string | null
+          updated_at?: string | null
+          upvote_count?: number | null
+          view_count?: number | null
+        }
+        Update: {
+          accepted_atom_id?: string | null
+          author_id?: string
+          body?: string
+          character_id?: string
+          created_at?: string | null
+          embedding?: string | null
+          flagged_at?: string | null
+          flagged_by?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          moderation_result?: string | null
+          moderation_status?: string | null
+          reply_count?: number | null
+          resolved_at?: string | null
+          tags?: string[] | null
+          text_id?: string | null
+          title?: string
+          unit_id?: string | null
+          updated_at?: string | null
+          upvote_count?: number | null
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_accepted_atom_id_fkey"
+            columns: ["accepted_atom_id"]
+            isOneToOne: false
+            referencedRelation: "atomic_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questions_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questions_text_id_fkey"
+            columns: ["text_id"]
+            isOneToOne: false
+            referencedRelation: "texts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questions_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reflections: {
         Row: {
           body: string
@@ -526,6 +622,95 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signals: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          deliverables: Json
+          description: string
+          difficulty: string | null
+          discovery_criteria: Json | null
+          discovery_type: string | null
+          estimated_time_minutes: number | null
+          id: string
+          is_active: boolean | null
+          oracle_completion_message: string | null
+          oracle_discovery_message: string | null
+          sp_engagement: number | null
+          sp_reading: number | null
+          sp_thinking: number | null
+          sp_writing: number | null
+          tags: string[] | null
+          title: string
+          unit_id: string | null
+          unlock_level: number | null
+          updated_at: string | null
+          validation_prompt: string | null
+          validation_type: string | null
+          xp_reward: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          deliverables?: Json
+          description: string
+          difficulty?: string | null
+          discovery_criteria?: Json | null
+          discovery_type?: string | null
+          estimated_time_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          oracle_completion_message?: string | null
+          oracle_discovery_message?: string | null
+          sp_engagement?: number | null
+          sp_reading?: number | null
+          sp_thinking?: number | null
+          sp_writing?: number | null
+          tags?: string[] | null
+          title: string
+          unit_id?: string | null
+          unlock_level?: number | null
+          updated_at?: string | null
+          validation_prompt?: string | null
+          validation_type?: string | null
+          xp_reward?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          deliverables?: Json
+          description?: string
+          difficulty?: string | null
+          discovery_criteria?: Json | null
+          discovery_type?: string | null
+          estimated_time_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          oracle_completion_message?: string | null
+          oracle_discovery_message?: string | null
+          sp_engagement?: number | null
+          sp_reading?: number | null
+          sp_thinking?: number | null
+          sp_writing?: number | null
+          tags?: string[] | null
+          title?: string
+          unit_id?: string | null
+          unlock_level?: number | null
+          updated_at?: string | null
+          validation_prompt?: string | null
+          validation_type?: string | null
+          xp_reward?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signals_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
             referencedColumns: ["id"]
           },
         ]
@@ -696,6 +881,83 @@ export type Database = {
           },
         ]
       }
+      user_signals: {
+        Row: {
+          activated_at: string | null
+          completed_at: string | null
+          created_at: string | null
+          discovered_at: string | null
+          estimated_review_time: unknown
+          id: string
+          queue_reason: string | null
+          queued_at: string | null
+          signal_id: string
+          sp_awarded: Json | null
+          status: string
+          submission_data: Json | null
+          submission_notes: string | null
+          submitted_at: string | null
+          updated_at: string | null
+          user_id: string
+          validated_by: string | null
+          validation_feedback: string | null
+          validation_result: Json | null
+          xp_awarded: number | null
+        }
+        Insert: {
+          activated_at?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          discovered_at?: string | null
+          estimated_review_time?: unknown
+          id?: string
+          queue_reason?: string | null
+          queued_at?: string | null
+          signal_id: string
+          sp_awarded?: Json | null
+          status?: string
+          submission_data?: Json | null
+          submission_notes?: string | null
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id: string
+          validated_by?: string | null
+          validation_feedback?: string | null
+          validation_result?: Json | null
+          xp_awarded?: number | null
+        }
+        Update: {
+          activated_at?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          discovered_at?: string | null
+          estimated_review_time?: unknown
+          id?: string
+          queue_reason?: string | null
+          queued_at?: string | null
+          signal_id?: string
+          sp_awarded?: Json | null
+          status?: string
+          submission_data?: Json | null
+          submission_notes?: string | null
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+          validated_by?: string | null
+          validation_feedback?: string | null
+          validation_result?: Json | null
+          xp_awarded?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_signals_signal_id_fkey"
+            columns: ["signal_id"]
+            isOneToOne: false
+            referencedRelation: "signals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           codex_name: string | null
@@ -739,6 +1001,32 @@ export type Database = {
       }
     }
     Functions: {
+      get_atom_questions: {
+        Args: { atom_id: string }
+        Returns: {
+          author_id: string
+          created_at: string
+          is_resolved: boolean
+          question_body: string
+          question_id: string
+          question_title: string
+        }[]
+      }
+      get_question_replies: {
+        Args: { question_id: string }
+        Returns: {
+          atom_body: string
+          atom_id: string
+          atom_title: string
+          author_id: string
+          created_at: string
+          relation_type: string
+        }[]
+      }
+      increment_question_views: {
+        Args: { question_id: string }
+        Returns: undefined
+      }
       match_notes: {
         Args: {
           match_count: number
@@ -760,6 +1048,19 @@ export type Database = {
           target_atom_id: string
         }
         Returns: undefined
+      }
+      search_similar_questions: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          body: string
+          id: string
+          similarity: number
+          title: string
+        }[]
       }
     }
     Enums: {
@@ -894,9 +1195,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       moderation_status: [

@@ -17,10 +17,13 @@ import { NodeMenu } from '@/components/graph/node-menu'
 import { TextMenu } from '@/components/graph/text-menu'
 import { CreateNoteDialog } from '@/components/graph/create-note-dialog'
 import { EditNoteDialog } from '@/components/graph/edit-note-dialog'
+import { QuestionComposer } from '@/components/questions/question-composer'
+import { Dialog, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Database } from '@/types/database.types'
 import { useAuth } from '@/components/auth-provider'
 import { TagFilter } from '@/components/tags/tag-filter'
 import { toast } from 'sonner'
+import { useSignalDiscovery } from '@/hooks/use-signal-discovery'
 
 type Note = Database['public']['Tables']['atomic_notes']['Row']
 type Text = Database['public']['Tables']['texts']['Row']
@@ -35,6 +38,7 @@ export default function GraphPage() {
     const { user } = useAuth()
     const [data, setData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] })
     const [loading, setLoading] = useState(true)
+    const { checkDiscovery } = useSignalDiscovery()
 
     // Control States
     const [searchText, setSearchText] = useState('')
@@ -50,6 +54,7 @@ export default function GraphPage() {
     const [linkDialogOpen, setLinkDialogOpen] = useState(false)
     const [createDialogOpen, setCreateDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [createQuestionOpen, setCreateQuestionOpen] = useState(false)
 
     const [selectedNote, setSelectedNote] = useState<Note | null>(null)
     const [selectedText, setSelectedText] = useState<Text | null>(null)
@@ -140,11 +145,6 @@ export default function GraphPage() {
                 is_hub: note.is_hub || false // v0.3.2: Add hub status
             }))
 
-            const graphLinks = links.map((l: any) => ({
-                source: l.from_note_id,
-                target: l.to_note_id || l.to_text_id,
-            })).filter(l => l.target)
-
             // Add all active (non-archived) text nodes
             const { data: texts } = await supabase
                 .from('texts')
@@ -166,6 +166,39 @@ export default function GraphPage() {
                 })
             }
 
+            // Add Questions
+            const { data: questions } = await supabase
+                .from('questions')
+                .select('*')
+                .eq('moderation_status', 'approved')
+                .eq('is_resolved', false) // Only show unresolved questions? Or all? Let's show all but maybe dim resolved.
+
+            if (questions) {
+                questions.forEach((q: any) => {
+                    nodes.push({
+                        id: q.id,
+                        name: q.title,
+                        val: 1.5,
+                        type: 'question',
+                        color: '#ff003c',
+                        question: q,
+                        connection_count: q.view_count || 0,
+                        is_hub: false
+                    })
+                })
+            }
+
+            // Create a set of all valid node IDs for fast lookup
+            const nodeIds = new Set(nodes.map(n => n.id))
+
+            const graphLinks = links.map((l: any) => ({
+                source: l.from_note_id || l.from_question_id,
+                target: l.to_note_id || l.to_text_id || l.to_question_id,
+            })).filter(l => {
+                // Ensure both source and target exist in our filtered node set
+                return l.source && l.target && nodeIds.has(l.source) && nodeIds.has(l.target)
+            })
+
             setData({ nodes, links: graphLinks as any })
         }
         setLoading(false)
@@ -186,16 +219,21 @@ export default function GraphPage() {
     }
 
     const handleNodeClick = (node: any) => {
-        if (node.note) {
-            // This is an atom node
-            setSelectedNote(node.note)
-            setSelectedText(null)
-            // setMenuOpen(true) // Don't open menu, show sidebar preview instead
-        } else if (node.text) {
-            // This is a text node
+        // Trigger signal discovery check
+        checkDiscovery(node.id, node.type === 'text' ? 'text' : 'note')
+
+        if (node.type === 'text') {
             setSelectedText(node.text)
             setSelectedNote(null)
-            // setTextMenuOpen(true) // Don't open menu, show sidebar preview instead
+            setTextMenuOpen(true)
+        } else if (node.note) {
+            setSelectedNote(node.note)
+            setSelectedText(null)
+            setMenuOpen(true)
+        } else if (node.question) {
+            // Open question details? Or just navigate to notebook?
+            // For now, let's navigate to notebook with questionId
+            window.location.href = `/notebook?questionId=${node.id}`
         }
     }
 
@@ -282,6 +320,20 @@ export default function GraphPage() {
                 </Button>
             </div>
             {/* Dialogs */}
+            {/* Create Question Dialog */}
+            <Dialog open={createQuestionOpen} onOpenChange={setCreateQuestionOpen}>
+                <DialogHeader>
+                    <DialogTitle>Ask a Question</DialogTitle>
+                </DialogHeader>
+                <QuestionComposer
+                    onSuccess={() => {
+                        setCreateQuestionOpen(false)
+                        toast.success('Question posted!')
+                    }}
+                    onCancel={() => setCreateQuestionOpen(false)}
+                />
+            </Dialog>
+
             <NodeMenu
                 open={menuOpen}
                 onOpenChange={setMenuOpen}
@@ -289,6 +341,7 @@ export default function GraphPage() {
                 onConnect={() => setLinkDialogOpen(true)}
                 onBranch={() => setCreateDialogOpen(true)}
                 onExpand={() => setEditDialogOpen(true)}
+                onAskQuestion={() => setCreateQuestionOpen(true)}
             />
 
             <TextMenu
@@ -296,6 +349,7 @@ export default function GraphPage() {
                 onOpenChange={setTextMenuOpen}
                 text={selectedText}
                 onCreateLinkedAtom={() => setCreateDialogOpen(true)}
+                onAskQuestion={() => setCreateQuestionOpen(true)}
             />
 
             {selectedNote && (
@@ -304,25 +358,27 @@ export default function GraphPage() {
                     onClose={() => setLinkDialogOpen(false)}
                     currentNoteId={selectedNote.id}
                     currentNoteTitle={selectedNote.title}
-                    allNotes={data.nodes.filter(n => n.note).map(n => n.note)}
-                    allTexts={data.nodes.filter(n => n.text).map(n => n.text)}
+                    allNotes={data.nodes.filter(n => n.type !== 'text').map(n => n.note).filter(Boolean)}
+                    allTexts={data.nodes.filter(n => n.type === 'text').map(n => n.text).filter(Boolean)}
                     onCreateLink={async (targetNoteId: string | null, targetTextId: string | null, explanation: string) => {
                         const { error } = await supabase.from('links').insert({
                             from_note_id: selectedNote.id,
                             to_note_id: targetNoteId,
                             to_text_id: targetTextId,
-                            relation_type: 'connects_to', // Default or derived? LinkingModal doesn't ask for type yet
+                            relation_type: 'connects_to',
                             explanation: explanation,
                             created_by: user?.id
                         } as any)
 
                         if (error) {
                             console.error('Error creating link:', error)
+                            toast.error('Failed to create link')
                         } else {
                             fetchData()
                             toast.success('Connection strengthened', {
                                 description: '+1 SP'
                             })
+                            setLinkDialogOpen(false)
                         }
                     }}
                 />

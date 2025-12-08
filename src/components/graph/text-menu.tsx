@@ -15,9 +15,10 @@ interface TextMenuProps {
     onOpenChange: (open: boolean) => void
     text: Text | null
     onCreateLinkedAtom: () => void
+    onAskQuestion: () => void
 }
 
-export function TextMenu({ open, onOpenChange, text, onCreateLinkedAtom }: TextMenuProps) {
+export function TextMenu({ open, onOpenChange, text, onCreateLinkedAtom, onAskQuestion }: TextMenuProps) {
     const supabase = createClient()
     const [connectedAtoms, setConnectedAtoms] = useState<Note[]>([])
     const [loading, setLoading] = useState(false)
@@ -97,17 +98,29 @@ export function TextMenu({ open, onOpenChange, text, onCreateLinkedAtom }: TextM
                     )}
                 </div>
 
-                {/* Action Button */}
-                <Button
-                    className="w-full"
-                    onClick={() => {
-                        onOpenChange(false)
-                        onCreateLinkedAtom()
-                    }}
-                >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Create Linked Atom
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        className="flex-1"
+                        onClick={() => {
+                            onOpenChange(false)
+                            onCreateLinkedAtom()
+                        }}
+                    >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Create Linked Atom
+                    </Button>
+                    <Button
+                        className="flex-1"
+                        variant="secondary"
+                        onClick={() => {
+                            onOpenChange(false)
+                            onAskQuestion()
+                        }}
+                    >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Ask Question
+                    </Button>
+                </div>
             </div>
         </Dialog>
     )

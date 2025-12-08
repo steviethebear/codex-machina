@@ -24,6 +24,11 @@ import { SuggestionsPanel } from '@/components/notebook/suggestions-panel'
 import { SuggestionNote } from '@/lib/llm/get-suggestions'
 import { detectHubsFromLink } from '@/lib/rewards/hub-detector'
 import { NoteXPDisplay } from '@/components/notebook/note-xp-display'
+import { NotebookTabs } from '@/components/notebook/notebook-tabs'
+import { useNotebookTab } from '@/hooks/use-notebook-tab'
+import { QuestionsTabContent } from '@/components/notebook/questions-tab-content'
+import { SignalsTabContent } from '@/components/notebook/signals-tab-content'
+import { TextsTabContent } from '@/components/notebook/texts-tab-content'
 
 type Tag = Database['public']['Tables']['tags']['Row']
 type Note = Database['public']['Tables']['atomic_notes']['Row'] & {
@@ -50,6 +55,7 @@ type TextLink = {
 export default function NotebookPage() {
     const searchParams = useSearchParams()
     const noteIdParam = searchParams.get('noteId')
+    const questionIdParam = searchParams.get('questionId')
     const { user } = useAuth()
     const supabase = createClient()
     const [allNotes, setAllNotes] = useState<Note[]>([])
@@ -62,9 +68,9 @@ export default function NotebookPage() {
     const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
     const searchInputRef = useRef<HTMLInputElement>(null)
     const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null)
-    const [submissionFilter, setSubmissionFilter] = useState<'pending' | 'approved' | 'rejected' | null>(null)
-    const [showTagsSection, setShowTagsSection] = useState(true)
-    const [isAnsweringQuestion, setIsAnsweringQuestion] = useState(false)
+    const [submissionFilter, setSubmissionFilter] = useState<'draft' | 'pending' | 'approved' | 'rejected' | null>(null)
+    const [showTagsSection, setShowTagsSection] = useState(false)
+    const [showSubmissionsSection, setShowSubmissionsSection] = useState(false)
 
 
     // Inline creation state
@@ -102,6 +108,9 @@ export default function NotebookPage() {
     // v0.3.2 state - Suggestions Panel
     const [isSuggestionsPanelOpen, setIsSuggestionsPanelOpen] = useState(false) // Closed by default
     const [suggestionTargetNote, setSuggestionTargetNote] = useState<{ id: string, title: string } | null>(null)
+
+    // v0.4 state - Tab management
+    const { activeTab, setActiveTab } = useNotebookTab()
 
     useEffect(() => {
         const fetchNotebook = async () => {
@@ -187,6 +196,22 @@ export default function NotebookPage() {
     }, [user, supabase])
 
     // Handle noteId query param
+    useEffect(() => {
+        if (noteIdParam && allNotes.length > 0) {
+            const note = allNotes.find(n => n.id === noteIdParam)
+            if (note) {
+                setSelectedNote(note)
+                setActiveTab('atoms')
+            }
+        }
+    }, [noteIdParam, allNotes, setActiveTab])
+
+    // Handle questionId query param
+    useEffect(() => {
+        if (questionIdParam) {
+            setActiveTab('questions')
+        }
+    }, [questionIdParam, setActiveTab])
 
 
     const refreshNotebook = () => {
@@ -274,7 +299,6 @@ export default function NotebookPage() {
                     setSelectedNote(updatedNote)
                     // Update in the notes list too
                     setAllNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n))
-                    setAllNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n))
 
                     // Fetch updated links
                     const { data: links } = await supabase
@@ -358,7 +382,6 @@ export default function NotebookPage() {
 
             // Add to notes list and immediately select it for editing
             setAllNotes(prev => [transformedNote, ...prev])
-            setAllNotes(prev => [transformedNote, ...prev])
             setSelectedNote(transformedNote)
             setIsCreatingNote(false)
         } catch (err) {
@@ -367,71 +390,6 @@ export default function NotebookPage() {
         }
     }
 
-    const handleAnswerQuestion = async () => {
-        if (!user || !selectedNote || selectedNote.type !== 'question') return
-
-        setIsAnsweringQuestion(true)
-
-        try {
-            // Get character data
-            const { data: charData } = await supabase.from('characters').select('*').eq('user_id', user.id).single()
-            if (!charData) {
-                alert('Character not found')
-                setIsAnsweringQuestion(false)
-                return
-            }
-
-            // Create answer note
-            const { data: answerNote, error: noteError } = await supabase
-                .from('atomic_notes')
-                .insert({
-                    author_id: user.id,
-                    character_id: charData.id,
-                    title: `Answer to: ${selectedNote.title}`,
-                    body: '# Answer\n\n',
-                    type: 'idea',
-                    text_id: null,
-                    moderation_status: 'draft'
-                } as any)
-                .select('*')
-                .single()
-
-            if (noteError || !answerNote) {
-                alert('Failed to create answer')
-                setIsAnsweringQuestion(false)
-                return
-            }
-
-            // Create link from answer to question
-            const { error: linkError } = await supabase
-                .from('links')
-                .insert({
-                    from_note_id: answerNote.id,
-                    to_note_id: selectedNote.id,
-                    relation_type: 'answer',
-                    created_by: user.id,
-                    explanation: 'Answer to question'
-                })
-
-            if (linkError) {
-                console.error('Failed to create link:', linkError)
-                console.error('Link error details:', JSON.stringify(linkError, null, 2))
-                // Don't block on link errors, just log them
-            }
-
-            // Refresh notes and select the new answer
-            await refreshNotebook()
-            const updatedNote = allNotes.find(n => n.id === answerNote.id)
-            if (updatedNote) {
-                setSelectedNote(updatedNote as any)
-            }
-        } catch (err) {
-            console.error('Error creating answer:', err)
-            alert('Failed to create answer')
-        } finally {
-            setIsAnsweringQuestion(false)
-        }
-    }
 
     const handleDeleteNote = async () => {
         if (!selectedNote || !user) return
@@ -477,7 +435,6 @@ export default function NotebookPage() {
             console.log('Successfully deleted note:', noteIdToDelete)
 
             // Remove from local state
-            setAllNotes(prev => prev.filter(n => n.id !== noteIdToDelete))
             setAllNotes(prev => prev.filter(n => n.id !== noteIdToDelete))
         } catch (err) {
             console.error('[Delete Note] Error deleting note:', err)
@@ -826,6 +783,14 @@ export default function NotebookPage() {
         setCharCount(e.target.value.length)
     }
 
+    // Auto-resize title textarea
+    useEffect(() => {
+        if (titleInputRef.current) {
+            titleInputRef.current.style.height = 'auto'
+            titleInputRef.current.style.height = titleInputRef.current.scrollHeight + 'px'
+        }
+    }, [editedTitle, isEditingNote])
+
     // v0.3: Infer SP category based on note content and type
     const inferSPCategory = (note: Partial<Note>): SPCategory => {
         // Questions → Thinking SP
@@ -1057,12 +1022,6 @@ export default function NotebookPage() {
         return allNotes.filter(note => note.type === 'question')
     }, [allNotes])
 
-    const getAnswerCount = (questionId: string) => {
-        const links = noteLinks.get(questionId)
-        if (!links) return 0
-        // Count incoming links that are of type 'answer'
-        return links.incoming?.length || 0
-    }
 
 
 
@@ -1231,611 +1190,569 @@ export default function NotebookPage() {
     if (loading) return <div className="min-h-screen bg-[#1e1e1e] text-gray-200 p-6">Loading...</div>
 
     return (
-        <div className="min-h-screen bg-[#1e1e1e] text-gray-200 flex gap-0">
-            {/* Single Consolidated Sidebar */}
-            <div className="w-72 border-r border-gray-800 bg-[#252525] flex flex-col">
-                {/* New Note Button */}
-                <div className="p-3 border-b border-gray-800">
-                    <Button
-                        onClick={handleCreateNote}
-                        className="w-full"
-                        size="sm"
-                        variant="outline"
-                    >
-                        <PlusCircle className="h-4 w-4 mr-2" />
-                        New Note
-                    </Button>
-                </div>
+        <div className="min-h-screen bg-[#1e1e1e] text-gray-200 flex flex-col">
+            {/* v0.4: Notebook Tabs */}
+            <NotebookTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-                {/* Search Field */}
-                <div className="p-3 border-b border-gray-800">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                        <Input
-                            ref={searchInputRef}
-                            placeholder="Search notes..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 bg-[#1e1e1e] border-gray-700 text-gray-200 placeholder:text-gray-500 text-sm h-9"
-                        />
-                    </div>
-                </div>
+            {/* Tab Content */}
+            <div className="flex-1 flex gap-0 overflow-hidden">
+                {/* Atoms Tab - Existing Notebook Content */}
+                {activeTab === 'atoms' && (
+                    <>
+                        {/* Single Consolidated Sidebar */}
+                        <div className="w-72 border-r border-gray-800 bg-[#252525] flex flex-col h-full overflow-y-auto">
+                            {/* New Note Button */}
+                            <div className="p-3 border-b border-gray-800">
+                                <Button
+                                    onClick={handleCreateNote}
+                                    className="w-full"
+                                    size="sm"
+                                    variant="outline"
+                                >
+                                    <PlusCircle className="h-4 w-4 mr-2" />
+                                    New Note
+                                </Button>
+                            </div>
 
-                {/* All Notes & Questions Filters */}
-                <div className="p-2 border-b border-gray-800 space-y-0.5">
-                    <button
-                        onClick={() => {
-                            setSelectedTagFilter(null)
-                            setSubmissionFilter(null)
-                        }}
-                        className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors flex items-center justify-between ${selectedTagFilter === null && submissionFilter === null
-                            ? 'bg-blue-600/20 text-blue-400'
-                            : 'text-gray-400 hover:bg-gray-700/50'
-                            }`}
-                    >
-                        <span>All Notes</span>
-                        <span className="text-xs opacity-70">{allNotes.length}</span>
-                    </button>
-                    <button
-                        onClick={() => {
-                            setSelectedTagFilter('__questions__')
-                            setSubmissionFilter(null)
-                        }}
-                        className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors flex items-center justify-between ${selectedTagFilter === '__questions__'
-                            ? 'bg-blue-600/20 text-blue-400'
-                            : 'text-gray-400 hover:bg-gray-700/50'
-                            }`}
-                    >
-                        <span>Questions</span>
-                        <span className="text-xs opacity-70">{questionNotes.length}</span>
-                    </button>
-                </div>
+                            {/* Search Field */}
+                            <div className="p-3 border-b border-gray-800">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                                    <Input
+                                        ref={searchInputRef}
+                                        placeholder="Search notes..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-10 bg-[#1e1e1e] border-gray-700 text-gray-200 placeholder:text-gray-500 text-sm h-9"
+                                    />
+                                </div>
+                            </div>
 
-                {/* My Submissions Filters */}
-                <div className="p-2 border-b border-gray-800 space-y-0.5">
-                    <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        My Submissions
-                    </div>
-                    {['pending', 'approved', 'rejected'].map(status => (
-                        <button
-                            key={status}
-                            onClick={() => {
-                                setSubmissionFilter(status as any)
-                                setSelectedTagFilter(null)
-                            }}
-                            className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors flex items-center justify-between capitalize ${submissionFilter === status
-                                ? 'bg-blue-600/20 text-blue-400'
-                                : 'text-gray-400 hover:bg-gray-700/50'
-                                }`}
-                        >
-                            <span>{status}</span>
-                            {/* We'll need to calculate counts for these */}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Tags Section (Collapsible) */}
-                <div className="border-b border-gray-800">
-                    <button
-                        onClick={() => setShowTagsSection(!showTagsSection)}
-                        className="w-full p-3 flex items-center justify-between text-sm font-semibold text-gray-400 hover:bg-gray-700/30 transition-colors"
-                    >
-                        <span>TAGS</span>
-                        <ChevronRight className={`h-4 w-4 transition-transform ${showTagsSection ? 'rotate-90' : ''}`} />
-                    </button>
-                    {showTagsSection && (
-                        <div className="p-2 pb-3 space-y-0.5">
-                            {allTagsForSidebar.map(tag => (
+                            {/* All Notes Filter */}
+                            <div className="p-2 border-b border-gray-800 space-y-0.5">
                                 <button
-                                    key={tag.name}
-                                    onClick={() => setSelectedTagFilter(tag.name)}
-                                    className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors flex items-center justify-between ${selectedTagFilter === tag.name
+                                    onClick={() => {
+                                        setSelectedTagFilter(null)
+                                        setSubmissionFilter(null)
+                                    }}
+                                    className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors flex items-center justify-between ${selectedTagFilter === null && submissionFilter === null
                                         ? 'bg-blue-600/20 text-blue-400'
-                                        : 'text-gray-300 hover:bg-gray-700/50'
+                                        : 'text-gray-400 hover:bg-gray-700/50'
                                         }`}
                                 >
-                                    <span>#{tag.name}</span>
-                                    <span className="text-xs opacity-70">{tag.count}</span>
+                                    <span>All Notes</span>
+                                    <span className="text-xs opacity-70">{allNotes.length}</span>
                                 </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Notes List */}
-                <div className="flex-1 overflow-y-auto">
-                    {notes.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-gray-500">
-                            {selectedTagFilter ? `No notes with #${selectedTagFilter}` : 'No notes yet'}
-                        </div>
-                    ) : (
-                        notes.map(note => (
-                            <button
-                                key={note.id}
-                                onClick={() => setSelectedNote(note)}
-                                className={`w-full text-left p-3 border-b border-gray-800/50 hover:bg-gray-700/30 transition-colors ${selectedNote?.id === note.id ? 'bg-gray-700/50' : ''
-                                    }`}
-                            >
-                                <div className="flex items-start gap-2">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <div className="font-medium text-sm truncate text-gray-200">{note.title}</div>
-                                            {note.type && (
-                                                <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-400 flex-shrink-0">
-                                                    {note.type}
-                                                </span>
-                                            )}
-                                            {note.type === 'question' && (
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-600/20 text-green-400 flex-shrink-0">
-                                                    {getAnswerCount(note.id)} answers
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-xs text-gray-500 truncate">
-                                            {note.body.substring(0, 60)}...
-                                        </div>
-                                    </div>
-                                </div>
-                            </button>
-                        ))
-                    )}
-                </div>
-            </div>
-
-            {/* Main Content */}
-            <div className="flex-1 overflow-y-auto">
-                {selectedNote ? (
-                    <div className="max-w-4xl mx-auto px-12 py-12">
-                        {/* Action Toolbar */}
-                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-800 sticky top-0 bg-[#1e1e1e] z-10 pt-2">
-                            <div className="text-xs text-gray-500 flex items-center gap-4">
-                                <span>
-                                    {saveStatus === 'saving' && <span className="animate-pulse">Saving...</span>}
-                                    {saveStatus === 'saved' && <span className="text-green-500">✓ Saved</span>}
-                                    {saveStatus === 'error' && <span className="text-red-500">Error saving</span>}
-                                </span>
-                                {selectedNote.moderation_status === 'draft' && (
-                                    <span className="text-gray-600">
-                                        {charCount} / 280 chars (recommended)
-                                    </span>
-                                )}
                             </div>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                        setSuggestionTargetNote(null)
-                                        setIsLinkingModalOpen(true)
-                                    }}
-                                    className="text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+
+                            {/* My Submissions Section (Collapsible) */}
+                            <div className="border-b border-gray-800">
+                                <button
+                                    onClick={() => setShowSubmissionsSection(!showSubmissionsSection)}
+                                    className="w-full p-3 flex items-center justify-between text-sm font-semibold text-gray-400 hover:bg-gray-700/30 transition-colors"
                                 >
-                                    <LinkIcon className="h-3 w-3 mr-1" />
-                                    Connect
-                                </Button>
-
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-xs text-gray-400 hover:text-white"
-                                    onClick={() => {
-                                        // Save scroll position
-                                        sessionStorage.setItem('notebookScroll', window.scrollY.toString())
-
-                                        // Build graph URL
-                                        const params = new URLSearchParams()
-                                        params.set('highlightNode', selectedNote.id)
-
-                                        // If note is very new (< 5 mins), treat as new insight
-                                        const isNew = (Date.now() - new Date(selectedNote.created_at).getTime()) < 300000
-                                        if (isNew) params.set('newInsight', 'true')
-
-                                        window.location.href = `/graph?${params.toString()}`
-                                    }}
-                                >
-                                    <Network className="h-3 w-3 mr-1" />
-                                    Graph
-                                </Button>
-
-                                {selectedNote.type === 'question' && (
-                                    <Button
-                                        variant="default"
-                                        size="sm"
-                                        onClick={handleAnswerQuestion}
-                                        disabled={isAnsweringQuestion}
-                                        className="text-xs bg-green-600 hover:bg-green-700"
-                                    >
-                                        {isAnsweringQuestion ? 'Creating...' : 'Answer'}
-                                    </Button>
-                                )}
-
-                                {selectedNote.moderation_status === 'draft' && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={handleSubmitAtom}
-                                        disabled={isSubmitting}
-                                        className="text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 border border-blue-500/30"
-                                    >
-                                        {isSubmitting ? (
-                                            <>
-                                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                Submitting...
-                                            </>
-                                        ) : (
-                                            'Submit Atom'
-                                        )}
-                                    </Button>
-                                )}
-
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleDeleteNote}
-                                    className="text-xs text-red-400 hover:text-red-300"
-                                >
-                                    <Trash className="h-3 w-3" />
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Meaning Feedback Banner (v0.3) */}
-                        <MeaningFeedbackBanner
-                            status={meaningCheckStatus}
-                            result={meaningCheckResult}
-                            awards={lastAwards}
-                            onDismiss={() => {
-                                setMeaningCheckStatus(null)
-                                setMeaningCheckResult(null)
-                                setLastAwards(undefined)
-                            }}
-                        />
-                        {/* Bear-Style Editor */}
-                        {isEditingNote ? (
-                            <div className="max-w-4xl mx-auto px-2">
-
-                                <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-gray-500 bg-[#252525] p-3 rounded-lg border border-gray-800">
-                                    {/* Status Badge */}
-                                    <div className={`px-2 py-0.5 rounded text-xs font-medium uppercase tracking-wider ${selectedNote.moderation_status === 'draft'
-                                        ? 'bg-yellow-500/20 text-yellow-200 border border-yellow-500/30'
-                                        : selectedNote.moderation_status === 'rejected'
-                                            ? 'bg-red-500/20 text-red-200 border border-red-500/30'
-                                            : 'bg-green-500/20 text-green-200 border border-green-500/30'
-                                        }`}>
-                                        {selectedNote.moderation_status || 'Approved'}
-                                    </div>
-
-                                    {/* Rejection Reason */}
-                                    {selectedNote.moderation_status === 'rejected' && selectedNote.moderation_result && (
-                                        <div className="w-full mt-2 p-3 bg-red-900/20 border border-red-500/30 rounded text-red-200 text-sm">
-                                            <span className="font-semibold">Rejection Reason: </span>
-                                            {selectedNote.moderation_result}
-                                        </div>
-                                    )}
-
-                                    {/* SP Category Selector (v0.3) */}
-                                    {selectedNote.moderation_status === 'draft' && (
-                                        <SPCategorySelector
-                                            category={spCategory}
-                                            onChange={setSpCategory}
-                                            inferredCategory={inferredSPCategory}
-                                        />
-                                    )}
-
-                                    {/* Source Text Selector */}
-                                    {selectedNote.moderation_status === 'draft' && (
-                                        <div className="relative group">
-                                            <select
-                                                value={selectedNote.text_id || ''}
-                                                onChange={(e) => {
-                                                    const newTextId = e.target.value || null
-                                                    setSelectedNote({ ...selectedNote, text_id: newTextId })
-                                                    // Trigger autosave if needed, or rely on manual save/submit
-                                                    // For now, we rely on the user editing title/body to trigger save, 
-                                                    // OR we should trigger a save here. 
-                                                    // Let's trigger a save immediately for metadata changes.
-                                                    const updateTextId = async () => {
-                                                        await supabase
-                                                            .from('atomic_notes')
-                                                            .update({ text_id: newTextId } as any)
-                                                            .eq('id', selectedNote.id)
-                                                    }
-                                                    updateTextId()
-                                                }}
-                                                className="appearance-none bg-[#2d2d30] text-gray-300 text-xs rounded-md px-2 py-1 pr-6 border border-transparent hover:border-gray-600 focus:outline-none cursor-pointer max-w-[150px] truncate"
-                                            >
-                                                <option value="">Select Source Text...</option>
-                                                {texts.map(text => (
-                                                    <option key={text.id} value={text.id}>
-                                                        {text.title}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <Book className="w-3 h-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-                                        </div>
-                                    )}
-                                    <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                                        <span>{new Date(selectedNote.created_at).toLocaleDateString()}</span>
-                                        {selectedNote.users?.codex_name && (
-                                            <span>by {selectedNote.users.codex_name}</span>
-                                        )}
-                                        <span>•</span>
-                                        <span className="text-blue-400">
-                                            {selectedNote.is_hub ? '🌐 Hub' : '📝 Note'}
-                                            {selectedNote.is_hub && ` (${selectedNote.connection_count} connections)`}
-                                        </span>
-                                    </div>
-
-                                    {/* XP Earned Display */}
-                                    <NoteXPDisplay noteId={selectedNote.id} userId={user?.id || ''} />
-
-                                    <div className="border-b border-gray-800 mb-4"></div>
-                                    {/* Tags */}
-                                    <div className="flex items-center gap-2 flex-wrap border-l border-gray-700 pl-4">
-                                        <Hash className="w-3.5 h-3.5" />
-                                        {editedTags.map((tag, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="px-2 py-1 bg-[#2d2d30] text-gray-300 text-xs rounded-md flex items-center gap-1 group"
-                                            >
-                                                #{tag}
-                                                <button
-                                                    onClick={() => handleRemoveTag(tag)}
-                                                    className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity ml-1"
-                                                >
-                                                    ×
-                                                </button>
-                                            </span>
-                                        ))}
-                                        <input
-                                            type="text"
-                                            placeholder="Add tag..."
-                                            className="bg-transparent border-none focus:ring-0 text-xs text-gray-400 placeholder:text-gray-600 w-24 p-0"
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    handleAddTag(e.currentTarget.value)
-                                                    e.currentTarget.value = ''
-                                                }
+                                    <span>MY SUBMISSIONS</span>
+                                    <ChevronRight className={`h-4 w-4 transition-transform ${showSubmissionsSection ? 'rotate-90' : ''}`} />
+                                </button>
+                                {showSubmissionsSection && (
+                                    <div className="p-2 pb-3 space-y-0.5">
+                                        <button
+                                            onClick={() => {
+                                                setSubmissionFilter('draft')
+                                                setSelectedTagFilter(null)
                                             }}
-                                            list="tag-suggestions"
-                                        />
-                                        <datalist id="tag-suggestions">
-                                            {Array.from(new Set(allNotes.flatMap(n => (n.tags as Tag[] | undefined)?.map(t => typeof t === 'string' ? t : t.name) || []))).sort().map(tag => (
-                                                <option key={tag} value={tag} />
-                                            ))}
-                                        </datalist>
+                                            className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors flex items-center justify-between ${submissionFilter === 'draft'
+                                                ? 'bg-blue-600/20 text-blue-400'
+                                                : 'text-gray-400 hover:bg-gray-700/50'
+                                                }`}
+                                        >
+                                            <span>Drafts</span>
+                                            <span className="text-xs opacity-70">{allNotes.filter(n => n.moderation_status === 'draft').length}</span>
+                                        </button>
+                                        {['pending', 'approved', 'rejected'].map(status => (
+                                            <button
+                                                key={status}
+                                                onClick={() => {
+                                                    setSubmissionFilter(status as any)
+                                                    setSelectedTagFilter(null)
+                                                }}
+                                                className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors flex items-center justify-between capitalize ${submissionFilter === status
+                                                    ? 'bg-blue-600/20 text-blue-400'
+                                                    : 'text-gray-400 hover:bg-gray-700/50'
+                                                    }`}
+                                            >
+                                                <span>{status}</span>
+                                                <span className="text-xs opacity-70">{allNotes.filter(n => n.moderation_status === status).length}</span>
+                                            </button>
+                                        ))}
                                     </div>
-                                    {/* Persistent Rewards Display */}
-                                    {creationAction && (
-                                        <div className="flex items-center gap-3 ml-auto text-xs font-medium bg-black/20 px-2 py-1 rounded">
-                                            <span className="text-green-400">+{creationAction.xp} XP</span>
-                                            {creationAction.sp_thinking > 0 && <span className="text-blue-400">+{creationAction.sp_thinking} Thinking</span>}
-                                            {creationAction.sp_reading > 0 && <span className="text-emerald-400">+{creationAction.sp_reading} Reading</span>}
-                                            {creationAction.sp_writing > 0 && <span className="text-amber-400">+{creationAction.sp_writing} Writing</span>}
-                                            {creationAction.sp_engagement > 0 && <span className="text-purple-400">+{creationAction.sp_engagement} Engagement</span>}
-                                        </div>
-                                    )}
+                                )}
+                            </div>
+
+                            {/* Tags Section (Collapsible) */}
+                            <div className="border-b border-gray-800">
+                                <button
+                                    onClick={() => setShowTagsSection(!showTagsSection)}
+                                    className="w-full p-3 flex items-center justify-between text-sm font-semibold text-gray-400 hover:bg-gray-700/30 transition-colors"
+                                >
+                                    <span>TAGS</span>
+                                    <ChevronRight className={`h-4 w-4 transition-transform ${showTagsSection ? 'rotate-90' : ''}`} />
+                                </button>
+                                {showTagsSection && (
+                                    <div className="p-2 pb-3 space-y-0.5">
+                                        {allTagsForSidebar.map(tag => (
+                                            <button
+                                                key={tag.name}
+                                                onClick={() => setSelectedTagFilter(tag.name)}
+                                                className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors flex items-center justify-between ${selectedTagFilter === tag.name
+                                                    ? 'bg-blue-600/20 text-blue-400'
+                                                    : 'text-gray-300 hover:bg-gray-700/50'
+                                                    }`}
+                                            >
+                                                <span>#{tag.name}</span>
+                                                <span className="text-xs opacity-70">{tag.count}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Notes List */}
+                            <div className="flex-1">
+                                {/* Header */}
+                                <div className="sticky top-0 bg-[#252525] border-b border-gray-800 px-3 py-2">
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Notes</span>
                                 </div>
 
-                                {/* Title Input - Large, prominent */}
-                                <textarea
-                                    ref={titleInputRef}
-                                    value={editedTitle}
-                                    onChange={(e) => setEditedTitle(e.target.value)}
-                                    placeholder="Note Title"
-                                    className="w-full text-4xl font-bold bg-transparent border-none focus:ring-0 p-0 resize-none overflow-hidden placeholder:text-gray-600 focus:outline-none mb-4"
-                                    rows={1}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault()
-                                            editorRef.current?.focus()
-                                        }
-                                    }}
-                                    style={{ lineHeight: '1.2' }}
-                                />
-                                {/* Markdown Body - Borderless, clean */}
-                                <div className="relative">
-                                    <textarea
-                                        ref={editorRef}
-                                        value={editedBody}
-                                        onChange={handleEditorChange}
-                                        className="w-full min-h-[500px] bg-transparent border-none text-gray-200 text-base focus:outline-none resize-none leading-relaxed"
-                                        placeholder="Start writing..."
-                                        style={{ lineHeight: '1.7' }}
-                                    />
+                                {/* Notes */}
+                                {notes.length === 0 ? (
+                                    <div className="p-4 text-center text-sm text-gray-500">
+                                        {selectedTagFilter ? `No notes with #${selectedTagFilter}` : 'No notes yet'}
+                                    </div>
+                                ) : (
+                                    notes.map(note => (
+                                        <button
+                                            key={note.id}
+                                            onClick={() => setSelectedNote(note)}
+                                            className={`w-full text-left p-3 border-b border-gray-800/50 hover:bg-gray-700/30 transition-colors ${selectedNote?.id === note.id ? 'bg-gray-700/50' : ''
+                                                }`}
+                                        >
+                                            <div className="flex items-start gap-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            {note.moderation_status === 'draft' && (
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-600/20 text-yellow-400 border border-yellow-600/30 flex-shrink-0 font-medium">
+                                                                    DRAFT
+                                                                </span>
+                                                            )}
+                                                            {note.moderation_status === 'rejected' && (
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-600/20 text-red-400 border border-red-600/30 flex-shrink-0 font-medium">
+                                                                    REJECTED
+                                                                </span>
+                                                            )}
+                                                            {note.type && (
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400 flex-shrink-0 uppercase">
+                                                                    {note.type}
+                                                                </span>
+                                                            )}
+                                                            <div className="font-medium text-sm text-gray-200">{note.title}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 truncate">
+                                                        {note.body.substring(0, 60)}...
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        </div>
 
-                                    {/* Bottom Submit Button (only for draft notes) */}
-                                    {selectedNote.moderation_status === 'draft' && (
-                                        <div className="mt-8 mb-8 flex justify-end">
+                        {/* Main Content */}
+                        <div className="flex-1 overflow-y-auto bg-[#1a1a1a]">
+                            {selectedNote ? (
+                                <div className="max-w-4xl mx-auto px-12 py-6">
+                                    {/* Action Toolbar */}
+                                    <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-800 sticky top-0 bg-[#1a1a1a] z-10">
+                                        <div className="text-xs text-gray-500 flex items-center gap-4">
+                                            <span>
+                                                {saveStatus === 'saving' && <span className="animate-pulse">Saving...</span>}
+                                                {saveStatus === 'saved' && <span className="text-green-500">✓ Saved</span>}
+                                                {saveStatus === 'error' && <span className="text-red-500">Error saving</span>}
+                                            </span>
+                                            {selectedNote.moderation_status === 'draft' && (
+                                                <span className="text-gray-600">
+                                                    {charCount} / 280 chars (recommended)
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-2">
                                             <Button
-                                                onClick={handleSubmitAtom}
-                                                disabled={isSubmitting}
                                                 variant="ghost"
-                                                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 border border-blue-500/30 px-6"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setSuggestionTargetNote(null)
+                                                    setIsLinkingModalOpen(true)
+                                                }}
+                                                className="text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
                                             >
-                                                {isSubmitting ? (
-                                                    <>
-                                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                        Submitting Atom...
-                                                    </>
-                                                ) : (
-                                                    'Submit Atom'
-                                                )}
+                                                <LinkIcon className="h-3 w-3 mr-1" />
+                                                Connect
+                                            </Button>
+
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-xs text-gray-400 hover:text-white"
+                                                onClick={() => {
+                                                    // Save scroll position
+                                                    sessionStorage.setItem('notebookScroll', window.scrollY.toString())
+
+                                                    // Build graph URL
+                                                    const params = new URLSearchParams()
+                                                    params.set('highlightNode', selectedNote.id)
+
+                                                    // If note is very new (< 5 mins), treat as new insight
+                                                    const isNew = (Date.now() - new Date(selectedNote.created_at).getTime()) < 300000
+                                                    if (isNew) params.set('newInsight', 'true')
+
+                                                    window.location.href = `/graph?${params.toString()}`
+                                                }}
+                                            >
+                                                <Network className="h-3 w-3 mr-1" />
+                                                Graph
+                                            </Button>
+
+
+                                            {selectedNote.moderation_status === 'draft' && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={handleSubmitAtom}
+                                                    disabled={isSubmitting}
+                                                    className="text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 border border-blue-500/30"
+                                                >
+                                                    {isSubmitting ? (
+                                                        <>
+                                                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                            Submitting...
+                                                        </>
+                                                    ) : (
+                                                        'Submit Atom'
+                                                    )}
+                                                </Button>
+                                            )}
+
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={handleDeleteNote}
+                                                className="text-xs text-red-400 hover:text-red-300"
+                                            >
+                                                <Trash className="h-3 w-3" />
                                             </Button>
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                            <div
-                                className="max-w-4xl mx-auto px-8 py-6 cursor-text"
-                                onClick={() => setIsEditingNote(true)}
-                            >
-                                {/* View Mode - Rendered Markdown */}
-                                <h1 className="text-3xl font-bold text-gray-100 mb-4">{selectedNote.title}</h1>
-
-                                {/* Tags in View Mode */}
-                                {selectedNote.tags && selectedNote.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mb-6">
-                                        {selectedNote.tags.map((tag: any, idx: number) => (
-                                            <span
-                                                key={idx}
-                                                className="px-2 py-1 bg-gray-700/50 rounded text-sm text-gray-300"
-                                            >
-                                                #{typeof tag === 'string' ? tag : tag.display_name}
-                                            </span>
-                                        ))}
                                     </div>
-                                )}
 
-                                {/* Rendered Markdown Content */}
-                                <div className="prose prose-invert prose-lg max-w-none">
-                                    <MarkdownRenderer content={selectedNote.body} />
-                                </div>
+                                    {/* Meaning Feedback Banner (v0.3) */}
+                                    <MeaningFeedbackBanner
+                                        noteId={selectedNote.id}
+                                        status={meaningCheckStatus}
+                                        result={meaningCheckResult}
+                                        awards={lastAwards}
+                                        onDismiss={() => {
+                                            setMeaningCheckStatus(null)
+                                            setMeaningCheckResult(null)
+                                            setLastAwards(undefined)
+                                        }}
+                                    />
+                                    {/* Bear-Style Editor */}
+                                    {isEditingNote ? (
+                                        <div className="max-w-4xl mx-auto px-2">
 
-                                {/* Edit hint */}
-                                <div className="mt-8 text-center text-xs text-gray-600">
-                                    Click anywhere to edit
+                                            {selectedNote.moderation_status === 'draft' && (
+                                                <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-gray-500 bg-[#2d2d30] p-3 rounded-lg border border-gray-800">
+                                                    {/* SP Category Selector (v0.3) */}
+                                                    <SPCategorySelector
+                                                        category={spCategory}
+                                                        onChange={setSpCategory}
+                                                        inferredCategory={inferredSPCategory}
+                                                    />
+
+                                                    {/* Source Text Selector */}
+                                                    <div className="relative group">
+                                                        <select
+                                                            value={selectedNote.text_id || ''}
+                                                            onChange={(e) => {
+                                                                const newTextId = e.target.value || null
+                                                                setSelectedNote({ ...selectedNote, text_id: newTextId })
+                                                                // Trigger autosave if needed, or rely on manual save/submit
+                                                                // For now, we rely on the user editing title/body to trigger save, 
+                                                                // OR we should trigger a save here. 
+                                                                // Let's trigger a save immediately for metadata changes.
+                                                                const updateTextId = async () => {
+                                                                    await supabase
+                                                                        .from('atomic_notes')
+                                                                        .update({ text_id: newTextId } as any)
+                                                                        .eq('id', selectedNote.id)
+                                                                }
+                                                                updateTextId()
+                                                            }}
+                                                            className="appearance-none bg-[#2d2d30] text-gray-300 text-xs rounded-md px-2 py-1 pr-6 border border-transparent hover:border-gray-600 focus:outline-none cursor-pointer max-w-[150px] truncate"
+                                                        >
+                                                            <option value="">Select Source Text...</option>
+                                                            {texts.map(text => (
+                                                                <option key={text.id} value={text.id}>
+                                                                    {text.title}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <Book className="w-3 h-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Title Input - Large, prominent */}
+                                            <textarea
+                                                ref={titleInputRef}
+                                                value={editedTitle}
+                                                onChange={(e) => setEditedTitle(e.target.value)}
+                                                placeholder="Note Title"
+                                                className="w-full text-4xl font-bold bg-transparent border-none focus:ring-0 p-0 resize-none placeholder:text-gray-600 focus:outline-none mb-4"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault()
+                                                        editorRef.current?.focus()
+                                                    }
+                                                }}
+                                                style={{ lineHeight: '1.2' }}
+                                            />
+                                            {/* Markdown Body - Borderless, clean */}
+                                            <div className="relative">
+                                                <textarea
+                                                    ref={editorRef}
+                                                    value={editedBody}
+                                                    onChange={handleEditorChange}
+                                                    className="w-full min-h-[500px] bg-transparent border-none text-gray-200 text-base focus:outline-none resize-none leading-relaxed"
+                                                    placeholder="Start writing..."
+                                                    style={{ lineHeight: '1.7' }}
+                                                />
+
+                                                {/* Bottom Submit Button (only for draft notes) */}
+                                                {selectedNote.moderation_status === 'draft' && (
+                                                    <div className="mt-8 mb-8 flex justify-end">
+                                                        <Button
+                                                            onClick={handleSubmitAtom}
+                                                            disabled={isSubmitting}
+                                                            variant="ghost"
+                                                            className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 border border-blue-500/30 px-6"
+                                                        >
+                                                            {isSubmitting ? (
+                                                                <>
+                                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                                    Submitting Atom...
+                                                                </>
+                                                            ) : (
+                                                                'Submit Atom'
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="max-w-4xl mx-auto px-8 py-6 cursor-text"
+                                            onClick={() => setIsEditingNote(true)}
+                                        >
+                                            {/* View Mode - Rendered Markdown */}
+                                            <h1 className="text-3xl font-bold text-gray-100 mb-4">{selectedNote.title}</h1>
+
+                                            {/* Tags in View Mode */}
+                                            {selectedNote.tags && selectedNote.tags.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mb-6">
+                                                    {selectedNote.tags.map((tag: any, idx: number) => (
+                                                        <span
+                                                            key={idx}
+                                                            className="px-2 py-1 bg-gray-700/50 rounded text-sm text-gray-300"
+                                                        >
+                                                            #{typeof tag === 'string' ? tag : tag.display_name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Rendered Markdown Content */}
+                                            <div className="prose prose-invert prose-lg max-w-none">
+                                                <MarkdownRenderer content={selectedNote.body} />
+                                            </div>
+
+                                            {/* Edit hint */}
+                                            <div className="mt-8 text-center text-xs text-gray-600">
+                                                Click anywhere to edit
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Linked Notes Section */}
+                                    {((noteLinks.get(selectedNote.id)?.outgoing && noteLinks.get(selectedNote.id)!.outgoing.length > 0) ||
+                                        (noteLinks.get(selectedNote.id)?.incoming && noteLinks.get(selectedNote.id)!.incoming.length > 0)) && (
+                                            <div className="max-w-4xl mx-auto px-8 py-6 border-t border-gray-800 mt-8">
+                                                <h3 className="text-sm uppercase tracking-wider text-gray-500 mb-3 font-semibold">
+                                                    Linked Notes
+                                                </h3>
+                                                <div className="space-y-2">
+                                                    {/* Outgoing Links */}
+                                                    {noteLinks.get(selectedNote.id)?.outgoing?.map((linkedNote) => (
+                                                        <button
+                                                            key={`outgoing-${linkedNote.id}`}
+                                                            onClick={() => setSelectedNote(linkedNote)}
+                                                            className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors group"
+                                                        >
+                                                            <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                                                            <span>{linkedNote.title}</span>
+                                                        </button>
+                                                    ))}
+                                                    {/* Incoming Links (Backlinks) */}
+                                                    {noteLinks.get(selectedNote.id)?.incoming?.map((linkedNote) => (
+                                                        <button
+                                                            key={`incoming-${linkedNote.id}`}
+                                                            onClick={() => setSelectedNote(linkedNote)}
+                                                            className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors group"
+                                                        >
+                                                            <ArrowLeft className="h-3 w-3 group-hover:-translate-x-1 transition-transform" />
+                                                            <span>{linkedNote.title}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )
+                                    }
+
+                                    {/* Linked Texts */}
+                                    {
+                                        noteLinks.get(selectedNote.id)?.texts && noteLinks.get(selectedNote.id)!.texts.length > 0 && (
+                                            <div className="max-w-4xl mx-auto px-8 py-6 border-t border-gray-800">
+                                                <h3 className="text-xs uppercase tracking-wider text-gray-500 mb-3 font-semibold">
+                                                    Linked Texts
+                                                </h3>
+                                                <div className="space-y-2">
+                                                    {noteLinks.get(selectedNote.id)!.texts.map((text) => (
+                                                        <div key={text.id} className="flex items-center gap-2 text-sm text-emerald-400">
+                                                            <Book className="h-3 w-3" />
+                                                            <span>{text.title}</span>
+                                                            <span className="text-gray-500 text-xs">by {text.author}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )
+                                    }
+
+                                    {/* Local Graph */}
+                                    <div className="max-w-4xl mx-auto px-8 py-6 border-t border-gray-800">
+                                        <h3 className="text-xs uppercase tracking-wider text-gray-500 mb-3 font-semibold">
+                                            Local Graph
+                                        </h3>
+                                        <div className="h-[300px] w-full rounded-lg overflow-hidden border border-gray-800">
+                                            <ForceGraph
+                                                data={getGraphData}
+                                                nodeRelSize={4}
+                                                onNodeClick={(node) => {
+                                                    if (node.type !== 'text') {
+                                                        const targetNote = allNotes.find(n => n.id === node.id)
+                                                        if (targetNote) setSelectedNote(targetNote)
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        {/* Legend */}
+                                        <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                                            {[
+                                                { type: 'idea', color: '#00f0ff', label: 'Idea' },
+                                                { type: 'question', color: '#ff003c', label: 'Question' },
+                                                { type: 'quote', color: '#7000ff', label: 'Quote' },
+                                                { type: 'insight', color: '#ffe600', label: 'Insight' },
+                                                { type: 'text', color: '#ffffff', label: 'Text' }
+                                            ].map(item => (
+                                                <div key={item.type} className="flex items-center gap-1.5">
+                                                    <div
+                                                        className="w-3 h-3 rounded-full"
+                                                        style={{ backgroundColor: item.color }}
+                                                    />
+                                                    <span className="text-gray-400">{item.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-3">
+                                    <div className="text-6xl">📝</div>
+                                    <p className="text-lg">Select a note to view</p>
+                                    <p className="text-sm text-gray-600">Or press ⌘K to search</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Dialogs */}
+                        <CommandPalette
+                            open={commandPaletteOpen}
+                            onOpenChange={setCommandPaletteOpen}
+                            notes={allNotes}
+                            onSelectNote={(note) => {
+                                setSelectedNote(note)
+                                setCommandPaletteOpen(false)
+                            }}
+                        />
+
+                        {isLinkingModalOpen && (
+                            <LinkingModal
+                                isOpen={isLinkingModalOpen}
+                                onClose={() => setIsLinkingModalOpen(false)}
+                                currentNoteId={selectedNote?.id || ''}
+                                currentNoteTitle={selectedNote?.title || ''}
+                                allNotes={allNotes}
+                                allTexts={texts}
+                                onCreateLink={handleCreateLinkFromModal}
+                                preselectedTarget={suggestionTargetNote}
+                            />
                         )}
 
-                        {/* Linked Notes Section */}
-                        {((noteLinks.get(selectedNote.id)?.outgoing && noteLinks.get(selectedNote.id)!.outgoing.length > 0) ||
-                            (noteLinks.get(selectedNote.id)?.incoming && noteLinks.get(selectedNote.id)!.incoming.length > 0)) && (
-                                <div className="max-w-4xl mx-auto px-8 py-6 border-t border-gray-800 mt-8">
-                                    <h3 className="text-sm uppercase tracking-wider text-gray-500 mb-3 font-semibold">
-                                        Linked Notes
-                                    </h3>
-                                    <div className="space-y-2">
-                                        {/* Outgoing Links */}
-                                        {noteLinks.get(selectedNote.id)?.outgoing?.map((linkedNote) => (
-                                            <button
-                                                key={`outgoing-${linkedNote.id}`}
-                                                onClick={() => setSelectedNote(linkedNote)}
-                                                className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors group"
-                                            >
-                                                <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
-                                                <span>{linkedNote.title}</span>
-                                            </button>
-                                        ))}
-                                        {/* Incoming Links (Backlinks) */}
-                                        {noteLinks.get(selectedNote.id)?.incoming?.map((linkedNote) => (
-                                            <button
-                                                key={`incoming-${linkedNote.id}`}
-                                                onClick={() => setSelectedNote(linkedNote)}
-                                                className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors group"
-                                            >
-                                                <ArrowLeft className="h-3 w-3 group-hover:-translate-x-1 transition-transform" />
-                                                <span>{linkedNote.title}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )
-                        }
-
-                        {/* Linked Texts */}
-                        {
-                            noteLinks.get(selectedNote.id)?.texts && noteLinks.get(selectedNote.id)!.texts.length > 0 && (
-                                <div className="max-w-4xl mx-auto px-8 py-6 border-t border-gray-800">
-                                    <h3 className="text-xs uppercase tracking-wider text-gray-500 mb-3 font-semibold">
-                                        Linked Texts
-                                    </h3>
-                                    <div className="space-y-2">
-                                        {noteLinks.get(selectedNote.id)!.texts.map((text) => (
-                                            <div key={text.id} className="flex items-center gap-2 text-sm text-emerald-400">
-                                                <Book className="h-3 w-3" />
-                                                <span>{text.title}</span>
-                                                <span className="text-gray-500 text-xs">by {text.author}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )
-                        }
-
-                        {/* Local Graph */}
-                        <div className="max-w-4xl mx-auto px-8 py-6 border-t border-gray-800">
-                            <h3 className="text-xs uppercase tracking-wider text-gray-500 mb-3 font-semibold">
-                                Local Graph
-                            </h3>
-                            <div className="h-[300px] w-full rounded-lg overflow-hidden border border-gray-800">
-                                <ForceGraph
-                                    data={getGraphData}
-                                    nodeRelSize={4}
-                                    onNodeClick={(node) => {
-                                        if (node.type !== 'text') {
-                                            const targetNote = allNotes.find(n => n.id === node.id)
-                                            if (targetNote) setSelectedNote(targetNote)
-                                        }
-                                    }}
-                                />
-                            </div>
-                            {/* Legend */}
-                            <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                                {[
-                                    { type: 'idea', color: '#00f0ff', label: 'Idea' },
-                                    { type: 'question', color: '#ff003c', label: 'Question' },
-                                    { type: 'quote', color: '#7000ff', label: 'Quote' },
-                                    { type: 'insight', color: '#ffe600', label: 'Insight' },
-                                    { type: 'text', color: '#ffffff', label: 'Text' }
-                                ].map(item => (
-                                    <div key={item.type} className="flex items-center gap-1.5">
-                                        <div
-                                            className="w-3 h-3 rounded-full"
-                                            style={{ backgroundColor: item.color }}
-                                        />
-                                        <span className="text-gray-400">{item.label}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-3">
-                        <div className="text-6xl">📝</div>
-                        <p className="text-lg">Select a note to view</p>
-                        <p className="text-sm text-gray-600">Or press ⌘K to search</p>
-                    </div>
+                        {/* Suggestions Panel */}
+                        <SuggestionsPanel
+                            noteId={selectedNote?.id || null}
+                            noteText={editedBody}
+                            tags={editedTags}
+                            isOpen={isSuggestionsPanelOpen}
+                            onToggle={() => setIsSuggestionsPanelOpen(!isSuggestionsPanelOpen)}
+                            onConnect={handleConnectFromSuggestion}
+                            onAddTag={handleAddTag}
+                            onRemoveTag={handleRemoveTag}
+                            allTags={Array.from(new Set(allNotes.flatMap(n => (n.tags as Tag[] | undefined)?.map(t => typeof t === 'string' ? t : t.name) || []))).sort()}
+                            metadata={selectedNote ? {
+                                created_at: selectedNote.created_at,
+                                author: selectedNote.users?.codex_name || null,
+                                moderation_status: selectedNote.moderation_status,
+                                moderation_result: selectedNote.moderation_result
+                            } : null}
+                            userId={user?.id || ''}
+                            creationAction={creationAction}
+                        />
+                    </>
                 )}
+
+                {/* Questions Tab */}
+                {activeTab === 'questions' && <QuestionsTabContent preselectedQuestionId={questionIdParam} />}
+
+                {/* Signals Tab */}
+                {activeTab === 'signals' && <SignalsTabContent />}
+
+                {/* Texts Tab */}
+                {activeTab === 'texts' && <TextsTabContent />}
             </div>
-
-            {/* Dialogs */}
-            <CommandPalette
-                open={commandPaletteOpen}
-                onOpenChange={setCommandPaletteOpen}
-                notes={allNotes}
-                onSelectNote={(note) => {
-                    setSelectedNote(note)
-                    setCommandPaletteOpen(false)
-                }}
-            />
-
-            {isLinkingModalOpen && (
-                <LinkingModal
-                    isOpen={isLinkingModalOpen}
-                    onClose={() => setIsLinkingModalOpen(false)}
-                    currentNoteId={selectedNote?.id || ''}
-                    currentNoteTitle={selectedNote?.title || ''}
-                    allNotes={allNotes}
-                    allTexts={texts}
-                    onCreateLink={handleCreateLinkFromModal}
-                    preselectedTarget={suggestionTargetNote}
-                />
-            )}
-
-            {/* v0.3.2: Suggestions Panel */}
-            {selectedNote && (selectedNote.moderation_status === 'draft' || selectedNote.moderation_status === 'approved') && (
-                <SuggestionsPanel
-                    noteId={selectedNote.id}
-                    noteText={`${selectedNote.title}\n${selectedNote.body}`}
-                    tags={editedTags}
-                    isOpen={isSuggestionsPanelOpen}
-                    onToggle={() => setIsSuggestionsPanelOpen(!isSuggestionsPanelOpen)}
-                    onConnect={handleConnectFromSuggestion}
-                />
-            )}
-        </div>
+        </div >
     )
 }
