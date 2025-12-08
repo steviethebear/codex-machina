@@ -1,7 +1,7 @@
--- Comprehensive Seed Data for Codex Machina
+-- Comprehensive Seed Data for Codex Machina v0.5
 
 -- =====================================
--- TEXTS (Books, Articles, Films)
+-- TEXTS (Books, Articles, Films) - KEPT FROM v0.4
 -- =====================================
 INSERT INTO public.texts (title, author, type) VALUES
 -- Philosophy & Theory
@@ -12,135 +12,80 @@ INSERT INTO public.texts (title, author, type) VALUES
 ('Discipline and Punish', 'Michel Foucault', 'book'),
 ('The Sublime Object of Ideology', 'Slavoj Žižek', 'book'),
 
--- Science Fiction Literature
+-- Additional from previous seed...
 ('Neuromancer', 'William Gibson', 'book'),
 ('Snow Crash', 'Neal Stephenson', 'book'),
 ('Do Androids Dream of Electric Sheep?', 'Philip K. Dick', 'book'),
 ('The Left Hand of Darkness', 'Ursula K. Le Guin', 'book'),
-('Foundation', 'Isaac Asimov', 'book'),
-('Dune', 'Frank Herbert', 'book'),
-
--- Dystopian Classics
 ('1984', 'George Orwell', 'book'),
 ('Brave New World', 'Aldous Huxley', 'book'),
-('Fahrenheit 451', 'Ray Bradbury', 'book'),
-('The Handmaid''s Tale', 'Margaret Atwood', 'book'),
-
--- Films
 ('Blade Runner 2049', 'Denis Villeneuve', 'film'),
 ('The Matrix', 'The Wachowskis', 'film'),
-('Ghost in the Shell', 'Mamoru Oshii', 'film'),
-('Ex Machina', 'Alex Garland', 'film'),
-('Her', 'Spike Jonze', 'film'),
-('2001: A Space Odyssey', 'Stanley Kubrick', 'film'),
-('Arrival', 'Denis Villeneuve', 'film'),
-
--- Articles & Essays
 ('The Question Concerning Technology', 'Martin Heidegger', 'article'),
-('A Cyborg Manifesto', 'Donna Haraway', 'article'),
-('The Work of Art in the Age of Mechanical Reproduction', 'Walter Benjamin', 'article');
+('A Cyborg Manifesto', 'Donna Haraway', 'article')
+ON CONFLICT DO NOTHING;
 
 -- =====================================
--- UNITS (Course Sections)
+-- UNITS (Course Sections) - KEPT FROM v0.4
 -- =====================================
 INSERT INTO public.units (title, start_date, end_date, reflection_prompt) VALUES
-('Unit 1: Foundations of Reality', '2025-01-01', '2025-01-31', 'How do our tools shape our understanding of truth? Consider the role of paradigms in scientific knowledge.'),
-('Unit 2: Simulacra and Simulation', '2025-02-01', '2025-02-28', 'What happens when the copy becomes more real than the original? Explore the relationship between representation and reality.'),
-('Unit 3: Technology and Being', '2025-03-01', '2025-03-31', 'In what ways does technology reveal or conceal our fundamental nature? Reflect on Heidegger''s concept of "enframing."'),
-('Unit 4: Cyberpunk Futures', '2025-04-01', '2025-04-30', 'How do cyberpunk narratives critique contemporary capitalism? What alternatives do they imagine?'),
-('Unit 5: Artificial Intelligence & Consciousness', '2025-05-01', '2025-05-31', 'Can machines think? What would it mean for AI to be conscious, and how would we know?'),
-('Unit 6: Dystopian Societies', '2025-06-01', '2025-06-30', 'What do dystopian narratives reveal about our present anxieties? How do they function as warnings or prophecies?');
+('Unit 1: Foundations of Reality', '2025-01-01', '2025-01-31', 'How do our tools shape our understanding of truth?'),
+('Unit 2: Simulacra and Simulation', '2025-02-01', '2025-02-28', 'What happens when the copy becomes more real than the original?'),
+('Unit 3: Technology and Being', '2025-03-01', '2025-03-31', 'In what ways does technology reveal or conceal our fundamental nature?'),
+('Unit 4: Cyberpunk Futures', '2025-04-01', '2025-04-30', 'How do cyberpunk narratives critique contemporary capitalism?'),
+('Unit 5: Artificial Intelligence & Consciousness', '2025-05-01', '2025-05-31', 'Can machines think?'),
+('Unit 6: Dystopian Societies', '2025-06-01', '2025-06-30', 'What do dystopian narratives reveal about our present anxieties?')
+ON CONFLICT DO NOTHING;
 
 -- =====================================
--- NOTES: Optional - requires real user IDs
+-- NOTES: SAMPLE DATA v0.5
 -- =====================================
--- To add sample notes, you need to:
--- 1. Create 2-3 test users via the signup page
--- 2. Get their user IDs from the Supabase Dashboard > Authentication > Users
--- 3. Replace 'YOUR_USER_ID_1', 'YOUR_USER_ID_2' below with actual UUIDs
--- 4. Uncomment and run this section
-
 /*
--- Get the character IDs for your users
+-- INSTRUCTIONS:
+-- 1. Create test users in Supabase Auth.
+-- 2. Replace UUIDs below.
+-- 3. Uncomment and run.
+
 DO $$
 DECLARE
-    user1_id uuid := 'YOUR_USER_ID_1'; -- Replace with actual user ID
-    user2_id uuid := 'YOUR_USER_ID_2'; -- Replace with actual user ID
-    char1_id uuid;
-    char2_id uuid;
-    text_kuhn uuid;
-    text_baudrillard uuid;
-    text_blade uuid;
-    text_matrix uuid;
-    note1_id uuid;
-    note2_id uuid;
-    note3_id uuid;
-    note4_id uuid;
-BEGIN
-    -- Get character IDs
-    SELECT id INTO char1_id FROM public.characters WHERE user_id = user1_id;
-    SELECT id INTO char2_id FROM public.characters WHERE user_id = user2_id;
+    u1 uuid := 'REPLACE_WITH_USER_ID_1';
+    u2 uuid := 'REPLACE_WITH_USER_ID_2';
     
-    -- Get some text IDs
-    SELECT id INTO text_kuhn FROM public.texts WHERE title = 'The Structure of Scientific Revolutions';
-    SELECT id INTO text_baudrillard FROM public.texts WHERE title = 'Simulacra and Simulation';
-    SELECT id INTO text_blade FROM public.texts WHERE title = 'Blade Runner 2049';
-    SELECT id INTO text_matrix FROM public.texts WHERE title = 'The Matrix';
+    n1_id uuid;
+    n2_id uuid;
+    n3_id uuid;
+    n4_id uuid;
+BEGIN
+    -- 1. Create Fleeting Notes (Private)
+    INSERT INTO public.notes (user_id, title, content, type, is_public) VALUES
+    (u1, 'Thought on Kuhn due to lecture', 'If paradigms shift suddenly, does that mean truth is relative? Or just our view of it?', 'fleeting', false) RETURNING id INTO n1_id;
+    
+    INSERT INTO public.notes (user_id, title, content, type, is_public) VALUES
+    (u1, 'Simulation in social media', 'Instagram filters are small simulacra. We prefer the filter to the face.', 'fleeting', false);
 
-    -- Create sample notes
-    INSERT INTO public.atomic_notes (author_id, character_id, text_id, title, body, type, tags)
-    VALUES
-        (user1_id, char1_id, text_kuhn, 'Paradigm Shifts in Science', 
-         'Kuhn argues that scientific progress is not linear but occurs through revolutionary paradigm shifts. Normal science operates within a paradigm until anomalies accumulate.', 
-         'idea', ARRAY['epistemology', 'science', 'revolution'])
-    RETURNING id INTO note1_id;
+    -- 2. Create Literature Notes (Public)
+    INSERT INTO public.notes (user_id, title, content, type, is_public, citation, page_number) VALUES
+    (u1, 'Kuhn on Paradigm Shifts', 'Kuhn argues that science doesn''t progress linearly. Instead, it builds up anomalies until the old model breaks and a new "paradigm" takes over.', 'literature', true, 'The Structure of Scientific Revolutions', 'pg. 52') RETURNING id INTO n2_id;
+    
+    INSERT INTO public.notes (user_id, title, content, type, is_public, citation, page_number) VALUES
+    (u2, 'Baudrillard''s Map vs Territory', 'The simulation is no longer a map of the territory. It is a map that generates the territory. The real is gone.', 'literature', true, 'Simulacra and Simulation', 'pg. 1') RETURNING id INTO n3_id;
 
-    INSERT INTO public.atomic_notes (author_id, character_id, text_id, title, body, type, tags)
-    VALUES
-        (user1_id, char1_id, text_baudrillard, 'Hyperreality and the Desert of the Real', 
-         'Baudrillard''s concept of the simulacrum: a copy without an original. Today, simulations precede and determine reality rather than representing it.', 
-         'insight', ARRAY['simulation', 'postmodernism', 'reality'])
-    RETURNING id INTO note2_id;
+    -- 3. Create Permanent Notes (Public, Synthesized)
+    INSERT INTO public.notes (user_id, title, content, type, is_public) VALUES
+    (u2, 'The Death of the Real', 'We have lost contact with reality because our symbols (maps, screens, data) have become more important to us than the things they represent. This connects Kuhn''s idea of paradigms—we are trapped in a paradigm of symbols.', 'permanent', true) RETURNING id INTO n4_id;
 
-    INSERT INTO public.atomic_notes (author_id, character_id, text_id, title, body, type, tags)
-    VALUES
-        (user2_id, char2_id, text_blade, 'Are Replicant Memories Real?', 
-         'If memories can be artificially created and feel identical to "real" ones, what distinguishes authentic experience from fabricated experience?', 
-         'question', ARRAY['memory', 'identity', 'AI'])
-    RETURNING id INTO note3_id;
+    -- 4. Create Connections
+    INSERT INTO public.connections (source_note_id, target_note_id, user_id, explanation) VALUES
+    (n3_id, n4_id, u2, 'This permanent note synthesizes the idea from the literature note about the map and territory.');
+    
+    INSERT INTO public.connections (source_note_id, target_note_id, user_id, explanation) VALUES
+    (n2_id, n4_id, u2, 'Kuhn''s paradigms explain why we accept the simulation—it is our current scientific paradigm.');
 
-    INSERT INTO public.atomic_notes (author_id, character_id, text_id, title, body, type, tags)
-    VALUES
-        (user2_id, char2_id, text_matrix, 'Red Pill / Blue Pill as Philosophical Choice', 
-         'The choice between red and blue pills represents the fundamental philosophical choice between comfortable ignorance and uncomfortable truth.', 
-         'insight', ARRAY['knowledge', 'choice', 'truth'])
-    RETURNING id INTO note4_id;
+    -- 5. Create Points
+    INSERT INTO public.points (user_id, amount, reason, source_id) VALUES
+    (u1, 1, 'created_fleeting_note', n1_id),
+    (u1, 2, 'created_lit_note_quality', n2_id),
+    (u2, 4, 'created_perm_note_quality', n4_id);
 
-    -- Create some links between notes
-    INSERT INTO public.links (from_note_id, to_note_id, relation_type, explanation, created_by)
-    VALUES
-        (note2_id, note3_id, 'extends', 
-         'Baudrillard''s hyperreality directly applies to the replicants in Blade Runner - their memories are simulacra without originals.',
-         user1_id),
-        (note4_id, note2_id, 'supports',
-         'The Matrix''s simulation theme directly embodies Baudrillard''s concept of hyperreality.',
-         user2_id);
-
-    -- Award some points
-    INSERT INTO public.actions (user_id, type, xp, sp_thinking, sp_reading, description)
-    VALUES
-        (user1_id, 'CREATE_NOTE', 0, 4, 2, 'Created 2 notes'),
-        (user2_id, 'CREATE_NOTE', 0, 4, 2, 'Created 2 notes'),
-        (user1_id, 'LINK_NOTE', 0, 0, 0, 'Created link between notes'),
-        (user2_id, 'LINK_NOTE', 0, 0, 0, 'Created link between notes');
-
-    -- Update character stats
-    UPDATE public.characters 
-    SET sp_thinking = sp_thinking + 4, sp_reading = sp_reading + 2
-    WHERE user_id = user1_id;
-
-    UPDATE public.characters 
-    SET sp_thinking = sp_thinking + 4, sp_reading = sp_reading + 2
-    WHERE user_id = user2_id;
 END $$;
 */

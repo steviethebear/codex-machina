@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, FileText, Network, Trophy, LogOut, PlusCircle, ListChecks, BookOpen } from 'lucide-react'
+import { LayoutDashboard, Network, Trophy, LogOut, PlusCircle, ListChecks, BookOpen, Activity } from 'lucide-react'
 import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { ViewSwitcher } from '@/components/view-switcher'
@@ -12,8 +12,10 @@ import { createClient } from '@/lib/supabase/client'
 
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Notebook', href: '/notebook', icon: BookOpen },
+    { name: 'My Notes', href: '/my-notes', icon: BookOpen },
+    { name: 'Class Feed', href: '/feed', icon: Activity },
     { name: 'Graph', href: '/graph', icon: Network },
+    { name: 'Outlines', href: '/outlines', icon: ListChecks },
     { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
 ]
 
@@ -42,10 +44,9 @@ export function Sidebar() {
         const fetchNoteCount = async () => {
             if (user) {
                 const { count } = await supabase
-                    .from('atomic_notes')
+                    .from('notes')
                     .select('*', { count: 'exact', head: true })
-                    .eq('author_id', user.id)
-                    .eq('moderation_status', 'approved')
+                    .eq('user_id', user.id)
                 setNoteCount(count || 0)
             }
         }
@@ -83,7 +84,7 @@ export function Sidebar() {
                                     aria-hidden="true"
                                 />
                                 <span className="flex-1">{item.name}</span>
-                                {item.name === 'Notebook' && noteCount > 0 && (
+                                {item.name === 'My Notes' && noteCount > 0 && (
                                     <span className="ml-auto inline-flex items-center justify-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
                                         {noteCount}
                                     </span>
@@ -96,11 +97,7 @@ export function Sidebar() {
                 <div className="mt-8 px-4">
                     <Link href="/notes/create" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                         <PlusCircle className="h-4 w-4" />
-                        Create Atom
-                    </Link>
-                    <Link href="/reflections/create" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                        <PlusCircle className="h-4 w-4" />
-                        Submit Reflection
+                        Create Note
                     </Link>
                 </div>
             </div>
@@ -119,3 +116,4 @@ export function Sidebar() {
         </div>
     )
 }
+

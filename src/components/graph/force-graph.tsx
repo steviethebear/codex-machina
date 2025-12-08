@@ -55,6 +55,11 @@ export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNo
         // If search/highlight is active and node isn't in set, dim it
         if (highlightNodes && highlightNodes.size > 0 && !highlightNodes.has(node.id)) return '#333'
 
+        if (node.type === 'fleeting') return '#a1a1aa' // Grey
+        if (node.type === 'literature') return '#60a5fa' // Blue
+        if (node.type === 'permanent') return '#34d399' // Green
+        if (node.type === 'text') return '#ffffff' // White
+
         return node.color || '#00f0ff'
     }
 
