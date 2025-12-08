@@ -72,12 +72,21 @@ export default function MyNotesPage() {
     })
 
     const handleCreate = async () => {
-        if (!user || !title.trim() || !content.trim()) return
+        if (!user || !content.trim()) return
+        // For fleeting notes, require only content. Auto-generate title if blank.
+        if (createType !== 'fleeting' && !title.trim()) return
         setIsSubmitting(true)
+
+        // Auto-generate title for fleeting notes: first 30 chars of content or timestamp
+        let noteTitle = title.trim()
+        if (createType === 'fleeting' && !noteTitle) {
+            noteTitle = content.trim().slice(0, 30) + (content.length > 30 ? '...' : '')
+            if (!noteTitle) noteTitle = `Fleeting ${new Date().toLocaleString()}`
+        }
 
         const result = await createNote({
             user_id: user.id,
-            title,
+            title: noteTitle,
             content,
             type: createType,
             is_public: createType !== 'fleeting',
@@ -190,14 +199,17 @@ export default function MyNotesPage() {
                             </>
                         )}
 
-                        <div className="space-y-2">
-                            <Label>{createType === 'permanent' ? 'Claim / Title' : 'Title'}</Label>
-                            <Input
-                                placeholder={createType === 'permanent' ? 'State your claim clearly...' : 'Short summary...'}
-                                value={title}
-                                onChange={e => setTitle(e.target.value)}
-                            />
-                        </div>
+                        {/* Only show title field for non-fleeting notes */}
+                        {createType !== 'fleeting' && (
+                            <div className="space-y-2">
+                                <Label>{createType === 'permanent' ? 'Claim / Title' : 'Title'}</Label>
+                                <Input
+                                    placeholder={createType === 'permanent' ? 'State your claim clearly...' : 'Main idea identifier...'}
+                                    value={title}
+                                    onChange={e => setTitle(e.target.value)}
+                                />
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label>
@@ -224,7 +236,7 @@ export default function MyNotesPage() {
 
                     <DialogFooter>
                         <Button variant="outline" onClick={resetForm}>Cancel</Button>
-                        <Button onClick={handleCreate} disabled={isSubmitting || !title.trim() || !content.trim()}>
+                        <Button onClick={handleCreate} disabled={isSubmitting || !content.trim() || (createType !== 'fleeting' && !title.trim())}>
                             {isSubmitting ? 'Creating...' : 'Create Note'}
                         </Button>
                     </DialogFooter>
