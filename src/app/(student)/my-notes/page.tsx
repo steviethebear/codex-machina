@@ -3,18 +3,16 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth-provider'
-import { useRouter } from 'next/navigation'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { createNote, deleteNote } from '@/lib/actions/notes'
-import { FileText, Lightbulb, BookOpen, Brain, PlusCircle, Trash2, Eye, Search, Filter } from 'lucide-react'
-import Link from 'next/link'
+import { createNote, updateNote, deleteNote } from '@/lib/actions/notes'
+import { FileText, Lightbulb, BookOpen, Brain, PlusCircle, Trash2, Search, Save, MoreVertical, Layout } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface Note {
     id: string
@@ -28,353 +26,359 @@ interface Note {
     updated_at: string
 }
 
-export default function MyNotesPage() {
+export default function NotebookPage() {
     const { user } = useAuth()
-    const router = useRouter()
     const supabase = createClient()
 
+    // Data State
     const [notes, setNotes] = useState<Note[]>([])
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState('all')
-    const [searchTerm, setSearchTerm] = useState('')
 
-    // Inbox = Fleeting, Notes = Permanent, Sources = Literature
-    const [isCreating, setIsCreating] = useState(false)
-    const [createType, setCreateType] = useState<'fleeting' | 'literature' | 'permanent'>('fleeting')
-    const [title, setTitle] = useState('')
-    const [content, setContent] = useState('')
-    const [citation, setCitation] = useState('')
-    const [pageNumber, setPageNumber] = useState('')
-    const [promotingFromId, setPromotingFromId] = useState<string | null>(null)
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    // UI State
+    const [activeTab, setActiveTab] = useState<'fleeting' | 'permanent' | 'literature'>('fleeting')
+    const [searchTerm, setSearchTerm] = useState('')
+    const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+    const [isEditing, setIsEditing] = useState(false)
+    const [isSaving, setIsSaving] = useState(false)
+
+    // Editor State
+    const [editTitle, setEditTitle] = useState('')
+    const [editContent, setEditContent] = useState('')
+    const [editCitation, setEditCitation] = useState('')
+
+    // Mention State
+    const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+    const [cursorPosition, setCursorPosition] = useState(0)
+
+    const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const val = e.target.value
+        setEditContent(val)
+
+        // Check for menton
+        const cursor = e.target.selectionStart
+        setCursorPosition(cursor)
+
+        const textBefore = val.slice(0, cursor)
+        const match = textBefore.match(/@(\w*)$/)
+
+        if (match) {
+            setMentionQuery(match[1])
+        } else {
+            setMentionQuery(null)
+        }
+    }
+
+    const insertMention = (note: Note) => {
+        if (mentionQuery === null) return
+
+        const before = editContent.slice(0, cursorPosition - (mentionQuery.length + 1))
+        const after = editContent.slice(cursorPosition)
+        // Markdown link format: [Title](/notes/id)
+        const link = `[${note.title}](/notes/${note.id})`
+
+        const newContent = before + link + after
+        setEditContent(newContent)
+        setMentionQuery(null)
+
+        // TODO: ideally move cursor to end of link
+    }
 
     useEffect(() => {
         if (!user) return
-
         const fetchNotes = async () => {
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('notes')
                 .select('*')
                 .eq('user_id', user.id)
                 .order('updated_at', { ascending: false })
-
             if (data) setNotes(data as Note[])
             setLoading(false)
         }
-
         fetchNotes()
     }, [user, supabase])
 
-    const filteredNotes = notes.filter(note => {
-        const matchesTab = activeTab === 'all' || note.type === activeTab
-        const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            note.content.toLowerCase().includes(searchTerm.toLowerCase())
-        return matchesTab && matchesSearch
-    })
+    // Derived State
+    const filteredNotes = notes.filter(n =>
+        n.type === activeTab &&
+        (n.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            n.content.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
 
-    const handleCreate = async () => {
-        if (!user || !content.trim()) return
-        // For fleeting notes, require only content. Auto-generate title if blank.
-        if (createType !== 'fleeting' && !title.trim()) return
-        setIsSubmitting(true)
+    const selectedNote = notes.find(n => n.id === selectedNoteId)
 
-        // Auto-generate title for fleeting notes: first 30 chars of content or timestamp
-        let noteTitle = title.trim()
-        if (createType === 'fleeting') {
-            noteTitle = '' // Fleeting notes have no title
+    // Actions
+    const handleSelectNote = (note: Note) => {
+        setSelectedNoteId(note.id)
+        setEditTitle(note.title)
+        setEditContent(note.content)
+        setEditCitation(note.citation || '')
+        setIsEditing(false)
+    }
+
+    const handleCreateNew = async () => {
+        if (!user) return
+
+        // Define new note defaults
+        const newNoteType = activeTab
+        const isPublic = newNoteType !== 'fleeting'
+
+        // Generate timestamp ID for fleeting notes
+        let initialTitle = 'Untitled Note'
+        if (newNoteType === 'fleeting') {
+            const now = new Date()
+            const timestamp = now.toISOString().replace(/[-:T.]/g, '').slice(0, 14)
+            initialTitle = timestamp
         }
 
         const result = await createNote({
             user_id: user.id,
-            title: noteTitle,
-            content,
-            type: createType,
-            is_public: createType !== 'fleeting',
-            citation: createType === 'literature' ? citation : null,
-            page_number: createType === 'literature' ? pageNumber : null,
+            title: newNoteType === 'fleeting' ? initialTitle : 'Untitled Note',
+            content: '',
+            type: newNoteType,
+            is_public: isPublic
         })
 
         if (!result.error && result.data) {
-            setNotes([result.data as Note, ...notes])
-
-            // If promoting, delete the old note
-            if (promotingFromId) {
-                await deleteNote(promotingFromId)
-                setNotes(prev => prev.filter(n => n.id !== promotingFromId))
-            }
-            resetForm()
-        }
-        setIsSubmitting(false)
-    }
-
-    const handleDelete = async (noteId: string) => {
-        if (!confirm('Delete this note? This cannot be undone.')) return
-
-        const result = await deleteNote(noteId)
-        if (!result.error) {
-            setNotes(notes.filter(n => n.id !== noteId))
+            const newNote = result.data as Note
+            setNotes([newNote, ...notes])
+            handleSelectNote(newNote)
+            setIsEditing(true) // focus editor immediately?
         }
     }
 
-    const resetForm = () => {
-        setIsCreating(false)
-        setTitle('')
-        setContent('')
-        setCitation('')
-        setPageNumber('')
-        setPromotingFromId(null)
-        setCreateType('fleeting') // Default resets to Inbox
+    const handleSave = async () => {
+        if (!selectedNoteId) return
+        setIsSaving(true)
+
+        // Generate fleeting title if needed
+        let finalTitle = editTitle
+        if (activeTab === 'fleeting') finalTitle = ''
+
+        const result = await updateNote(selectedNoteId, {
+            title: finalTitle,
+            content: editContent,
+            citation: activeTab === 'literature' ? editCitation : undefined
+        })
+
+        if (!result.error && result.data) {
+            setNotes(notes.map(n => n.id === selectedNoteId ? (result.data as Note) : n))
+            setIsEditing(false)
+        }
+        setIsSaving(false)
     }
 
-    const handlePromote = (note: Note) => {
-        setPromotingFromId(note.id)
-        setCreateType('permanent')
-        setContent(note.content)
-        setTitle('')
-        setIsCreating(true)
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this note?')) return
+        await deleteNote(id)
+        setNotes(notes.filter(n => n.id !== id))
+        if (selectedNoteId === id) setSelectedNoteId(null)
     }
 
-    const getTypeIcon = (type: string) => {
-        switch (type) {
-            case 'fleeting': return <Lightbulb className="h-4 w-4" />
-            case 'literature': return <BookOpen className="h-4 w-4" />
-            case 'permanent': return <Brain className="h-4 w-4" />
-            default: return <FileText className="h-4 w-4" />
+    const handlePromote = async (note: Note) => {
+        // Create new permanent note with this content
+        if (!user) return
+        const result = await createNote({
+            user_id: user.id,
+            title: '', // User will fill this in
+            content: note.content,
+            type: 'permanent',
+            is_public: true
+        })
+
+        if (!result.error && result.data) {
+            // Delete old fleeting note
+            await deleteNote(note.id)
+
+            // Update local state
+            setNotes(prev => [result.data as Note, ...prev.filter(n => n.id !== note.id)])
+
+            // Switch tab and select new note
+            setActiveTab('permanent')
+            handleSelectNote(result.data as Note)
         }
     }
 
-    const getTypeColor = (type: string) => {
-        switch (type) {
-            case 'fleeting': return 'bg-zinc-500/20 text-zinc-400'
-            case 'literature': return 'bg-blue-500/20 text-blue-400'
-            case 'permanent': return 'bg-green-500/20 text-green-400'
-            default: return ''
-        }
-    }
-
-    if (loading) return <div className="p-8">Loading notes...</div>
+    if (loading) return <div className="h-full flex items-center justify-center text-muted-foreground">Loading Codex...</div>
 
     return (
-        <div className="container mx-auto p-6 space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">My Notes</h1>
-                    <p className="text-muted-foreground mt-1">
-                        {notes.length} note{notes.length !== 1 ? 's' : ''} in your Zettelkasten
-                    </p>
-                </div>
-                <Button onClick={() => setIsCreating(true)} size="lg">
-                    <PlusCircle className="mr-2 h-5 w-5" />
-                    New Note
-                </Button>
-            </div>
-
-            {/* Create Note Dialog */}
-            <Dialog open={isCreating} onOpenChange={setIsCreating}>
-                <div className="space-y-6">
-                    <DialogHeader>
-                        <DialogTitle>Create New Note</DialogTitle>
-                    </DialogHeader>
-
-                    {/* Type Selector */}
-                    <div className="flex gap-2">
-                        <Button
-                            variant={createType === 'fleeting' ? 'default' : 'outline'}
-                            onClick={() => setCreateType('fleeting')}
-                            className="flex-1 gap-2"
-                        >
-                            <Lightbulb className="h-4 w-4" /> Inbox
-                        </Button>
-                        <Button
-                            variant={createType === 'permanent' ? 'default' : 'outline'}
-                            onClick={() => setCreateType('permanent')}
-                            className="flex-1 gap-2"
-                        >
-                            <Brain className="h-4 w-4" /> Note
-                        </Button>
-                        <Button
-                            variant={createType === 'literature' ? 'default' : 'outline'}
-                            onClick={() => setCreateType('literature')}
-                            className="flex-1 gap-2"
-                        >
-                            <BookOpen className="h-4 w-4" /> Source
+        <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
+            {/* Sidebar: Navigation & List */}
+            <div className="w-80 flex flex-col border-r bg-muted/10">
+                {/* Header / Tabs */}
+                <div className="p-4 border-b space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="font-semibold text-lg tracking-tight flex items-center gap-2">
+                            <Layout className="h-5 w-5" />
+                            Codex
+                        </h2>
+                        <Button onClick={handleCreateNew} size="sm" variant="default">
+                            <PlusCircle className="h-4 w-4 mr-1" />
+                            New
                         </Button>
                     </div>
 
-                    {/* Form Fields */}
-                    <div className="space-y-4">
-                        {createType === 'literature' && (
-                            <>
-                                <div className="space-y-2">
-                                    <Label>Source Citation (MLA)</Label>
-                                    <Input
-                                        placeholder="Author, Title, Publisher, Year..."
-                                        value={citation}
-                                        onChange={e => setCitation(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Page Number (Optional)</Label>
-                                    <Input
-                                        placeholder="p. 42"
-                                        value={pageNumber}
-                                        onChange={e => setPageNumber(e.target.value)}
-                                    />
-                                </div>
-                            </>
-                        )}
+                    <Tabs value={activeTab} onValueChange={(v) => {
+                        setActiveTab(v as any)
+                        setSelectedNoteId(null)
+                    }} className="w-full">
+                        <TabsList className="grid w-full grid-cols-3 h-9">
+                            <TabsTrigger value="fleeting" className="text-xs">Inbox</TabsTrigger>
+                            <TabsTrigger value="permanent" className="text-xs">Notes</TabsTrigger>
+                            <TabsTrigger value="literature" className="text-xs">Sources</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
 
-                        {/* Only show title field for non-fleeting notes */}
-                        {createType !== 'fleeting' && (
-                            <div className="space-y-2">
-                                <Label>{createType === 'permanent' ? 'Claim / Title' : 'Title'}</Label>
-                                <Input
-                                    placeholder={createType === 'permanent' ? 'State your claim clearly...' : 'Main idea identifier...'}
-                                    value={title}
-                                    onChange={e => setTitle(e.target.value)}
-                                />
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search..."
+                            className="pl-9 h-9"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* Note List */}
+                <ScrollArea className="flex-1">
+                    <div className="flex flex-col gap-1 p-2">
+                        {filteredNotes.length === 0 ? (
+                            <div className="p-8 text-center text-sm text-muted-foreground">
+                                No {activeTab === 'fleeting' ? 'inbox items' : activeTab === 'permanent' ? 'notes' : 'sources'} found.
                             </div>
+                        ) : (
+                            filteredNotes.map(note => (
+                                <button
+                                    key={note.id}
+                                    onClick={() => handleSelectNote(note)}
+                                    className={cn(
+                                        "flex flex-col items-start gap-1 p-3 rounded-md text-left transition-all hover:bg-muted",
+                                        selectedNoteId === note.id ? "bg-muted shadow-sm ring-1 ring-border" : "text-muted-foreground"
+                                    )}
+                                >
+                                    <div className="flex w-full items-center justify-between gap-2">
+                                        <span className={cn("font-medium text-sm truncate flex-1 min-w-0", !note.title && "italic text-muted-foreground")}>
+                                            {note.title || "Untitled"}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-auto">
+                                            {new Date(note.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                        </span>
+                                    </div>
+                                    <span className="text-xs line-clamp-2 w-full text-muted-foreground/80">
+                                        {note.content || "No content"}
+                                    </span>
+                                </button>
+                            ))
                         )}
-
-                        <div className="space-y-2">
-                            <Label>
-                                {createType === 'fleeting' ? 'Content' :
-                                    createType === 'literature' ? 'Paraphrased Content' :
-                                        'Reasoning & Evidence'}
-                            </Label>
-                            <Textarea
-                                placeholder={
-                                    createType === 'fleeting' ? "What's on your mind? Capture it quick." :
-                                        createType === 'literature' ? 'Summarize the idea in your own words.' :
-                                            'Explain your reasoning. Connect ideas from your literature notes.'
-                                }
-                                className="min-h-[200px]"
-                                value={content}
-                                onChange={e => setContent(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="text-xs text-muted-foreground">
-                            {createType === 'fleeting' ? '🔒 Private - Only you can see this' : '🌍 Public - Visible to your class'}
-                        </div>
                     </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={resetForm}>Cancel</Button>
-                        <Button onClick={handleCreate} disabled={isSubmitting || !content.trim() || (createType !== 'fleeting' && !title.trim())}>
-                            {isSubmitting ? 'Creating...' : 'Create Note'}
-                        </Button>
-                    </DialogFooter>
-                </div>
-            </Dialog>
-
-            {/* Filters */}
-            <div className="flex gap-4 items-center">
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search notes..."
-                        className="pl-10"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                    />
-                </div>
-
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList>
-                        <TabsTrigger value="all">All</TabsTrigger>
-                        <TabsTrigger value="fleeting" className="gap-1">
-                            <Lightbulb className="h-3 w-3" /> Inbox
-                        </TabsTrigger>
-                        <TabsTrigger value="permanent" className="gap-1">
-                            <Brain className="h-3 w-3" /> Notes
-                        </TabsTrigger>
-                        <TabsTrigger value="literature" className="gap-1">
-                            <BookOpen className="h-3 w-3" /> Sources
-                        </TabsTrigger>
-                    </TabsList>
-                </Tabs>
+                </ScrollArea>
             </div>
 
-            {/* Notes Grid */}
-            {filteredNotes.length === 0 ? (
-                <Card className="border-dashed">
-                    <CardContent className="py-16 text-center">
-                        <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-medium mb-2">No notes yet</h3>
-                        <p className="text-muted-foreground mb-4">
-                            {activeTab === 'all'
-                                ? 'Start building your Zettelkasten by creating your first note.'
-                                : activeTab === 'fleeting' ? "Your inbox is empty. Capture a fleeting thought!"
-                                    : activeTab === 'permanent' ? "No permanent notes yet. Promote an idea from your inbox!"
-                                        : "No sources yet. Add a literature note from your readings."}
-                        </p>
-                        <Button onClick={() => setIsCreating(true)}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Create Your First Note
-                        </Button>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredNotes.map(note => (
-                        <Card key={note.id} className="group hover:border-primary/50 transition-colors">
-                            <CardHeader className="pb-3">
-                                <div className="flex items-start justify-between gap-2">
-                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                        <Badge variant="secondary" className={getTypeColor(note.type)}>
-                                            {getTypeIcon(note.type)}
-                                        </Badge>
-                                        <CardTitle className="text-base truncate">
-                                            {note.title || note.content.slice(0, 40) + (note.content.length > 40 ? '...' : '')}
-                                        </CardTitle>
-                                    </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {/* Promote Button for Fleeting Notes */}
-                                        {note.type === 'fleeting' && (
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-green-500 hover:text-green-600"
-                                                title="Promote to Permanent Note"
-                                                onClick={() => handlePromote(note)}
-                                            >
-                                                <Brain className="h-3.5 w-3.5" />
-                                            </Button>
-                                        )}
+            {/* Main Area: Editor / Viewer */}
+            <div className="flex-1 flex flex-col bg-background relative">
+                {selectedNote ? (
+                    <>
+                        {/* Editor Toolbar */}
+                        <div className="h-14 border-b flex items-center justify-between px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                {activeTab === 'fleeting' && <Badge variant="secondary"><Lightbulb className="h-3 w-3 mr-1" /> Inbox</Badge>}
+                                {activeTab === 'permanent' && <Badge variant="secondary"><Brain className="h-3 w-3 mr-1" /> Note</Badge>}
+                                {activeTab === 'literature' && <Badge variant="secondary"><BookOpen className="h-3 w-3 mr-1" /> Source</Badge>}
+                                <span className="text-xs ml-2 opacity-50">Last edited {new Date(selectedNote.updated_at).toLocaleString()}</span>
+                            </div>
 
-                                        <Link href={`/notes/${note.id}`}>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                                                <Eye className="h-3.5 w-3.5" />
-                                            </Button>
-                                        </Link>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-destructive hover:text-destructive"
-                                            onClick={() => handleDelete(note.id)}
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
-                                </div>
-                                {note.citation && (
-                                    <p className="text-xs text-muted-foreground italic truncate">{note.citation}</p>
+                            <div className="flex items-center gap-2">
+                                {/* Promote Button for Inbox */}
+                                {activeTab === 'fleeting' && (
+                                    <Button size="sm" variant="ghost" className="text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handlePromote(selectedNote)}>
+                                        <Brain className="h-4 w-4 mr-2" />
+                                        Promote to Note
+                                    </Button>
                                 )}
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-muted-foreground line-clamp-3">{note.content}</p>
-                            </CardContent>
-                            <CardFooter className="pt-0">
-                                <p className="text-xs text-muted-foreground">
-                                    {new Date(note.updated_at).toLocaleDateString()}
-                                </p>
-                            </CardFooter>
-                        </Card>
-                    ))}
-                </div>
-            )}
+
+                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(selectedNote.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                                    {isSaving ? 'Saving...' : 'Save'}
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Editor Content */}
+                        <div className="flex-1 overflow-y-auto">
+                            <div className="max-w-3xl mx-auto py-12 px-8 space-y-6">
+                                {/* Title (Hidden for Inbox) */}
+                                {activeTab !== 'fleeting' && (
+                                    <Input
+                                        value={editTitle}
+                                        onChange={(e) => setEditTitle(e.target.value)}
+                                        className="text-4xl font-bold border-none px-0 shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50 h-auto"
+                                        placeholder="Note Title..."
+                                    />
+                                )}
+
+                                {/* Citation Field (Sources only) */}
+                                {activeTab === 'literature' && (
+                                    <div className="bg-muted/30 p-4 rounded-lg -mx-4 border border-border/50">
+                                        <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-1 block">Source Citation</Label>
+                                        <Input
+                                            value={editCitation}
+                                            onChange={(e) => setEditCitation(e.target.value)}
+                                            className="bg-transparent border-none shadow-none focus-visible:ring-0 px-0 h-auto font-mono text-sm"
+                                            placeholder="Author. Title. Publisher, Year."
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="relative">
+                                    <Textarea
+                                        value={editContent}
+                                        onChange={handleContentChange}
+                                        className="min-h-[500px] resize-none border-none shadow-none focus-visible:ring-0 px-0 text-lg leading-relaxed placeholder:text-muted-foreground/30 font-mono"
+                                        placeholder="Start writing..."
+                                    />
+                                    {/* Mention Popup */}
+                                    {mentionQuery !== null && (
+                                        <div className="absolute bottom-full left-0 mb-2 w-64 bg-popover border rounded-md shadow-lg overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
+                                            <div className="p-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
+                                                Link to Note
+                                            </div>
+                                            <ScrollArea className="h-48">
+                                                <div className="p-1">
+                                                    {notes
+                                                        .filter(n => n.title.toLowerCase().includes(mentionQuery.toLowerCase()) && n.id !== selectedNoteId)
+                                                        .map(n => (
+                                                            <button
+                                                                key={n.id}
+                                                                onClick={() => insertMention(n)}
+                                                                className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground truncate flex items-center gap-2"
+                                                            >
+                                                                <FileText className="h-3 w-3 opacity-50" />
+                                                                {n.title || n.id}
+                                                            </button>
+                                                        ))
+                                                    }
+                                                    {notes.filter(n => n.title.toLowerCase().includes(mentionQuery.toLowerCase())).length === 0 && (
+                                                        <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                                                            No matching notes found
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </ScrollArea>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
+                        <FileText className="h-16 w-16 mb-4 opacity-20" />
+                        <p>Select a note to view or edit</p>
+                    </div>
+                )}
+            </div>
         </div>
     )
 }

@@ -183,10 +183,10 @@ export default function GraphPage() {
             </div>
 
             <div className="absolute bottom-8 right-8 z-10">
-                <Link href="/notes/create">
+                <Link href="/my-notes">
                     <Button size="lg" className="shadow-lg">
                         <PlusCircle className="mr-2 h-5 w-5" />
-                        Create Note
+                        New Note
                     </Button>
                 </Link>
             </div>

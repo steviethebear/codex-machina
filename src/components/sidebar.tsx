@@ -95,9 +95,9 @@ export function Sidebar() {
                 </nav>
 
                 <div className="mt-8 px-4">
-                    <Link href="/notes/create" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                    <Link href="/my-notes" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                         <PlusCircle className="h-4 w-4" />
-                        Create Note
+                        New Note
                     </Link>
                 </div>
             </div>

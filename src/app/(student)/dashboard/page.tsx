@@ -63,13 +63,13 @@ export default function DashboardPage() {
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Your Zettelkasten at a glance.
+                        Your Codex at a glance.
                     </p>
                 </div>
-                <Link href="/notes/create">
+                <Link href="/my-notes">
                     <Button size="lg">
                         <PlusCircle className="mr-2 h-5 w-5" />
-                        Create Note
+                        New Note
                     </Button>
                 </Link>
             </div>
@@ -176,7 +176,7 @@ export default function DashboardPage() {
                         </div>
                     ) : (
                         <p className="text-muted-foreground text-center py-8">
-                            You haven't created any notes yet. <Link href="/notes/create" className="text-primary underline">Start here!</Link>
+                            You haven't created any notes yet. <Link href="/my-notes" className="text-primary underline">Start here!</Link>
                         </p>
                     )}
                 </CardContent>
