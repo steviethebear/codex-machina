@@ -41,9 +41,9 @@ export function CreateNoteForm() {
             })
 
             if (result.error) {
-                alert('Error creating note: ' + result.error) // Simple alert for MVP
+                alert('Error creating note: ' + result.error)
             } else {
-                router.push('/dashboard') // Redirect to dashboard or the new note
+                router.push('/dashboard')
             }
         } catch (e) {
             console.error(e)

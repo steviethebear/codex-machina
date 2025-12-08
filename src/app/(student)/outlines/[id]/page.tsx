@@ -40,7 +40,7 @@ export default function OutlineBuilderPage({ params }: { params: Promise<{ id: s
             const { data: outlineData } = await getOutline(id)
             if (outlineData) {
                 setOutline(outlineData)
-                setStructure(outlineData.structure || [])
+                setStructure((outlineData.structure || []) as unknown as OutlineItem[])
             }
 
             // Load Notes (using supabase client directly for simpler query or existing action?)

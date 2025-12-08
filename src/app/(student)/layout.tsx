@@ -5,9 +5,6 @@ import { useAuth } from '@/components/auth-provider'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
-import { OracleProvider } from '@/components/oracle/oracle-context'
-import { OracleInterface } from '@/components/oracle/oracle-interface'
-
 export default function StudentLayout({
     children,
 }: {
@@ -33,14 +30,11 @@ export default function StudentLayout({
     if (!user) return null
 
     return (
-        <OracleProvider>
-            <div className="flex h-screen overflow-hidden bg-background">
-                <Sidebar />
-                <main className="flex-1 flex flex-col overflow-y-auto p-0">
-                    {children}
-                </main>
-                <OracleInterface />
-            </div>
-        </OracleProvider>
+        <div className="flex h-screen overflow-hidden bg-background">
+            <Sidebar />
+            <main className="flex-1 flex flex-col overflow-y-auto p-0">
+                {children}
+            </main>
+        </div>
     )
 }

@@ -154,3 +154,52 @@ alter publication supabase_realtime add table notes;
 alter publication supabase_realtime add table connections;
 alter publication supabase_realtime add table comments;
 alter publication supabase_realtime add table points;
+
+-- =====================================
+-- ADMIN TEST USER
+-- =====================================
+-- Create an admin test user for development/testing purposes
+-- Email: admin@test.com | Password: abc123
+-- Uses Supabase's bcrypt format for password hashing
+
+INSERT INTO auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    created_at,
+    updated_at,
+    confirmation_token,
+    recovery_token,
+    email_change_token_new,
+    email_change
+) VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    gen_random_uuid(),
+    'authenticated',
+    'authenticated',
+    'admin@test.com',
+    crypt('abc123', gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    '{}',
+    now(),
+    now(),
+    '',
+    '',
+    '',
+    ''
+) ON CONFLICT (email) DO NOTHING;
+
+-- Add to public.users table with admin flag
+INSERT INTO public.users (id, email, codex_name, is_admin)
+SELECT id, email, 'Admin', true
+FROM auth.users
+WHERE email = 'admin@test.com'
+ON CONFLICT (id) DO UPDATE SET is_admin = true;
+

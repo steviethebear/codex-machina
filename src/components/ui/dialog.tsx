@@ -39,6 +39,40 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
     )
 }
 
+// DialogTrigger - renders children and opens dialog on click
+interface DialogTriggerProps {
+    children: React.ReactNode
+    asChild?: boolean
+}
+
+export const DialogTrigger = React.forwardRef<
+    HTMLButtonElement,
+    DialogTriggerProps & React.ComponentPropsWithoutRef<'button'>
+>(({ children, asChild, ...props }, ref) => {
+    // When using asChild, we just render the child directly.
+    // The parent Dialog manages open state, so this is a no-op wrapper.
+    // For simplicity, we render a button or the child.
+    if (asChild && React.isValidElement(children)) {
+        return children
+    }
+    return (
+        <button ref={ref} {...props}>
+            {children}
+        </button>
+    )
+})
+DialogTrigger.displayName = 'DialogTrigger'
+
+// DialogContent - wrapper for modal content (optional, for API consistency)
+interface DialogContentProps {
+    children: React.ReactNode
+    className?: string
+}
+
+export function DialogContent({ children, className }: DialogContentProps) {
+    return <div className={cn('', className)}>{children}</div>
+}
+
 interface DialogHeaderProps {
     children: React.ReactNode
     onClose?: () => void
@@ -68,3 +102,8 @@ export function DialogTitle({ children }: { children: React.ReactNode }) {
 export function DialogDescription({ children }: { children: React.ReactNode }) {
     return <p className="text-sm text-muted-foreground mt-1">{children}</p>
 }
+
+export function DialogFooter({ children }: { children: React.ReactNode }) {
+    return <div className="flex justify-end gap-2 mt-6">{children}</div>
+}
+

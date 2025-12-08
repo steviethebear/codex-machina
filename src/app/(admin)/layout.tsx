@@ -1,6 +1,6 @@
 'use client'
 
-import { AdminSidebar } from '@/components/admin-sidebar'
+import { Sidebar } from '@/components/sidebar'
 import { useAuth } from '@/components/auth-provider'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -55,7 +55,7 @@ export default function AdminLayout({
 
     return (
         <div className="flex h-screen overflow-hidden bg-background">
-            <AdminSidebar />
+            <Sidebar />
             <main className="flex-1 overflow-y-auto p-8">
                 {children}
             </main>
