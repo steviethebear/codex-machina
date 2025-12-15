@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils'
 import { updateNote, deleteNote, promoteNote } from '@/lib/actions/notes'
 import { Database } from '@/types/database.types'
 import { useAuth } from '@/components/auth-provider'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 type Note = Database['public']['Tables']['notes']['Row']
 type UserProfile = { id: string, email: string, codex_name?: string }
@@ -50,11 +52,37 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
     const [cursorPosition, setCursorPosition] = useState(0)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-    // Load Data for Autocomplete
+    const [author, setAuthor] = useState<{ email: string, codex_name?: string } | null>(null)
+    const [points, setPoints] = useState<number>(0)
+
+    // Load Data for Autocomplete & Meta
     useEffect(() => {
         setTitle(note.title)
         setContent(note.content)
         setLastSaved(new Date(note.updated_at))
+
+        const loadMeta = async () => {
+            // Author (if not owner, or if we just want to display it always)
+            // Check if note object already has 'user' (from Feed)
+            // @ts-ignore
+            if (note.user) {
+                // @ts-ignore
+                setAuthor(note.user)
+            } else if (note.user_id !== user?.id) {
+                const { data } = await supabase.from('users').select('email, codex_name').eq('id', note.user_id).single()
+                if (data) setAuthor(data)
+            } else if (user) {
+                setAuthor({ email: user.email!, codex_name: user?.user_metadata?.codex_name /** we don't have codex in auth user obj easily, skip for now or fetch */ })
+                // Actually better to just skip setting author if it's us, we know it's us.
+            }
+
+            // Points
+            const { data: pointsData } = await supabase.from('points').select('amount').eq('source_id', note.id)
+            if (pointsData) {
+                setPoints(pointsData.reduce((acc, curr) => acc + curr.amount, 0))
+            }
+        }
+        loadMeta()
 
         const loadAutocompleteData = async () => {
             const [notesRes, usersRes] = await Promise.all([
@@ -65,7 +93,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
             if (usersRes.data) setUsers(usersRes.data as UserProfile[])
         }
         loadAutocompleteData()
-    }, [note.id, supabase])
+    }, [note.id, supabase, user, note.user_id, note.updated_at, note.title, note.content]) // Cleaned up deps
 
     // Autosave
     useEffect(() => {
@@ -205,26 +233,35 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
         })
     }
 
+    // RENDER
     return (
         <div className={cn("flex flex-col h-full relative", className)}>
             <PromoteNoteDialog
                 open={showPromoteDialog}
                 onOpenChange={setShowPromoteDialog}
-                note={note}
+                note={{ ...note, title, content }}
                 onSuccess={(updatedNote) => {
                     if (onUpdate) onUpdate(updatedNote)
                 }}
             />
 
             {/* Header / Toolbar */}
-            <div className="p-4 border-b flex flex-col gap-4">
+            <div className="p-4 border-b flex flex-col gap-4 bg-muted/5">
                 <div className="flex items-start justify-between">
                     <div className="flex flex-col gap-1 w-full mr-4">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                             {note.type === 'fleeting' && <Badge variant="secondary"><Lightbulb className="h-3 w-3 mr-1" /> Inbox</Badge>}
                             {note.type === 'permanent' && <Badge variant="secondary"><Brain className="h-3 w-3 mr-1" /> Note</Badge>}
                             {note.type === 'source' && <Badge variant="secondary"><BookOpen className="h-3 w-3 mr-1" /> Source</Badge>}
-                            <span className="text-xs text-muted-foreground">{lastSaved.toLocaleDateString()} {lastSaved.toLocaleTimeString()}</span>
+                            {/* Points Badge */}
+                            {points > 0 && <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">{points} XP</Badge>}
+                            {/* Author Badge (if not owner) */}
+                            {author && note.user_id !== user?.id && (
+                                <span className="text-xs font-medium text-muted-foreground px-2 py-0.5 rounded-full bg-muted">
+                                    by {author.codex_name || author.email.split('@')[0]}
+                                </span>
+                            )}
+                            <span className="text-xs text-muted-foreground ml-auto sm:ml-0">{lastSaved.toLocaleDateString()}</span>
                         </div>
                         {isEditing ? (
                             <Input
@@ -314,7 +351,73 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                             className="p-6 text-sm leading-relaxed whitespace-pre-wrap font-mono text-muted-foreground min-h-[500px]"
                             onClick={() => isOwner && setIsEditing(true)}
                         >
-                            {renderWikiContent(content)}
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    a: ({ href, children, ...props }) => {
+                                        if (href?.startsWith('#wiki-')) {
+                                            const title = decodeURIComponent(href.replace('#wiki-', ''))
+                                            return (
+                                                <span
+                                                    className="text-blue-500 font-medium cursor-pointer hover:underline"
+                                                    onClick={(e) => {
+                                                        e.preventDefault()
+                                                        e.stopPropagation()
+                                                        if (onLinkClick) onLinkClick(title)
+                                                    }}
+                                                >
+                                                    {children}
+                                                </span>
+                                            )
+                                        }
+                                        if (href?.startsWith('mention:')) {
+                                            return <span className="text-green-600 font-semibold">{children}</span>
+                                        }
+                                        return (
+                                            <a
+                                                href={href}
+                                                {...props}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary underline hover:text-primary/80"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                {children}
+                                            </a>
+                                        )
+                                    },
+                                    h1: ({ children }) => <h1 className="text-2xl font-bold mt-4 mb-2 text-foreground">{children}</h1>,
+                                    h2: ({ children }) => <h2 className="text-xl font-bold mt-3 mb-2 text-foreground">{children}</h2>,
+                                    h3: ({ children }) => <h3 className="text-lg font-semibold mt-2 mb-1 text-foreground">{children}</h3>,
+                                    ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                                    ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                                    li: ({ children }) => <li className="mb-1">{children}</li>,
+                                    blockquote: ({ children }) => <blockquote className="border-l-4 border-muted pl-4 italic my-2">{children}</blockquote>,
+                                    code: ({ children, className }) => {
+                                        const isBlock = /language-(\w+)/.test(className || '')
+                                        return isBlock ? (
+                                            <code className="block bg-muted p-2 rounded my-2 whitespace-pre overflow-x-auto text-xs">{children}</code>
+                                        ) : (
+                                            <code className="bg-muted px-1 py-0.5 rounded text-xs">{children}</code>
+                                        )
+                                    },
+                                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>
+                                }}
+                            >
+                                {(() => {
+                                    // Pre-process content for Wiki Links [[Title]] -> [Title](#wiki-Title)
+                                    let processed = content || ''
+                                    // Wiki Links - use non-greedy match for content inside brackets
+                                    processed = processed.replace(/\[\[(.*?)\]\]/g, (match, title) => {
+                                        return `[${title}](#wiki-${encodeURIComponent(title)})`
+                                    })
+                                    // Mentions @User -> [@User](mention:User)
+                                    processed = processed.replace(/@(\w+)/g, (match, username) => {
+                                        return `[${match}](mention:${username})`
+                                    })
+                                    return processed
+                                })()}
+                            </ReactMarkdown>
                         </div>
                     </ScrollArea>
                 )}

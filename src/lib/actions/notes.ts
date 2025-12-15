@@ -250,3 +250,56 @@ export async function promoteNote(id: string) {
         score: assessment.score
     }
 }
+
+export async function fetchClassFeed(filter: 'all' | 'teacher' | 'students' = 'all') {
+    const supabase = await createClient()
+
+    // 1. Fetch Notes
+    let query = supabase
+        .from('notes')
+        .select('*')
+        .eq('is_public', true)
+        .order('updated_at', { ascending: false })
+
+    if (filter === 'teacher') {
+        query = query.eq('type', 'source')
+    } else if (filter === 'students') {
+        query = query.neq('type', 'source')
+    }
+
+    const { data: notes, error: notesError } = await query
+
+    if (notesError) {
+        console.error('Error fetching feed notes:', notesError)
+        return { success: false, error: 'Failed to fetch feed' }
+    }
+
+    if (!notes || notes.length === 0) {
+        return { success: true, data: [] }
+    }
+
+    // 2. Fetch Authors manually to report avoid FK issues
+    const userIds = [...new Set(notes.map(n => n.user_id))]
+
+    const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, email, codex_name')
+        .in('id', userIds)
+
+    if (usersError) {
+        console.error('Error fetching feed authors:', usersError)
+        // Return notes without author info if user fetch fails, or fail? 
+        // Better to return notes with partial info than nothing.
+    }
+
+    // 3. Merge Data
+    const enrichedNotes = notes.map(note => {
+        const author = users?.find(u => u.id === note.user_id)
+        return {
+            ...note,
+            user: author || { email: 'Unknown', codex_name: 'Unknown' }
+        }
+    })
+
+    return { success: true, data: enrichedNotes }
+}

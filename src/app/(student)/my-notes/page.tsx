@@ -46,7 +46,6 @@ export default function NotebookPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
     const [slideOverNote, setSlideOverNote] = useState<Note | null>(null)
-    const [promotionResult, setPromotionResult] = useState<{ success: boolean, feedback: string, score: number } | null>(null)
     const [showPromotionDialog, setShowPromotionDialog] = useState(false)
 
     // Graph Data
@@ -191,22 +190,32 @@ export default function NotebookPage() {
         }
     }
 
-    // Handle "New Note" action from URL
+    // Handle URL Actions (New Note / Open Specific Note)
     useEffect(() => {
         if (!user || !searchParams) return
         const action = searchParams.get('action')
+        const noteId = searchParams.get('noteId')
 
         const run = async () => {
+            // Handle "New Note"
             if (action === 'new' && !hasHandledNewRef.current) {
                 hasHandledNewRef.current = true
                 await handleCreateNew()
+                // Clear query param to prevent duplicate creation on refresh
                 router.replace('/my-notes')
+            }
+
+            // Handle "Open Note" (Deep Link)
+            if (noteId && notes.length > 0) {
+                const target = notes.find(n => n.id === noteId) || publicNotes.find(n => n.id === noteId)
+                if (target) {
+                    handleSelectNote(target)
+                    router.replace('/my-notes')
+                }
             }
         }
         run()
-    }, [user, searchParams, router])
-
-    // Note: handlePromoteAction removed (logic moved to NoteEditor)
+    }, [user, searchParams, notes, publicNotes])
 
     if (loading) return <div className="h-full flex items-center justify-center text-muted-foreground">Loading Codex...</div>
 
@@ -296,8 +305,6 @@ export default function NotebookPage() {
                             onUpdate={(updatedNote) => {
                                 setNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n))
                                 setPublicNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n))
-                                // If promoted (changes from fleeting to permanent), switch tab if we want?
-                                // For now, just let user see it disappear from 'fleeting' list if filtering.
                             }}
                             onDelete={() => {
                                 setSelectedNoteId(null)
@@ -364,6 +371,6 @@ export default function NotebookPage() {
                 // Drill Down
                 onNavigate={(n) => setSlideOverNote(n as Note)}
             />
-        </div >
+        </div>
     )
 }

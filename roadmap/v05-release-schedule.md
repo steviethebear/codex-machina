@@ -9,7 +9,7 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 - **Data Seeding**: Populate the database with initial Sources (Books, Articles).
 
 ## v0.5.2: Class Feed
-**Status**: Planned
+**Status**: Complete
 - Implementation of the "Class Feed" view.
 - Filtering and "Public vs Private" visibility logic.
 
@@ -17,6 +17,7 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 **Status**: Planned
 - Enhanced metrics and progression for students.
 - Visualizing quotas and achievements.
+- Version of student dashboard visible to other players. When I click an @ link in a note, it should take me to information about that player and a list of notes.
 
 ## v0.5.4: Notifications
 **Status**: Planned
@@ -42,8 +43,14 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 - Writing assistance (if aligned with pedagogy).
 - Enhanced "Promote" evaluation.
 
-## v0.5.8: Breadcrumb
+## v0.5.8: Breadcrumbs
 **Status**: Planned
 - Implementation of breadcrumbs for navigation.
 - User should be able to move back and forth between notes, riding along those notes, and thinking along with them.
+
+## v0.5.9: Bug Fixes
+**Status**: Planned
+- Fix any remaining bugs from previous releases.
+- Get ready for v0.6.0 by creating release schedule.
+
 
