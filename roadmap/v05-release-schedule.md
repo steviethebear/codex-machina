@@ -3,7 +3,7 @@
 This document outlines the incremental release plan for the v0.5 cycle of Codex Machina.
 
 ## v0.5.1: UI Polish & Sources
-**Status**: In Progress
+**Status**: Complete
 - **UI Cleanup**: Graph enhancements (coloring, sizing) and general UI polish.
 - **Slide-Out**: New slide-over view for inspecting notes from the graph/list.
 - **Data Seeding**: Populate the database with initial Sources (Books, Articles).
@@ -27,12 +27,14 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 **Status**: Planned
 - Analytics view for teachers.
 - Engagement tracking and "At Risk" student identification.
+- Add sources to the list of sources.
 
 ## v0.5.6: Semantic Search
 **Status**: Planned
 - Embedding generation for notes.
 - Vector search implementation.
 - "Smart Connections" based on semantic similarity.
+- Add new filters and better search to graph view.
 
 ## v0.5.7: Full LLM Integration
 **Status**: Planned
@@ -40,7 +42,7 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 - Writing assistance (if aligned with pedagogy).
 - Enhanced "Promote" evaluation.
 
-## v0.5.8: Breadcrumbs
+## v0.5.8: Breadcrumb
 **Status**: Planned
 - Implementation of breadcrumbs for navigation.
 - User should be able to move back and forth between notes, riding along those notes, and thinking along with them.
