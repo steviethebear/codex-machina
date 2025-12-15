@@ -65,7 +65,7 @@ export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNo
     }
 
     const getNodeVal = (node: any) => {
-        let val = 1 // Base size
+        let val = node.val || 1 // Base size from data or default
 
         // Scale by connection count
         if (node.connection_count && node.connection_count > 0) {
@@ -105,14 +105,27 @@ export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNo
         }
     }
 
+    const nodePointerAreaPaint = (node: any, color: string, ctx: CanvasRenderingContext2D) => {
+        const nodeVal = getNodeVal(node)
+        const nodeRadius = Math.sqrt(nodeVal) * nodeRelSize * 0.5
+        ctx.beginPath()
+        ctx.arc(node.x, node.y, nodeRadius, 0, 2 * Math.PI)
+        ctx.fillStyle = color
+        ctx.fill()
+    }
+
     const fgRef = useRef<any>(null)
 
     useEffect(() => {
         if (fgRef.current) {
             fgRef.current.d3Force('charge').strength(-100)
             fgRef.current.d3Force('link').distance(40)
+            // Zoom to fit after a short delay to allow graph to stabilize
+            setTimeout(() => {
+                fgRef.current.zoomToFit(400, 100) // Increase padding to 100
+            }, 600)
         }
-    }, [])
+    }, [data]) // Re-run when data changes
 
     return (
         <div ref={containerRef} className="w-full h-full relative bg-[#0a0a0f]">
@@ -142,6 +155,7 @@ export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNo
                 width={graphWidth}
                 height={graphHeight}
                 nodeCanvasObject={nodeCanvasObject}
+                nodePointerAreaPaint={nodePointerAreaPaint}
                 d3VelocityDecay={0.3}
                 d3AlphaDecay={0.02}
                 cooldownTicks={100}

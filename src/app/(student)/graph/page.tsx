@@ -1,13 +1,13 @@
 'use client'
 
-import { Search, PlusCircle } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import ForceGraph from '@/components/graph/force-graph'
 import { useAuth } from '@/components/auth-provider'
-import Link from 'next/link'
+import { NoteSlideOver } from '@/components/NoteSlideOver'
 
 export default function GraphPage() {
     const searchParams = useSearchParams()
@@ -98,13 +98,14 @@ export default function GraphPage() {
         fetchData()
     }, [])
 
+    const [slideOverNote, setSlideOverNote] = useState<any>(null)
+
     return (
         <div className="h-[calc(100vh-4rem)] w-full relative group bg-black">
             <ForceGraph
                 data={data}
                 onNodeClick={(node) => {
-                    // Simple navigation or alert for MVP
-                    console.log('Clicked', node)
+                    if (node.note) setSlideOverNote(node.note)
                 }}
                 highlightNodes={highlightedNodeIds}
             // filterType={activeTypeFilter}
@@ -138,14 +139,13 @@ export default function GraphPage() {
                 </div>
             </div>
 
-            <div className="absolute bottom-8 right-8 z-10">
-                <Link href="/my-notes">
-                    <Button size="lg" className="shadow-lg">
-                        <PlusCircle className="mr-2 h-5 w-5" />
-                        New Note
-                    </Button>
-                </Link>
-            </div>
+            <NoteSlideOver
+                open={!!slideOverNote}
+                note={slideOverNote}
+                onClose={() => setSlideOverNote(null)}
+                // Refresh graph data if note changes (optional, but good for title updates)
+                onUpdate={() => fetchData()}
+            />
         </div>
     )
 }

@@ -35,6 +35,11 @@ export async function createNote(note: NoteInsert) {
         await awardPoints(data.user_id, 1, 'created_fleeting_note', data.id)
     }
 
+    // Sync connections if initial content is provided
+    if (note.content) {
+        await syncConnections(data.id, note.content, data.user_id)
+    }
+
     revalidatePath('/dashboard')
     revalidatePath('/my-notes')
     revalidatePath('/graph')
@@ -59,7 +64,8 @@ export async function updateNote(id: string, updates: NoteUpdate) {
     // If updating a permanent note, we might want to re-sync connections?
     // "Inline only... parsed from markdown when note is saved"
     // So yes, we should sync connections on update if content changed.
-    if (data.type === 'permanent' && updates.content) {
+    // Sync connections if content changed, regardless of note type (fleeting, permanent, source)
+    if (updates.content) {
         await syncConnections(data.id, data.content, data.user_id)
     }
 
