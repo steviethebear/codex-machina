@@ -40,7 +40,6 @@ export default function GraphPage() {
             }
 
             if (showMyNotesOnly && user) {
-                // If it's a note, check user_id. Texts (type=text) usually don't have user_id like notes.
                 if (node.note && node.note.user_id !== user.id) matches = false
             }
 
@@ -62,34 +61,15 @@ export default function GraphPage() {
             .from('connections')
             .select('*')
 
-        // 3. Fetch Texts (Books/Films) - Optional but good for hub structure
-        const { data: texts } = await supabase
-            .from('texts')
-            .select('*')
-            .eq('archived', false)
-
         if (notes && connections) {
             const nodes: any[] = notes.map((note) => ({
                 id: note.id,
                 name: note.title,
                 val: 1, // Size
-                type: note.type, // 'fleeting', 'literature', 'permanent'
+                type: note.type, // 'fleeting', 'source', 'permanent'
                 note: note,
-                connection_count: 0 // calculate later?
+                connection_count: 0
             }))
-
-            if (texts) {
-                texts.forEach(t => {
-                    nodes.push({
-                        id: t.id,
-                        name: t.title,
-                        val: 2,
-                        type: 'text',
-                        color: '#ffffff',
-                        text: t
-                    })
-                })
-            }
 
             // Create Set of Node IDs
             const nodeIds = new Set(nodes.map(n => n.id))
@@ -98,41 +78,18 @@ export default function GraphPage() {
             const validLinks = connections.map(c => ({
                 source: c.source_note_id,
                 target: c.target_note_id,
-                explanation: c.explanation
+                explanation: c.context // Renamed to context in v0.5
             })).filter(l => nodeIds.has(l.source) && nodeIds.has(l.target))
 
-            // Add text links? Since we don't have direct text-links table anymore (replaced by connections to notes?), 
-            // but maybe we can link Literature Notes to Texts via some convention or if we added a `text_id` to notes (we didn't yet).
-            // For v0.5 MVP, we might treat Texts as standalone hubs if we link them, OR if we strictly follow schema, 
-            // Literature Notes citation string is the "link". 
-            // Let's just visualize Notes and Connections for now to keep it clean.
-            // We can visualize Texts as disconnected for now or just hide them if not used. 
-            // Actually, seed data didn't link notes to texts via ID, just citation string.
-            // So let's keep Texts out of the main graph or just show them. 
-            // For Zettelkasten, the graph is mostly about Notes. 
-            // I'll keep texts in `nodes` array but they might be disconnected unless we link them. 
-            // Actually, old schema had `links` table with `to_text_id`. New `connections` is `source_note_id` -> `target_note_id`.
-            // So we lost direct graph edges to Texts unless we treat Texts as "Notes" or add a field.
-            // Given instructions: "Literature notes... Citation." 
-            // Ideally we'd fuzzy match citation to Text title to draw a line, but that's complex.
-            // Result: Texts will appear as floating nodes or we should hide them for now to avoid clutter.
-            // Let's hide Texts for now unless we need them.
-
-            // Re-filtering nodes to remove Texts if we aren't linking them
-            // actually, let's just show Notes for the Zettelkasten Graph.
-            const finalNodes = nodes.filter(n => n.type !== 'text')
-            const finalNodeIds = new Set(finalNodes.map(n => n.id))
-            const finalLinks = validLinks.filter(l => finalNodeIds.has(l.source) && finalNodeIds.has(l.target))
-
             // Calculate connection counts for sizing
-            finalLinks.forEach(link => {
-                const source = finalNodes.find(n => n.id === link.source)
-                const target = finalNodes.find(n => n.id === link.target)
+            validLinks.forEach(link => {
+                const source = nodes.find(n => n.id === link.source)
+                const target = nodes.find(n => n.id === link.target)
                 if (source) source.connection_count = (source.connection_count || 0) + 1
                 if (target) target.connection_count = (target.connection_count || 0) + 1
             })
 
-            setData({ nodes: finalNodes, links: finalLinks })
+            setData({ nodes: nodes, links: validLinks })
         }
         setLoading(false)
     }
@@ -147,7 +104,6 @@ export default function GraphPage() {
                 data={data}
                 onNodeClick={(node) => {
                     // Simple navigation or alert for MVP
-                    // TODO: Open sidebar detail view
                     console.log('Clicked', node)
                 }}
                 highlightNodes={highlightedNodeIds}

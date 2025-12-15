@@ -56,9 +56,10 @@ export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNo
         if (highlightNodes && highlightNodes.size > 0 && !highlightNodes.has(node.id)) return '#333'
 
         if (node.type === 'fleeting') return '#a1a1aa' // Grey
-        if (node.type === 'literature') return '#60a5fa' // Blue
+        if (node.type === 'source') return '#f59e0b' // Amber
         if (node.type === 'permanent') return '#34d399' // Green
-        if (node.type === 'text') return '#ffffff' // White
+        // if (node.type === 'text') return '#ffffff' // Legacy? Keep for now if needed or remove
+
 
         return node.color || '#00f0ff'
     }

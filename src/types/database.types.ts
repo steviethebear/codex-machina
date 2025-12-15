@@ -47,7 +47,7 @@ export type Database = {
       connections: {
         Row: {
           created_at: string
-          explanation: string
+          context: string
           id: string
           source_note_id: string
           target_note_id: string
@@ -55,7 +55,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          explanation: string
+          context: string
           id?: string
           source_note_id: string
           target_note_id: string
@@ -63,7 +63,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          explanation?: string
+          context?: string
           id?: string
           source_note_id?: string
           target_note_id?: string
@@ -95,7 +95,6 @@ export type Database = {
           id: string
           is_public: boolean
           page_number: string | null
-          response_to_id: string | null
           title: string
           type: Database["public"]["Enums"]["note_type"]
           updated_at: string
@@ -109,7 +108,6 @@ export type Database = {
           id?: string
           is_public?: boolean
           page_number?: string | null
-          response_to_id?: string | null
           title: string
           type: Database["public"]["Enums"]["note_type"]
           updated_at?: string
@@ -123,44 +121,8 @@ export type Database = {
           id?: string
           is_public?: boolean
           page_number?: string | null
-          response_to_id?: string | null
           title?: string
           type?: Database["public"]["Enums"]["note_type"]
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notes_response_to_id_fkey"
-            columns: ["response_to_id"]
-            isOneToOne: false
-            referencedRelation: "notes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      outlines: {
-        Row: {
-          created_at: string
-          id: string
-          structure: Json
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          structure?: Json
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          structure?: Json
-          title?: string
           updated_at?: string
           user_id?: string
         }
@@ -279,7 +241,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      note_type: "fleeting" | "literature" | "permanent"
+      note_type: "fleeting" | "permanent" | "source"
     }
     CompositeTypes: {
       [_ in never]: never

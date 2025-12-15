@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+/roadmap
 
 # debug
 npm-debug.log*

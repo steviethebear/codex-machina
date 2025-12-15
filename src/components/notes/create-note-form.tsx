@@ -28,16 +28,16 @@ export function CreateNoteForm() {
         setIsSubmitting(true)
 
         try {
-            const isPublic = noteType !== 'fleeting' // Fleeting is private, others public
+            const isPublic = noteType !== 'fleeting'
 
             const result = await createNote({
                 user_id: user.id,
                 title,
                 content,
-                type: noteType as 'fleeting' | 'literature' | 'permanent',
+                type: noteType as 'fleeting' | 'source' | 'permanent',
                 is_public: isPublic,
-                citation: noteType === 'literature' ? citation : null,
-                page_number: noteType === 'literature' ? pageNumber : null,
+                citation: noteType === 'source' ? citation : null,
+                page_number: noteType === 'source' ? pageNumber : null,
             })
 
             if (result.error) {
@@ -60,7 +60,7 @@ export function CreateNoteForm() {
             <Tabs defaultValue="fleeting" onValueChange={setNoteType} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 mb-8">
                     <TabsTrigger value="fleeting">Fleeting Note</TabsTrigger>
-                    <TabsTrigger value="literature">Literature Note</TabsTrigger>
+                    <TabsTrigger value="source">Source Note</TabsTrigger>
                     <TabsTrigger value="permanent">Permanent Note</TabsTrigger>
                 </TabsList>
 
@@ -97,11 +97,11 @@ export function CreateNoteForm() {
                     </Card>
                 </TabsContent>
 
-                {/* LITERATURE NOTE */}
-                <TabsContent value="literature">
+                {/* SOURCE NOTE (Renamed from Literature) */}
+                <TabsContent value="source">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Literature Note</CardTitle>
+                            <CardTitle>Source Note</CardTitle>
                             <CardDescription>
                                 Deep engagement with a source. Public to class.
                             </CardDescription>
@@ -132,7 +132,7 @@ export function CreateNoteForm() {
                         </CardContent>
                         <CardFooter>
                             <Button onClick={handleSubmit} disabled={isSubmitting}>
-                                {isSubmitting ? 'Publishing...' : 'Publish Literature Note'}
+                                {isSubmitting ? 'Publishing...' : 'Publish Source Note'}
                             </Button>
                         </CardFooter>
                     </Card>
@@ -156,7 +156,7 @@ export function CreateNoteForm() {
                                 <Label htmlFor="p-content">Reasoning & Evidence</Label>
                                 <Textarea
                                     id="p-content"
-                                    placeholder="Explain your reasoning. Connect ideas from your literature notes."
+                                    placeholder="Explain your reasoning. Connect ideas from your source notes."
                                     className="min-h-[300px]"
                                     value={content}
                                     onChange={e => setContent(e.target.value)}

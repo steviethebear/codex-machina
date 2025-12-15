@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth-provider'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { FileText, Network, MessageSquare, ListChecks, PlusCircle, ArrowRight } from 'lucide-react'
+import { FileText, Network, MessageSquare, PlusCircle, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,8 +14,7 @@ export default function DashboardPage() {
     const [stats, setStats] = useState({
         notes: 0,
         connections: 0,
-        comments: 0,
-        outlines: 0
+        comments: 0
     })
     const [recentNotes, setRecentNotes] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
@@ -26,18 +25,16 @@ export default function DashboardPage() {
 
         const fetchData = async () => {
             // Fetch counts
-            const [notesRes, connectionsRes, commentsRes, outlinesRes] = await Promise.all([
+            const [notesRes, connectionsRes, commentsRes] = await Promise.all([
                 supabase.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
                 supabase.from('connections').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
                 supabase.from('comments').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-                supabase.from('outlines').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
             ])
 
             setStats({
                 notes: notesRes.count || 0,
                 connections: connectionsRes.count || 0,
-                comments: commentsRes.count || 0,
-                outlines: outlinesRes.count || 0
+                comments: commentsRes.count || 0
             })
 
             // Fetch recent notes
@@ -75,7 +72,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Notes</CardTitle>
@@ -101,15 +98,6 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.comments}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Outlines</CardTitle>
-                        <ListChecks className="h-4 w-4 text-orange-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.outlines}</div>
                     </CardContent>
                 </Card>
             </div>

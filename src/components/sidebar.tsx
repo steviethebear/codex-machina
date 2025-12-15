@@ -13,9 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'My Notes', href: '/my-notes', icon: BookOpen },
-    { name: 'Class Feed', href: '/feed', icon: Activity },
     { name: 'Graph', href: '/graph', icon: Network },
-    { name: 'Outlines', href: '/outlines', icon: ListChecks },
     { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
 ]
 
@@ -23,7 +21,7 @@ export function Sidebar() {
     const pathname = usePathname()
     const { signOut, user } = useAuth()
     const [isAdmin, setIsAdmin] = useState(false)
-    const [noteCount, setNoteCount] = useState(0)
+    const [counts, setCounts] = useState({ fleeting: 0, permanent: 0 })
     const supabase = createClient()
 
     useEffect(() => {
@@ -40,17 +38,21 @@ export function Sidebar() {
         }
         checkAdmin()
 
-        // Fetch note count
-        const fetchNoteCount = async () => {
+        // Fetch note counts
+        const fetchCounts = async () => {
             if (user) {
-                const { count } = await supabase
-                    .from('notes')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('user_id', user.id)
-                setNoteCount(count || 0)
+                const [fleeting, permanent] = await Promise.all([
+                    supabase.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('type', 'fleeting'),
+                    supabase.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('type', 'permanent')
+                ])
+
+                setCounts({
+                    fleeting: fleeting.count || 0,
+                    permanent: permanent.count || 0
+                })
             }
         }
-        fetchNoteCount()
+        fetchCounts()
     }, [user, supabase])
 
     return (
@@ -84,10 +86,11 @@ export function Sidebar() {
                                     aria-hidden="true"
                                 />
                                 <span className="flex-1">{item.name}</span>
-                                {item.name === 'My Notes' && noteCount > 0 && (
-                                    <span className="ml-auto inline-flex items-center justify-center rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
-                                        {noteCount}
-                                    </span>
+                                {item.name === 'My Notes' && (counts.fleeting > 0 || counts.permanent > 0) && (
+                                    <div className="ml-auto flex items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-xs font-medium border">
+                                        <span className="text-red-500">{counts.fleeting}</span>
+                                        <span className="text-muted-foreground">{counts.permanent}</span>
+                                    </div>
                                 )}
                             </Link>
                         )
@@ -95,7 +98,7 @@ export function Sidebar() {
                 </nav>
 
                 <div className="mt-8 px-4">
-                    <Link href="/my-notes" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                    <Link href="/my-notes?action=new" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                         <PlusCircle className="h-4 w-4" />
                         New Note
                     </Link>

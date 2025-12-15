@@ -9,7 +9,6 @@ export async function getClassStats() {
     const { count: noteCount } = await supabase.from('notes').select('*', { count: 'exact', head: true })
     const { count: connectionCount } = await supabase.from('connections').select('*', { count: 'exact', head: true })
     const { count: commentCount } = await supabase.from('comments').select('*', { count: 'exact', head: true })
-    const { count: outlineCount } = await supabase.from('outlines').select('*', { count: 'exact', head: true })
 
     // Recent Activity (Mixed)
     // Reuse log from getFeed? Maybe just simple list.
@@ -18,8 +17,7 @@ export async function getClassStats() {
         counts: {
             notes: noteCount || 0,
             connections: connectionCount || 0,
-            comments: commentCount || 0,
-            outlines: outlineCount || 0
+            comments: commentCount || 0
         }
     }
 }

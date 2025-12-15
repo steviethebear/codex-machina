@@ -1,8 +1,13 @@
 'use server'
 
+import 'server-only'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { Database } from '@/types/database.types'
+import { evaluateNote } from './evaluation'
+import { syncConnections } from './links'
+import { awardPoints } from '@/lib/points' // Assumes absolute import works or adjust path
 
 type Note = Database['public']['Tables']['notes']['Row']
 type NoteInsert = Database['public']['Tables']['notes']['Insert']
@@ -10,6 +15,9 @@ type NoteUpdate = Database['public']['Tables']['notes']['Update']
 
 export async function createNote(note: NoteInsert) {
     const supabase = await createClient()
+
+    // Default to fleeting if not provided
+    if (!note.type) note.type = 'fleeting'
 
     const { data, error } = await supabase
         .from('notes')
@@ -22,11 +30,10 @@ export async function createNote(note: NoteInsert) {
         return { error: error.message }
     }
 
-    // Award points logic will be handled separately or via triggers/hooks
-    // For v0.5 MVP, we might call a separate action here or relying on the client to trigger it.
-    // The plan said "1 point awarded on creation" for fleeting.
-    // We can add simple point logic here or in a separate specific function.
-    // Let's keep it simple for now and revalidate.
+    // Award 1 point for creating a fleeting note (Coherence check implied or just participation for now)
+    if (data.type === 'fleeting') {
+        await awardPoints(data.user_id, 1, 'created_fleeting_note', data.id)
+    }
 
     revalidatePath('/dashboard')
     revalidatePath('/my-notes')
@@ -49,8 +56,16 @@ export async function updateNote(id: string, updates: NoteUpdate) {
         return { error: error.message }
     }
 
+    // If updating a permanent note, we might want to re-sync connections?
+    // "Inline only... parsed from markdown when note is saved"
+    // So yes, we should sync connections on update if content changed.
+    if (data.type === 'permanent' && updates.content) {
+        await syncConnections(data.id, data.content, data.user_id)
+    }
+
     revalidatePath('/dashboard')
     revalidatePath('/my-notes')
+    revalidatePath('/graph')
     return { data }
 }
 
@@ -119,4 +134,113 @@ export async function getNote(id: string) {
     }
 
     return { data }
+}
+
+export async function promoteNote(id: string) {
+    const supabase = await createClient()
+
+    // 1. Fetch the note
+    const { data: note, error: fetchError } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+    if (fetchError || !note) {
+        return { error: 'Note not found' }
+    }
+
+    if (note.type === 'permanent') {
+        return { error: 'Note is already permanent' }
+    }
+
+    // 2. Run LLM Evaluation
+    // We pass 'permanent' to indicate we are evaluating FOR permanent status
+    const assessment = await evaluateNote(id, 'permanent')
+    if ('error' in assessment) {
+        return { error: assessment.error }
+    }
+
+    // 3. Logic based on score
+    // Assuming score >= 3 is pass? Or just provide feedback?
+    // "Most important pedagogical innovation... conscious decision to make thinking public"
+    // "Rejected notes get 'Needs Revision' badge"
+    // Let's implement a threshold.
+    const PASS_THRESHOLD = 3
+    if (assessment.score < PASS_THRESHOLD) {
+        return {
+            success: false,
+            feedback: assessment.feedback,
+            score: assessment.score
+        }
+    }
+
+    // 4. Success - Update Note
+    const { error: updateError } = await supabase
+        .from('notes')
+        .update({
+            type: 'permanent',
+            is_public: true,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+
+    if (updateError) {
+        return { error: updateError.message }
+    }
+
+    // 5. Sync Connections (and award link points?)
+    // "Links in permanent notes: 2 points"
+    const linksCount = await syncConnections(note.id, note.content, note.user_id)
+
+    // 6. Award Points
+    // Note Quality Points (from LLM score? or fixed?)
+    // "Permanent notes: 0-8 points (quality evaluation)"
+    // Let's use the score scaled or directly. If score is 0-4, maybe x2?
+    // Using assessment.score * 2 for now.
+    const qualityPoints = assessment.score * 2
+    await awardPoints(note.user_id, qualityPoints, 'note_promotion_quality', id)
+
+    // Link Points
+    if (linksCount > 0) {
+        // "[[Links]] in permanent notes: 2 points"
+        // Note: Differentiation of "Classmate link" (3pts) is handled in syncConnections? 
+        // Sync connections returned just Count. 
+        // For MVP simplification, just awarding 2pts per link here.
+        // Ideally syncConnections should calculate detailed points, but we'll stick to simple.
+        await awardPoints(note.user_id, linksCount * 2, 'note_promotion_links', id)
+    }
+
+    // 7. Award Mention Points (2 pts per mention to the TARGET)
+    const mentionMatches = note.content.match(/@(\w+)/g) || []
+    const uniqueMentions = [...new Set(mentionMatches.map(m => m.slice(1)))] // remove @
+
+    // Use Admin Client for Lookup to bypass RLS
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    for (const handle of uniqueMentions) {
+        // Find user by handle (email prefix OR name prefix)
+        const { data: targetUser } = await supabaseAdmin
+            .from('users')
+            .select('id, email, codex_name')
+            .or(`email.ilike.${handle}@%,codex_name.ilike.${handle}%`)
+            .maybeSingle()
+
+        if (targetUser && targetUser.id !== note.user_id) {
+            await awardPoints(targetUser.id, 2, 'mentioned_in_note', id)
+        }
+    }
+
+    revalidatePath('/dashboard')
+    revalidatePath('/my-notes')
+    revalidatePath('/graph')
+
+    return {
+        success: true,
+        feedback: assessment.feedback,
+        score: assessment.score
+    }
 }
