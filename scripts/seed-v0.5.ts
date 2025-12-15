@@ -68,8 +68,11 @@ async function seed() {
 
     // 3. Create Sources (Teacher Notes)
     const sources = [
-        { title: 'Simulacra and Simulation', content: 'The simulacrum is never that which conceals the truth—it is the truth which conceals that there is none.', citation: 'Baudrillard, Jean. 1981.' },
-        { title: 'Understanding Media', content: 'The medium is the message. This is merely to say that the personal and social consequences of any medium result from the new scale...', citation: 'McLuhan, Marshall. 1964.' }
+        { title: 'The Medium is the Massage', content: 'Marshall McLuhan. An inventory of effects. The book demonstrates how the medium affects the message.', citation: 'McLuhan, Marshall. The Medium is the Massage. Penguin, 1967.' },
+        { title: 'Gödel, Escher, Bach', content: 'Douglas Hofstadter. An Eternal Golden Braid. A metaphorical fugue on minds and machines in the spirit of Lewis Carroll.', citation: 'Hofstadter, Douglas R. Gödel, Escher, Bach: an Eternal Golden Braid. Basic Books, 1979.' },
+        { title: 'Understanding Media', content: 'The Extensions of Man. McLuhan proposes that media themselves, not the content they carry, should be the focus of study.', citation: 'McLuhan, Marshall. Understanding Media: The Extensions of Man. McGraw-Hill, 1964.' },
+        { title: 'Simulacra and Simulation', content: 'Jean Baudrillard. The book seeks to examine the relationships between reality, symbols, and society.', citation: 'Baudrillard, Jean. Simulacra and Simulation. University of Michigan Press, 1994.' },
+        { title: 'The Gutenberg Galaxy', content: 'The Making of Typographic Man. Analyzes the effects of mass media, especially the printing press, on European culture and human consciousness.', citation: 'McLuhan, Marshall. The Gutenberg Galaxy. University of Toronto Press, 1962.' }
     ]
 
     const sourceIds: string[] = []
