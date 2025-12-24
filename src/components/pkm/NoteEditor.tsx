@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -31,6 +32,7 @@ interface NoteEditorProps {
 
 export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }: NoteEditorProps) {
     const { user } = useAuth()
+    const router = useRouter()
     const supabase = createClient()
 
     // Permission Check
@@ -272,8 +274,11 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                             />
                         ) : (
                             <h2
-                                className="text-2xl font-bold leading-tight cursor-pointer hover:underline decoration-dashed decoration-muted-foreground/30"
-                                onClick={() => isOwner && setIsEditing(true)}
+                                className={cn(
+                                    "text-2xl font-bold leading-tight",
+                                    note.type !== 'permanent' && isOwner && "cursor-pointer hover:underline decoration-dashed decoration-muted-foreground/30"
+                                )}
+                                onClick={() => isOwner && note.type !== 'permanent' && setIsEditing(true)}
                             >
                                 {title || "Untitled"}
                             </h2>
@@ -287,12 +292,12 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                                 <Brain className="h-4 w-4" />
                             </Button>
                         )}
-                        {isOwner && (
+                        {isOwner && note.type !== 'permanent' && (
                             <Button size="sm" variant="ghost" className="text-destructive" onClick={handleDelete} title="Delete Note">
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         )}
-                        {isOwner && !isEditing && (
+                        {isOwner && !isEditing && note.type !== 'permanent' && (
                             <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
                                 <Edit2 className="h-4 w-4" />
                             </Button>
@@ -349,7 +354,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                     <ScrollArea className="h-full">
                         <div
                             className="p-6 text-sm leading-relaxed whitespace-pre-wrap font-mono text-muted-foreground min-h-[500px]"
-                            onClick={() => isOwner && setIsEditing(true)}
+                            onClick={() => isOwner && note.type !== 'permanent' && setIsEditing(true)}
                         >
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
@@ -371,7 +376,27 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                                             )
                                         }
                                         if (href?.startsWith('mention:')) {
-                                            return <span className="text-green-600 font-semibold">{children}</span>
+                                            const name = href.replace('mention:', '')
+                                            return (
+                                                <span
+                                                    className="text-green-600 font-semibold cursor-pointer hover:underline"
+                                                    onClick={(e) => {
+                                                        e.preventDefault()
+                                                        e.stopPropagation()
+                                                        // Find user ID
+                                                        const targetUser = users.find(u =>
+                                                            (u.codex_name?.replace(/\s+/g, '') || u.email.split('@')[0]) === name
+                                                        )
+                                                        if (targetUser) {
+                                                            router.push(`/user/${targetUser.id}`)
+                                                        } else {
+                                                            toast.error("User not found")
+                                                        }
+                                                    }}
+                                                >
+                                                    {children}
+                                                </span>
+                                            )
                                         }
                                         return (
                                             <a
@@ -423,6 +448,6 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                 )}
             </div>
 
-        </div>
+        </div >
     )
 }

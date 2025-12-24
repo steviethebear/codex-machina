@@ -27,15 +27,23 @@ export default function LoginPage() {
         })
 
         if (error) {
+            console.error("Supabase Login Error:", error)
             setError(error.message)
             setLoading(false)
         } else if (authData.user) {
+            console.log("Login successful, fetching user profile...")
             // Check if user is admin
-            const { data: userData } = await supabase
+            const { data: userData, error: profileError } = await supabase
                 .from('users')
                 .select('is_admin')
                 .eq('id', authData.user.id)
                 .single()
+
+            if (profileError) {
+                console.error("Profile Fetch Error:", profileError)
+                // Fallback: If public profile missing, just go to dashboard (middleware might catch it, or we handle it)
+                // But for now let's just log it.
+            }
 
             // Redirect based on admin status
             // @ts-ignore

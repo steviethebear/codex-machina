@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
     Dialog,
     DialogContent,
@@ -24,11 +24,20 @@ interface PromoteNoteDialogProps {
     onSuccess?: (updatedNote: Note) => void
 }
 
+import { useRouter } from "next/navigation"
+
 export function PromoteNoteDialog({ note, open, onOpenChange, onSuccess }: PromoteNoteDialogProps) {
+    const router = useRouter()
     const [title, setTitle] = useState(note.title)
     const [step, setStep] = useState<'input' | 'result'>('input')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [result, setResult] = useState<{ success: boolean, feedback: string, score: number } | null>(null)
+
+    useEffect(() => {
+        if (open) {
+            setTitle(note.title)
+        }
+    }, [open, note.title])
 
     const handlePromote = async () => {
         // 1. Validate Title
@@ -37,6 +46,11 @@ export function PromoteNoteDialog({ note, open, onOpenChange, onSuccess }: Promo
 
         if (!titleToCheck || titleToCheck.trim() === 'Untitled' || titleToCheck.trim() === 'Untitled Note' || isTimestamp) {
             toast.error("Please give your note a descriptive title before promoting.")
+            return
+        }
+
+        if (!note.content || note.content.trim().length === 0) {
+            toast.error("Note content cannot be empty.")
             return
         }
 
@@ -78,6 +92,9 @@ export function PromoteNoteDialog({ note, open, onOpenChange, onSuccess }: Promo
                 updated_at: new Date().toISOString()
             }
             onSuccess(updatedNote)
+
+            // Redirect to the new note in the notebook view
+            router.push(`/my-notes?noteId=${note.id}`)
         }
     }
 

@@ -233,6 +233,93 @@ export type Database = {
         }
         Relationships: []
       }
+      achievements: {
+        Row: {
+          id: string
+          key: string
+          name: string
+          description: string
+          category: string
+          xp_reward: number
+          icon: string | null
+          tier: number
+          requirement_type: string
+          requirement_value: number | null
+          requirement_metadata: Json | null
+          rewards: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          name: string
+          description: string
+          category: string
+          xp_reward?: number
+          icon?: string | null
+          tier?: number
+          requirement_type: string
+          requirement_value?: number | null
+          requirement_metadata?: Json | null
+          rewards?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          name?: string
+          description?: string
+          category?: string
+          xp_reward?: number
+          icon?: string | null
+          tier?: number
+          requirement_type?: string
+          requirement_value?: number | null
+          requirement_metadata?: Json | null
+          rewards?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          id: string
+          user_id: string
+          achievement_id: string
+          unlocked_at: string
+          progress: number | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          achievement_id: string
+          unlocked_at?: string
+          progress?: number | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          achievement_id?: string
+          unlocked_at?: string
+          progress?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_achievements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

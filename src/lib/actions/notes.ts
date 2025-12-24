@@ -7,7 +7,8 @@ import { revalidatePath } from 'next/cache'
 import { Database } from '@/types/database.types'
 import { evaluateNote } from './evaluation'
 import { syncConnections } from './links'
-import { awardPoints } from '@/lib/points' // Assumes absolute import works or adjust path
+import { awardPoints } from '@/lib/points'
+import { checkAndUnlockAchievements } from '@/lib/achievements'
 
 type Note = Database['public']['Tables']['notes']['Row']
 type NoteInsert = Database['public']['Tables']['notes']['Insert']
@@ -49,6 +50,21 @@ export async function createNote(note: NoteInsert) {
 export async function updateNote(id: string, updates: NoteUpdate) {
     const supabase = await createClient()
 
+    // 1. Fetch current state to check type
+    const { data: currentNote, error: fetchError } = await supabase
+        .from('notes')
+        .select('type')
+        .eq('id', id)
+        .single()
+
+    if (fetchError || !currentNote) {
+        return { error: 'Note not found' }
+    }
+
+    if (currentNote.type === 'permanent') {
+        return { error: 'Permanent notes cannot be edited.' }
+    }
+
     const { data, error } = await supabase
         .from('notes')
         .update(updates)
@@ -61,9 +77,6 @@ export async function updateNote(id: string, updates: NoteUpdate) {
         return { error: error.message }
     }
 
-    // If updating a permanent note, we might want to re-sync connections?
-    // "Inline only... parsed from markdown when note is saved"
-    // So yes, we should sync connections on update if content changed.
     // Sync connections if content changed, regardless of note type (fleeting, permanent, source)
     if (updates.content) {
         await syncConnections(data.id, data.content, data.user_id)
@@ -78,6 +91,35 @@ export async function updateNote(id: string, updates: NoteUpdate) {
 export async function deleteNote(id: string) {
     const supabase = await createClient()
 
+    // 1. Fetch current state to check type
+    const { data: currentNote, error: fetchError } = await supabase
+        .from('notes')
+        .select('type')
+        .eq('id', id)
+        .single()
+
+    if (fetchError || !currentNote) {
+        return { error: 'Note not found' }
+    }
+
+    if (currentNote.type === 'permanent') {
+        return { error: 'Permanent notes cannot be deleted.' }
+    }
+
+    // 2. Delete associated points (XP)
+    // We do this before deleting the note, though order doesn't strictly matter since no FK constraint on points.source_id
+    const { error: pointsError } = await supabase
+        .from('points')
+        .delete()
+        .eq('source_id', id)
+
+    if (pointsError) {
+        console.error('Error deleting note points:', pointsError)
+        // We continue to delete the note even if points fail, or maybe we should stop?
+        // Continuing seems safer for UX, leaving orphan points is a minor backend issue.
+    }
+
+    // 3. Delete the note
     const { error } = await supabase
         .from('notes')
         .delete()
@@ -90,6 +132,7 @@ export async function deleteNote(id: string) {
 
     revalidatePath('/dashboard')
     revalidatePath('/my-notes')
+    revalidatePath('/graph') // Ensure graph updates too
     return { success: true }
 }
 
@@ -158,6 +201,10 @@ export async function promoteNote(id: string) {
 
     if (note.type === 'permanent') {
         return { error: 'Note is already permanent' }
+    }
+
+    if (!note.content || note.content.trim().length === 0) {
+        return { error: 'Note content cannot be empty' }
     }
 
     // 2. Run LLM Evaluation
@@ -240,6 +287,9 @@ export async function promoteNote(id: string) {
         }
     }
 
+    // 8. Check Achievements (NEW)
+    const newAchievements = await checkAndUnlockAchievements(note.user_id)
+
     revalidatePath('/dashboard')
     revalidatePath('/my-notes')
     revalidatePath('/graph')
@@ -247,7 +297,8 @@ export async function promoteNote(id: string) {
     return {
         success: true,
         feedback: assessment.feedback,
-        score: assessment.score
+        score: assessment.score,
+        newAchievements // Pass this back to UI if we ever want to show a specific toast
     }
 }
 

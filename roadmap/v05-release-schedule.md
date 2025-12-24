@@ -14,7 +14,7 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 - Filtering and "Public vs Private" visibility logic.
 
 ## v0.5.3: Student Dashboard
-**Status**: Planned
+**Status**: Complete
 - Enhanced metrics and progression for students.
 - Visualizing quotas and achievements.
 - Version of student dashboard visible to other players. When I click an @ link in a note, it should take me to information about that player and a list of notes.
@@ -39,7 +39,7 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 
 ## v0.5.7: Full LLM Integration
 **Status**: Planned
-- Comprehensive AI feedback loops.
+- Comprehensive AI feedback loops. With some parameters here, though. Ask me about them when we get there.
 - Writing assistance (if aligned with pedagogy).
 - Enhanced "Promote" evaluation.
 
@@ -52,5 +52,10 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 **Status**: Planned
 - Fix any remaining bugs from previous releases.
 - Get ready for v0.6.0 by creating release schedule.
+
+## v0.5.10: Unlockables
+**Status**: Planned
+- Implementation of unlockables for students.
+- Ask about which features to unlock and how to unlock them.
 
 
