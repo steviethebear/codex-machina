@@ -9,6 +9,7 @@ import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { ViewSwitcher } from '@/components/view-switcher'
 import { createClient } from '@/lib/supabase/client'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -58,8 +59,9 @@ export function Sidebar() {
 
     return (
         <div className="flex h-full w-64 flex-col border-r bg-card text-card-foreground">
-            <div className="flex h-16 items-center px-6 border-b">
+            <div className="flex h-16 items-center justify-between px-6 border-b">
                 <h1 className="text-lg font-bold tracking-tight text-primary">Codex Machina</h1>
+                <NotificationBell />
             </div>
 
             <ViewSwitcher isAdmin={isAdmin} />

@@ -57,6 +57,13 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
     const [author, setAuthor] = useState<{ email: string, codex_name?: string } | null>(null)
     const [points, setPoints] = useState<number>(0)
 
+    // Force exit edit mode if note becomes permanent
+    useEffect(() => {
+        if (note.type === 'permanent') {
+            setIsEditing(false)
+        }
+    }, [note.type])
+
     // Load Data for Autocomplete & Meta
     useEffect(() => {
         setTitle(note.title)
@@ -72,7 +79,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                 setAuthor(note.user)
             } else if (note.user_id !== user?.id) {
                 const { data } = await supabase.from('users').select('email, codex_name').eq('id', note.user_id).single()
-                if (data) setAuthor(data)
+                if (data) setAuthor({ email: data.email, codex_name: data.codex_name || undefined })
             } else if (user) {
                 setAuthor({ email: user.email!, codex_name: user?.user_metadata?.codex_name /** we don't have codex in auth user obj easily, skip for now or fetch */ })
                 // Actually better to just skip setting author if it's us, we know it's us.

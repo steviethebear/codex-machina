@@ -347,8 +347,6 @@ export default function NotebookPage() {
                                             }
                                             if (n) setSlideOverNote(n)
                                         }}
-                                        width={undefined} // Let it auto-size to container
-                                        height={undefined}
                                     />
                                 </div>
                             </div>

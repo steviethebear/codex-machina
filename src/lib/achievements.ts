@@ -1,11 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { awardPoints } from '@/lib/points'
-
-/**
- * Checks and unlocks achievements for a user based on their stats.
- * Call this function after an action that typically triggers achievements (e.g. creating/promoting a note)
- */
+import { createNotification } from '@/lib/notifications'
 export async function checkAndUnlockAchievements(userId: string) {
     const supabase = await createClient()
     const supabaseAdmin = createAdminClient(
@@ -76,6 +72,7 @@ export async function checkAndUnlockAchievements(userId: string) {
 
             if (!error) {
                 newUnlocks.push(ach.name)
+
                 // Award the XP for it!
                 await awardPoints(
                     userId,
@@ -83,6 +80,15 @@ export async function checkAndUnlockAchievements(userId: string) {
                     'achievement_unlocked',
                     ach.id // Source ID is the achievement ID
                 )
+
+                // Notify User
+                await createNotification({
+                    user_id: userId,
+                    type: 'achievement',
+                    title: 'Achievement Unlocked!',
+                    message: `You unlocked "${ach.name}" and earned ${ach.xp_reward} XP!`,
+                    link: '/dashboard'
+                })
             }
         }
     }

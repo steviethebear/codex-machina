@@ -20,7 +20,7 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 - Version of student dashboard visible to other players. When I click an @ link in a note, it should take me to information about that player and a list of notes.
 
 ## v0.5.4: Notifications
-**Status**: Planned
+**Status**: Complete
 - Real-time alerts for @mentions and [[links]].
 - Notification center UI.
 

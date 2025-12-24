@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Database } from '@/types/database.types'
 
 type ConnectionInsert = Database['public']['Tables']['connections']['Insert']
+import { createNotification } from '@/lib/notifications'
 
 const LINK_REGEX = /\[\[(.*?)\]\]/g
 
@@ -46,50 +47,108 @@ function extractContext(content: string, index: number, length: number): string 
 export async function syncConnections(noteId: string, content: string, userId: string): Promise<number> {
     const supabase = await createClient()
     const links = await parseLinks(content)
+
+    // 1. Fetch Existing Connections
+    const { data: existingConnections } = await supabase
+        .from('connections')
+        .select('*')
+        .eq('source_note_id', noteId)
+
+    const existingMap = new Map(existingConnections?.map(c => [c.target_note_id, c]) || [])
+    const foundTargetIds = new Set<string>()
     let validLinksCount = 0
+    const newConnections: ConnectionInsert[] = []
 
-    // Get current connections to avoid duplicates or remove stale ones? 
-    // v0.5 MVP: Just insert new ones, ignore conflicts. 
-    // Ideally we should remove connections that are no longer in text.
-    // For now, let's just Upsert/Insert existing ones found in text.
-    // To handle deletions, we would need to delete all for this source and recreate.
-    // "Delete all connections from this source" -> "Insert all found".
-
-    // 1. Delete all existing connections for this note (to handle removals)
-    //    Warning: This might lose 'created_at' if we care about history, but for graph current state it's fine.
-    await supabase.from('connections').delete().eq('source_note_id', noteId)
-
+    // 2. Identify Targets from Content
     for (const link of links) {
-        // Find target note
-        // Attempt exact match on title
+        // Find target note by title
         const { data: targetNote } = await supabase
             .from('notes')
-            .select('id, user_id, is_public')
+            .select('id, user_id, is_public, title')
             .eq('title', link.title)
-            .single()
+            .maybeSingle() // Use maybeSingle to avoid error if not found
 
         if (targetNote && targetNote.id !== noteId) {
-            // Can only link to Public notes (or own notes? Spec says "Permanent notes (own or classmates' - all public)")
-            // If target is my own, I can link. If target is classmate, must be public.
+            // Check permissions: Own note OR Public note
             const isOwn = targetNote.user_id === userId
             if (isOwn || targetNote.is_public) {
                 const context = extractContext(content, link.index!, link.fullMatch.length)
+                foundTargetIds.add(targetNote.id)
+                validLinksCount++
 
-                const connection: ConnectionInsert = {
-                    source_note_id: noteId,
-                    target_note_id: targetNote.id,
-                    user_id: userId,
-                    context: context
-                }
-
-                const { error } = await supabase.from('connections').insert(connection)
-                if (!error) {
-                    validLinksCount++
+                if (existingMap.has(targetNote.id)) {
+                    // UPDATE existing: Check if context changed? 
+                    // For now, let's always update context to keep it fresh
+                    const validationId = existingMap.get(targetNote.id)!.id
+                    await supabase
+                        .from('connections')
+                        .update({ context })
+                        .eq('id', validationId)
                 } else {
-                    console.error("Error inserting connection:", error)
+                    // NEW connection
+                    newConnections.push({
+                        source_note_id: noteId,
+                        target_note_id: targetNote.id,
+                        user_id: userId,
+                        context: context
+                    })
                 }
             }
         }
+    }
+
+    // 3. Process New Connections
+    if (newConnections.length > 0) {
+        const { error } = await supabase.from('connections').insert(newConnections)
+
+        if (!error) {
+            // Trigger Notifications for NEW connections
+            // We need the author's name for the notification
+            const { data: author } = await supabase
+                .from('users')
+                .select('codex_name')
+                .eq('id', userId)
+                .single()
+
+            const authorName = author?.codex_name || 'Someone'
+
+            for (const conn of newConnections) {
+                // Fetch target note details to get owner (we could have cached this above, but cleaner here for now)
+                const { data: targetNote } = await supabase
+                    .from('notes')
+                    .select('user_id, title')
+                    .eq('id', conn.target_note_id)
+                    .single()
+
+                if (targetNote && targetNote.user_id !== userId) {
+                    await createNotification({
+                        user_id: targetNote.user_id,
+                        type: 'citation',
+                        title: 'New Citation',
+                        message: `${authorName} linked to your note "${targetNote.title}".`,
+                        link: `/my-notes?noteId=${noteId}` // Link to the SOURCE note so they can see the context
+                    })
+                }
+            }
+        } else {
+            console.error("Error inserting connections:", error)
+        }
+    }
+
+    // 4. Remove Stale Connections
+    // Any existing connection NOT in foundTargetIds should be deleted
+    const toDeleteIds: string[] = []
+    existingMap.forEach((conn, targetId) => {
+        if (!foundTargetIds.has(targetId)) {
+            toDeleteIds.push(conn.id)
+        }
+    })
+
+    if (toDeleteIds.length > 0) {
+        await supabase
+            .from('connections')
+            .delete()
+            .in('id', toDeleteIds)
     }
 
     return validLinksCount

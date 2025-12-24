@@ -9,6 +9,7 @@ import { evaluateNote } from './evaluation'
 import { syncConnections } from './links'
 import { awardPoints } from '@/lib/points'
 import { checkAndUnlockAchievements } from '@/lib/achievements'
+import { createNotification } from '@/lib/notifications'
 
 type Note = Database['public']['Tables']['notes']['Row']
 type NoteInsert = Database['public']['Tables']['notes']['Insert']
@@ -274,6 +275,13 @@ export async function promoteNote(id: string) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // Fetch author details for notification
+    const { data: author } = await supabase
+        .from('users')
+        .select('codex_name')
+        .eq('id', note.user_id)
+        .single()
+
     for (const handle of uniqueMentions) {
         // Find user by handle (email prefix OR name prefix)
         const { data: targetUser } = await supabaseAdmin
@@ -284,6 +292,27 @@ export async function promoteNote(id: string) {
 
         if (targetUser && targetUser.id !== note.user_id) {
             await awardPoints(targetUser.id, 2, 'mentioned_in_note', id)
+
+            // Notify the mentioned user
+            await createNotification({
+                user_id: targetUser.id,
+                type: 'mention',
+                title: 'You were mentioned!',
+                message: `${author?.codex_name || 'Someone'} mentioned you in "${note.title}".`,
+                link: `/my-notes?noteId=${note.id}` // FIXED: take to user profile, or maybe the note? 
+                // Roadmap says: "When I click an @ link in a note, it should take me to information about that player"
+                // BUT this is a NOTIFICATION about a mention.
+                // Usually linking to the NOTE where you were mentioned is more useful?
+                // "New Mention: Bob mentioned you in 'Physics'" -> Click -> Go to 'Physics' note.
+                // The user request "When I click an @ mention, it just takes me to my-notes. ... [should take] to information about that player" was about CLICKING THE LINK IN THE CONTENT.
+                // For the NOTIFICATION, taking them to the note seems correct.
+                // Let's stick to link: `/my-notes?noteId=${note.id}` but wait, `my-notes` is for MY notes.
+                // If I am mentioned in SOMEONE ELSE'S note, can I see it in `my-notes`?
+                // `NotebookPage` fetches `notes` (mine) and `publicNotes` (public). 
+                // If the note is PERMANENT, it is PUBLIC, so it should be in `publicNotes`.
+                // So `/my-notes?noteId=${note.id}` SHOULD work if the note is promoted?
+                // YES, promoteNote is called when creating a permanent note.
+            })
         }
     }
 
