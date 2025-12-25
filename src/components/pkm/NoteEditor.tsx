@@ -242,6 +242,58 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
         })
     }
 
+    // Caret Coordinates Logic
+    const [caretCoords, setCaretCoords] = useState({ x: 0, y: 0 })
+
+    const updateCaretCoords = () => {
+        if (!textareaRef.current) return
+        const { selectionStart } = textareaRef.current
+
+        // Create a dummy div to mirror the textarea
+        const div = document.createElement('div')
+        const style = getComputedStyle(textareaRef.current)
+
+        // Copy styles
+        Array.from(style).forEach(prop => {
+            div.style.setProperty(prop, style.getPropertyValue(prop))
+        })
+
+        div.style.position = 'absolute'
+        div.style.top = '0'
+        div.style.left = '-9999px' // Hide it
+        div.style.visibility = 'hidden'
+        div.style.whiteSpace = 'pre-wrap'
+        div.textContent = textareaRef.current.value.substring(0, selectionStart)
+
+        // Add a span for the caret
+        const span = document.createElement('span')
+        span.textContent = '|'
+        div.appendChild(span)
+
+        document.body.appendChild(div)
+
+        const { offsetLeft, offsetTop } = span
+        // Adjust for scroll
+        const x = offsetLeft - textareaRef.current.scrollLeft
+        const y = offsetTop - textareaRef.current.scrollTop
+
+        document.body.removeChild(div)
+
+        // Adjust relative to textarea container
+        setCaretCoords({ x, y: y + 24 }) // +24 for line height approx
+    }
+
+    // Update coords on content change
+    const innerHandleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        handleContentChange(e)
+        requestAnimationFrame(updateCaretCoords)
+    }
+
+    const innerHandleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        handleKeyDown(e)
+        // Update on navigation keys if needed? 
+    }
+
     // RENDER
     return (
         <div className={cn("flex flex-col h-full relative", className)}>
@@ -325,14 +377,21 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                         <Textarea
                             ref={textareaRef}
                             value={content}
-                            onChange={handleContentChange}
-                            onKeyDown={handleKeyDown}
+                            onChange={innerHandleContentChange}
+                            onKeyDown={innerHandleKeyDown}
                             className="w-full h-full resize-none p-6 border-none focus-visible:ring-0 font-mono text-sm leading-relaxed"
                             placeholder="Start writing..."
                         />
                         {/* Autocomplete Dropdown */}
                         {mentionQuery !== null && (
-                            <div className="absolute bottom-4 left-4 z-50 p-2 bg-popover text-popover-foreground rounded-md border shadow-md w-64 max-h-48 overflow-y-auto">
+                            <div
+                                className="absolute z-50 p-2 bg-popover text-popover-foreground rounded-md border shadow-md w-64 max-h-48 overflow-y-auto"
+                                style={{
+                                    top: `${Math.min(caretCoords.y, 400)}px`, // Clamp to avoid overflow? simplified.
+                                    left: `${Math.min(caretCoords.x, 300)}px`, // Simple clamping
+                                    transform: 'translate(24px, 0)' // Offset slightly
+                                }}
+                            >
                                 <div className="text-xs font-semibold mb-2 text-muted-foreground">
                                     {mentionType === 'wiki' ? 'Link to Note' : 'Mention User'}
                                 </div>

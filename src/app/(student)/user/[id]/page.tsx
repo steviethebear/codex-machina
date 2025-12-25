@@ -14,6 +14,8 @@ type Note = Database['public']['Tables']['notes']['Row'] & {
     user?: { codex_name: string | null, email: string }
 }
 
+import { toast } from "sonner"
+
 export default function UserProfilePage() {
     const params = useParams()
     const userId = params.id as string
@@ -23,6 +25,7 @@ export default function UserProfilePage() {
     const [profile, setProfile] = useState<{ codex_name: string | null } | null>(null)
     const [notes, setNotes] = useState<Note[]>([])
     const [totalXP, setTotalXP] = useState(0)
+    const [isAdmin, setIsAdmin] = useState(false)
 
     // SlideOver State
     const [selectedNote, setSelectedNote] = useState<Note | null>(null)
@@ -41,19 +44,48 @@ export default function UserProfilePage() {
                 .single()
             setProfile(profileData)
 
-            // 2. Fetch Public Notes
-            const { data: notesData } = await supabase
-                .from('notes')
-                .select(`
-                    *,
-                    user:users(codex_name, email)
-                `)
-                .eq('user_id', userId)
-                .eq('is_public', true)
-                .order('updated_at', { ascending: false })
+            // 1.5 Check if Viewer is Admin
+            const { data: { user: currentUser } } = await supabase.auth.getUser()
+            let adminStatus = false
+            if (currentUser) {
+                const { data: viewerData } = await supabase.from('users').select('is_admin').eq('id', currentUser.id).single()
+                adminStatus = !!viewerData?.is_admin
+                setIsAdmin(adminStatus)
+            }
 
-            // @ts-ignore
-            if (notesData) setNotes(notesData)
+            // 2. Fetch Notes (Public for all, All for Admin)
+            let notesData: Note[] = []
+            let notesError = null
+
+            if (adminStatus) {
+                // Admin Mode: Use Secure RPC to bypass RLS
+                const { data, error } = await supabase.rpc('get_admin_notes', {
+                    target_user_id: userId
+                })
+                if (data) notesData = data as Note[]
+                notesError = error
+            } else {
+                // Public Mode: Standard Query
+                const { data, error } = await supabase
+                    .from('notes')
+                    .select(`
+                        *,
+                        user:users(codex_name, email)
+                    `)
+                    .eq('user_id', userId)
+                    .eq('is_public', true)
+                    .order('updated_at', { ascending: false })
+
+                if (data) notesData = data as Note[]
+                notesError = error
+            }
+
+            if (notesError) {
+                console.error("Error fetching notes:", notesError)
+                toast.error("Failed to load notes")
+            } else {
+                setNotes(notesData)
+            }
 
             // 3. Fetch Points
             const { data: points } = await supabase
@@ -74,7 +106,7 @@ export default function UserProfilePage() {
     if (!profile) return <div className="p-8 text-muted-foreground">User not found</div>
 
     return (
-        <div className="flex flex-col gap-8 p-8 max-w-5xl mx-auto">
+        <div className="container max-w-4xl mx-auto p-6 space-y-8">
             {/* Header */}
             <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-3xl font-bold text-primary border-2 border-primary">
@@ -168,7 +200,7 @@ function AchievementsList({ userId }: { userId: string }) {
 
     if (loading) return <Skeleton className="h-48 w-full" />
 
-    // Only show unlocked achievements on public profile? 
+    // Only show unlocked achievements on public profile?
     // Or show all but greyscale? Let's show all but greyscale for now so people can see what they have.
     // Actually, usually on public profiles you only show what they HAVE.
     // Let's filter for ONLY unlocked ones for the public profile to keep it clean.
@@ -189,7 +221,7 @@ function AchievementsList({ userId }: { userId: string }) {
                     <div className="text-2xl">
                         {achievement.icon || '🏆'}
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <div className="flex justify-between items-center gap-2">
                             <h4 className="font-semibold text-sm text-primary">
                                 {achievement.name}

@@ -16,6 +16,7 @@ import dynamic from 'next/dynamic'
 import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { NoteEditor } from '@/components/pkm/NoteEditor'
 import { ConnectionsPanel } from '@/components/pkm/ConnectionsPanel'
+import { AddSourceDialog } from '@/components/admin/AddSourceDialog'
 import { Database } from '@/types/database.types'
 
 const ForceGraph = dynamic(() => import('@/components/graph/force-graph'), {
@@ -47,6 +48,7 @@ export default function NotebookPage() {
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
     const [slideOverNote, setSlideOverNote] = useState<Note | null>(null)
     const [showPromotionDialog, setShowPromotionDialog] = useState(false)
+    const [isAdmin, setIsAdmin] = useState(false)
 
     // Graph Data
     const [backlinks, setBacklinks] = useState<any[]>([])
@@ -89,7 +91,7 @@ export default function NotebookPage() {
             uniqueNodes.set(selectedNoteId, {
                 id: selectedNoteId,
                 name: selectedNote.title || 'Current Note',
-                type: 'permanent',
+                type: selectedNote.type === 'source' ? 'source' : 'permanent', // Fix: keep original type so color is correct
                 val: 20,
                 color: '#ffffff'
             })
@@ -133,9 +135,18 @@ export default function NotebookPage() {
                 .eq('is_public', true)
             if (pubData) setPublicNotes(pubData as Note[])
 
-            // Fetch Users
-            const { data: userData } = await supabase.from('users').select('id, email, codex_name')
-            if (userData) setUsers(userData as UserProfile[])
+            // Fetch Users and Current User Role
+            const { data: userData } = await supabase.from('users').select('id, email, codex_name, is_admin')
+            if (userData) {
+                setUsers(userData as UserProfile[])
+                const currentUser = userData.find(u => u.id === user.id)
+                if (currentUser?.is_admin) {
+                    console.log("Admin privileges confirmed on client")
+                    setIsAdmin(true)
+                } else {
+                    console.log("Not admin or is_admin not readable", currentUser)
+                }
+            }
 
             setLoading(false)
         }
@@ -230,12 +241,20 @@ export default function NotebookPage() {
                             <Layout className="h-5 w-5" />
                             Codex
                         </h2>
-                        {activeTab !== 'source' && (
-                            <Button onClick={handleCreateNew} size="sm" variant="default">
-                                <PlusCircle className="h-4 w-4 mr-1" />
-                                New
-                            </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {activeTab !== 'source' && (
+                                <Button onClick={handleCreateNew} size="sm" variant="default">
+                                    <PlusCircle className="h-4 w-4 mr-1" />
+                                    New
+                                </Button>
+                            )}
+                            {activeTab === 'source' && isAdmin && (
+                                <AddSourceDialog onSourceAdded={(newSource) => {
+                                    setPublicNotes(prev => [newSource, ...prev])
+                                    handleSelectNote(newSource)
+                                }} />
+                            )}
+                        </div>
                     </div>
 
                     <Tabs value={activeTab} onValueChange={(v) => {
@@ -309,6 +328,8 @@ export default function NotebookPage() {
                             onDelete={() => {
                                 setSelectedNoteId(null)
                                 setNotes(prev => prev.filter(n => n.id !== selectedNote.id))
+                                // Also remove from public notes if it was there (e.g. source)
+                                setPublicNotes(prev => prev.filter(n => n.id !== selectedNote.id))
                             }}
                             onLinkClick={async (title) => {
                                 // Find Note and Open SlideOver

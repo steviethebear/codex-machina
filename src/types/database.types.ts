@@ -366,7 +366,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      delete_user_data: {
+        Args: {
+          target_user_id: string
+        }
+        Returns: void
+      }
     }
     Enums: {
       note_type: "fleeting" | "permanent" | "source"

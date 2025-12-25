@@ -25,13 +25,13 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 - Notification center UI.
 
 ## v0.5.5: Teacher Dashboard
-**Status**: Planned
+**Status**: Complete
 - Analytics view for teachers.
 - Engagement tracking and "At Risk" student identification.
 - Add sources to the list of sources.
 
 ## v0.5.6: Semantic Search
-**Status**: Planned
+**Status**: In Progress
 - Embedding generation for notes.
 - Vector search implementation.
 - "Smart Connections" based on semantic similarity.
@@ -39,23 +39,23 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 
 ## v0.5.7: Full LLM Integration
 **Status**: Planned
-- Comprehensive AI feedback loops. With some parameters here, though. Ask me about them when we get there.
+- Comprehensive AI feedback loops. With some parameters here, though. Ask me about them when we get there. I have thoughts.
 - Writing assistance (if aligned with pedagogy).
 - Enhanced "Promote" evaluation.
 
-## v0.5.8: Breadcrumbs
+## v0.5.8: Breadcrumbs & Sources
 **Status**: Planned
 - Implementation of breadcrumbs for navigation.
 - User should be able to move back and forth between notes, riding along those notes, and thinking along with them.
+- Better implementation of sources. Adding sources is now a better, more intuitive process where the admin can create sources in the source list in a uniform way with: author, title, URL, and other bibliographic data.
 
-## v0.5.9: Bug Fixes
-**Status**: Planned
-- Fix any remaining bugs from previous releases.
-- Get ready for v0.6.0 by creating release schedule.
-
-## v0.5.10: Unlockables
+## v0.5.9: Unlockables
 **Status**: Planned
 - Implementation of unlockables for students.
 - Ask about which features to unlock and how to unlock them.
 
-
+## v0.5.10: Bug Fixes
+**Status**: Planned
+- Fix any remaining bugs from previous releases.
+- Consider what needs to be done for beta deployment.
+- Get ready for v0.6.0 by creating release schedule.

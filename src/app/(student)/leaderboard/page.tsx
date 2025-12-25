@@ -112,14 +112,18 @@ export default function LeaderboardPage() {
                             </thead>
                             <tbody className="[&_tr:last-child]:border-0">
                                 {leaderboard.map((entry, index) => (
-                                    <tr key={entry.id} className="border-b transition-colors hover:bg-muted/50">
+                                    <tr
+                                        key={entry.id}
+                                        className="border-b transition-colors hover:bg-muted/50 cursor-pointer group"
+                                        onClick={() => window.location.href = `/user/${entry.id}`}
+                                    >
                                         <td className="p-4">
                                             {index === 0 && <span className="text-lg">🥇</span>}
                                             {index === 1 && <span className="text-lg">🥈</span>}
                                             {index === 2 && <span className="text-lg">🥉</span>}
                                             {index > 2 && <span className="text-muted-foreground font-mono">{index + 1}</span>}
                                         </td>
-                                        <td className="p-4 font-medium">{entry.name}</td>
+                                        <td className="p-4 font-medium group-hover:text-primary transition-colors">{entry.name}</td>
                                         <td className="p-4 text-center text-muted-foreground">{entry.notes}</td>
                                         <td className="p-4 text-center text-muted-foreground">{entry.connections}</td>
                                         <td className="p-4 text-center text-muted-foreground">{entry.mentions}</td>
@@ -132,7 +136,7 @@ export default function LeaderboardPage() {
                                 ))}
                                 {leaderboard.length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
                                             No students yet. Start creating notes to appear on the leaderboard!
                                         </td>
                                     </tr>

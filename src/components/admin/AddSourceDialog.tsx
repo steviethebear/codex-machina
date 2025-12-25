@@ -1,0 +1,131 @@
+'use client'
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { createSource } from "@/lib/actions/sources"
+import { toast } from "sonner"
+import { PlusCircle } from "lucide-react"
+
+export function AddSourceDialog({ onSourceAdded }: { onSourceAdded?: (note: any) => void }) {
+    const [open, setOpen] = useState(false)
+    const [loading, setLoading] = useState(false)
+    const [formData, setFormData] = useState({
+        title: "",
+        author: "",
+        url: "",
+        content: ""
+    })
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setLoading(true)
+
+        try {
+            const newSource = await createSource(formData)
+            toast.success("Source added successfully")
+            if (onSourceAdded && newSource) {
+                onSourceAdded(newSource)
+            }
+            setOpen(false)
+            setFormData({ title: "", author: "", url: "", content: "" })
+        } catch (error) {
+            toast.error("Failed to add source")
+            console.error(error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <>
+            <Button
+                size="sm"
+                variant="default"
+                className="gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                onClick={() => setOpen(true)}
+            >
+                <PlusCircle className="h-4 w-4" />
+                Add Source
+            </Button>
+
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent className="sm:max-w-[525px]">
+                    <form onSubmit={handleSubmit}>
+                        <DialogHeader>
+                            <DialogTitle>Add New Source</DialogTitle>
+                            <DialogDescription>
+                                Add a book, article, or video to the class library.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="title" className="text-right">
+                                    Title
+                                </Label>
+                                <Input
+                                    id="title"
+                                    value={formData.title}
+                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                    className="col-span-3"
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="author" className="text-right">
+                                    Author
+                                </Label>
+                                <Input
+                                    id="author"
+                                    value={formData.author}
+                                    onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+                                    className="col-span-3"
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="url" className="text-right">
+                                    URL
+                                </Label>
+                                <Input
+                                    id="url"
+                                    value={formData.url}
+                                    onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                                    className="col-span-3"
+                                    placeholder="https://"
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 gap-4">
+                                <Label htmlFor="content" className="text-right mt-2">
+                                    Content / Abstract
+                                </Label>
+                                <Textarea
+                                    id="content"
+                                    value={formData.content}
+                                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                                    className="col-span-3 h-32"
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit" disabled={loading}>
+                                {loading ? "Adding..." : "Add Source"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </>
+    )
+}
