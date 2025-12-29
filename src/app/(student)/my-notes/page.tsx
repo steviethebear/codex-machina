@@ -17,6 +17,7 @@ import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { NoteEditor } from '@/components/pkm/NoteEditor'
 import { ConnectionsPanel } from '@/components/pkm/ConnectionsPanel'
 import { AddSourceDialog } from '@/components/admin/AddSourceDialog'
+import { SmartSuggestions } from '@/components/SmartSuggestions'
 import { Database } from '@/types/database.types'
 
 const ForceGraph = dynamic(() => import('@/components/graph/force-graph'), {

@@ -10,6 +10,7 @@ import { syncConnections } from './links'
 import { awardPoints } from '@/lib/points'
 import { checkAndUnlockAchievements } from '@/lib/achievements'
 import { createNotification } from '@/lib/notifications'
+import { updateNoteEmbedding } from '@/lib/ai/embeddings'
 
 type Note = Database['public']['Tables']['notes']['Row']
 type NoteInsert = Database['public']['Tables']['notes']['Insert']
@@ -40,6 +41,8 @@ export async function createNote(note: NoteInsert) {
     // Sync connections if initial content is provided
     if (note.content) {
         await syncConnections(data.id, note.content, data.user_id)
+        // Generate Embedding
+        await updateNoteEmbedding(data.id)
     }
 
     revalidatePath('/dashboard')
@@ -81,6 +84,8 @@ export async function updateNote(id: string, updates: NoteUpdate) {
     // Sync connections if content changed, regardless of note type (fleeting, permanent, source)
     if (updates.content) {
         await syncConnections(data.id, data.content, data.user_id)
+        // Update Embedding
+        await updateNoteEmbedding(data.id)
     }
 
     revalidatePath('/dashboard')

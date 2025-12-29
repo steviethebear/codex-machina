@@ -17,6 +17,9 @@ import { SimpleTooltip } from '@/components/ui/simple-tooltip'
 import { createClient } from '@/lib/supabase/client'
 import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { useRouter } from 'next/navigation'
+import { generateAllEmbeddings } from '@/lib/actions/admin-ai'
+import { toast } from 'sonner'
+import { Database } from 'lucide-react'
 
 // Load Graph dynamically
 const ForceGraph = dynamic(() => import('@/components/graph/force-graph'), {
@@ -68,6 +71,16 @@ export default function TeacherDashboard() {
                         <p className="text-muted-foreground">Real-time class intelligence and intervention monitoring.</p>
                     </div>
                     <div className="flex gap-2">
+                        <Button variant="outline" onClick={async () => {
+                            toast.promise(generateAllEmbeddings(), {
+                                loading: 'Regenerating embeddings...',
+                                success: (data) => `Generated ${data.count} embeddings (${data.failed} failed)`,
+                                error: 'Failed to generate embeddings'
+                            })
+                        }}>
+                            <Database className="h-4 w-4 mr-2" />
+                            Reindex
+                        </Button>
                         <AddSourceDialog />
                         <InviteStudentDialog />
                     </div>

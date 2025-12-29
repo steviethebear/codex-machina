@@ -122,7 +122,7 @@ export default function ForceGraph({ data, onNodeClick, onNodeHover, highlightNo
             fgRef.current.d3Force('link').distance(40)
             // Zoom to fit after a short delay to allow graph to stabilize
             setTimeout(() => {
-                fgRef.current.zoomToFit(400, 100) // Increase padding to 100
+                fgRef.current?.zoomToFit(400, 100)
             }, 600)
         }
     }, [data]) // Re-run when data changes

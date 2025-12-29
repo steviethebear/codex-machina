@@ -98,3 +98,37 @@ This document covers the verification steps for the v0.5 release series, includi
   - Click the new source in the list.
   - Verify the "Local Graph" panel appears at the bottom.
   - Verify `[Graph Debug]` logs in console show connections > 0 if linked.
+
+---
+
+## Part 3: Semantic Search (v0.5.6)
+
+### 1. Database & Infrastructure
+- [ ] **Vector Extension**: Verify `pgvector` extension is enabled in Supabase.
+- [ ] **Embedding Column**: Verify `notes` table has `embedding` column of type `vector(768)`.
+
+### 2. Admin Reindex
+- [ ] **Feature**: This is a new Admin Action to backfill embeddings for existing notes.
+- [ ] **Trigger**:
+  1. Login as Admin.
+  2. Navigate to `/admin`.
+  3. Click "Reindex AI" (top right header actions).
+- [ ] **Verify**:
+  1. Toast message appears and updates ("Generated X embeddings").
+  2. Check Supabase table or console logs: `updates note embedding` should be successful.
+
+### 3. Smart Suggestions (UI)
+- [ ] **Create Context**:
+  1. Go to "My Notes".
+  2. Create/Open Note A: Title "Planetary Motion", Content: "Kepler's laws describe orbits...".
+  3. Create/Open Note B: Title "Gravity", Content: "Newton described the force...".
+- [ ] **Trigger Suggestions**:
+  1. Create Note C.
+  2. Type: "The force that pulls planets into orbit around the sun...".
+  3. Wait 1 second.
+- [ ] **Verify**:
+  1. "Smart Connections" panel appears below textarea.
+  2. Should list "Gravity" and "Planetary Motion".
+  3. **Similarity Score**: Check for "% match" text (e.g., "85% match").
+  4. **Click Title**: Clicking the title should open the note in SlideOver (or Navigate).
+  5. **Click +**: Clicking '+' should insert `[[Gravity]]` into the text.

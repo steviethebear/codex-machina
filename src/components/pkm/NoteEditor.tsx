@@ -21,6 +21,7 @@ type Note = Database['public']['Tables']['notes']['Row']
 type UserProfile = { id: string, email: string, codex_name?: string }
 
 import { PromoteNoteDialog } from './PromoteNoteDialog'
+import { SmartSuggestions } from '@/components/SmartSuggestions'
 
 interface NoteEditorProps {
     note: Note
@@ -373,15 +374,32 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
             {/* Editor / Viewer */}
             <div className="flex-1 overflow-hidden relative group">
                 {isEditing ? (
-                    <div className="w-full h-full relative">
+                    <div className="w-full h-full relative flex flex-col">
                         <Textarea
                             ref={textareaRef}
                             value={content}
                             onChange={innerHandleContentChange}
                             onKeyDown={innerHandleKeyDown}
-                            className="w-full h-full resize-none p-6 border-none focus-visible:ring-0 font-mono text-sm leading-relaxed"
+                            className="w-full flex-1 resize-none p-6 border-none focus-visible:ring-0 font-mono text-sm leading-relaxed"
                             placeholder="Start writing..."
                         />
+
+                        {/* Smart Suggestions */}
+                        <div className="px-6 pb-4">
+                            <SmartSuggestions
+                                context={content}
+                                currentId={note.id}
+                                onLink={(title) => {
+                                    const link = ` [[${title}]] `
+                                    setContent(prev => prev + link)
+                                    toast.success(`Linked to ${title}`)
+                                }}
+                                onOpen={(title) => {
+                                    if (onLinkClick) onLinkClick(title)
+                                }}
+                            />
+                        </div>
+
                         {/* Autocomplete Dropdown */}
                         {mentionQuery !== null && (
                             <div

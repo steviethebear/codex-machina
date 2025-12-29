@@ -31,14 +31,14 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 - Add sources to the list of sources.
 
 ## v0.5.6: Semantic Search
-**Status**: In Progress
+**Status**: Complete
 - Embedding generation for notes.
 - Vector search implementation.
 - "Smart Connections" based on semantic similarity.
 - Add new filters and better search to graph view.
 
 ## v0.5.7: Full LLM Integration
-**Status**: Planned
+**Status**: In Progress
 - Comprehensive AI feedback loops. With some parameters here, though. Ask me about them when we get there. I have thoughts.
 - Writing assistance (if aligned with pedagogy).
 - Enhanced "Promote" evaluation.
