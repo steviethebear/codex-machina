@@ -43,7 +43,7 @@ export default function ThreadsPage() {
     const loadThreads = async () => {
         const result = await getThreads()
         if (result.data) {
-            setThreads(result.data)
+            setThreads(result.data as Thread[])
         }
     }
 

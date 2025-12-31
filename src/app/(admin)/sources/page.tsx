@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-type Source = Database['public']['Tables']['sources']['Row']
+type Source = Database['public']['Tables']['texts']['Row']
 
 export default function SourcesPage() {
     const supabase = createClient()
@@ -25,15 +25,13 @@ export default function SourcesPage() {
     const [newSource, setNewSource] = useState({
         title: '',
         author: '',
-        url: '',
-        type: 'article', // article, book, video, website
-        metadata: '{}' // JSON string for flexibility
+        type: 'article' // article, book, video, website
     })
 
     const fetchSources = async () => {
         setLoading(true)
         const { data, error } = await supabase
-            .from('sources')
+            .from('texts')
             .select('*')
             .order('created_at', { ascending: false })
             .returns<Source[]>()
@@ -57,19 +55,17 @@ export default function SourcesPage() {
         }
 
         setIsSubmitting(true)
-        const { error } = await supabase.from('sources').insert({
+        const { error } = await supabase.from('texts').insert({
             title: newSource.title,
             author: newSource.author,
-            url: newSource.url || null,
-            type: newSource.type,
-            metadata: newSource.metadata ? JSON.parse(newSource.metadata) : null
+            type: newSource.type
         })
 
         if (error) {
             toast.error("Failed to create source: " + error.message)
         } else {
             toast.success("Source created successfully")
-            setNewSource({ title: '', author: '', url: '', type: 'article', metadata: '{}' })
+            setNewSource({ title: '', author: '', type: 'article' })
             setIsDialogOpen(false)
             fetchSources() // Refresh list
         }
@@ -79,7 +75,7 @@ export default function SourcesPage() {
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure you want to delete this source? This will not remove existing links in student notes.")) return
 
-        const { error } = await supabase.from('sources').delete().eq('id', id)
+        const { error } = await supabase.from('texts').delete().eq('id', id)
         if (error) {
             toast.error("Failed to delete source")
         } else {
@@ -125,33 +121,22 @@ export default function SourcesPage() {
                                     placeholder="e.g. Marshall McLuhan"
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="type">Type</Label>
-                                    <Select
-                                        value={newSource.type}
-                                        onValueChange={v => setNewSource({ ...newSource, type: v })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="article">Article</SelectItem>
-                                            <SelectItem value="book">Book</SelectItem>
-                                            <SelectItem value="video">Video</SelectItem>
-                                            <SelectItem value="website">Website</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="url">URL (Optional)</Label>
-                                    <Input
-                                        id="url"
-                                        value={newSource.url}
-                                        onChange={e => setNewSource({ ...newSource, url: e.target.value })}
-                                        placeholder="https://..."
-                                    />
-                                </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="type">Type</Label>
+                                <Select
+                                    value={newSource.type}
+                                    onValueChange={v => setNewSource({ ...newSource, type: v })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="article">Article</SelectItem>
+                                        <SelectItem value="book">Book</SelectItem>
+                                        <SelectItem value="video">Video</SelectItem>
+                                        <SelectItem value="website">Website</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                         <div className="flex justify-end gap-2">
@@ -195,16 +180,6 @@ export default function SourcesPage() {
                                             </span>
                                         </div>
                                         <p className="text-sm text-foreground/80">{source.author}</p>
-                                        {source.url && (
-                                            <a
-                                                href={source.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1 truncate"
-                                            >
-                                                <LinkIcon className="h-3 w-3" /> {source.url}
-                                            </a>
-                                        )}
                                     </div>
                                     <Button
                                         size="icon"

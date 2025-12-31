@@ -29,9 +29,9 @@ export default function NewThreadPage() {
         if (result.error) {
             toast.error('Failed to create thread')
             setCreating(false)
-        } else if (result.data) {
+        } else if (result.data && 'id' in result.data) {
             toast.success('Thread created')
-            router.push(`/threads/${result.data.id}`)
+            router.push(`/threads/${(result.data as any).id}`)
         }
     }
 
