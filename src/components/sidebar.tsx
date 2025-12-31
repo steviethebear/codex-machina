@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Network, ShieldAlert, LogOut, PlusCircle, BookOpen, Sparkles, Library, Users } from 'lucide-react'
+import { LayoutDashboard, Network, ShieldAlert, LogOut, PlusCircle, BookOpen, Sparkles, Library, Users, Layers } from 'lucide-react'
 import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { ViewSwitcher } from '@/components/view-switcher'
@@ -15,6 +15,7 @@ const studentNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Class Feed', href: '/feed', icon: Sparkles },
     { name: 'My Notes', href: '/my-notes', icon: BookOpen },
+    { name: 'Threads', href: '/threads', icon: Layers },
     { name: 'Graph', href: '/graph', icon: Network },
 ]
 

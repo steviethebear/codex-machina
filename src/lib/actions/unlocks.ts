@@ -74,6 +74,15 @@ export async function checkUnlocks(userId: string) {
         }
     }
 
+    // --- Threads ---
+    // Trigger: Material worthy of weaving (sustained work, interconnection, depth)
+    // Representative heuristic from unlockables-registry.md
+    if (!unlockedFeatures.has('threads')) {
+        if (totalNotes >= 12 && timeSpanDays >= 7 && (linkCount || 0) >= 6) {
+            newUnlocks.push('threads')
+        }
+    }
+
     // 4. Apply Unlocks
     if (newUnlocks.length > 0) {
         const metadata = {
