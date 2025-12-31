@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth-provider'
+import { Database } from '@/types/database.types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Brain, FileText, Lightbulb, TrendingUp, Trophy } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -42,6 +43,7 @@ export default function DashboardPage() {
                 .from('notes')
                 .select('type, created_at')
                 .eq('user_id', user.id)
+                .returns<{ type: 'fleeting' | 'permanent' | 'source', created_at: string }[]>()
 
             if (notes) {
                 const totalNotes = notes.length
@@ -58,6 +60,7 @@ export default function DashboardPage() {
                     .from('points')
                     .select('amount')
                     .eq('user_id', user.id)
+                    .returns<{ amount: number }[]>()
 
                 const totalXP = points?.reduce((acc, curr) => acc + curr.amount, 0) || 0
 
@@ -75,11 +78,13 @@ export default function DashboardPage() {
                 .from('achievements')
                 .select('*')
                 .order('xp_reward', { ascending: true })
+                .returns<any[]>()
 
             const { data: myAchievements } = await supabase
                 .from('user_achievements')
                 .select('achievement_id')
                 .eq('user_id', user.id)
+                .returns<any[]>()
 
             setAchievements(allAchievements || [])
             setUserAchievements(new Set(myAchievements?.map(a => a.achievement_id) || []))
@@ -191,8 +196,8 @@ export default function DashboardPage() {
                                     <div
                                         key={achievement.id}
                                         className={`flex items-center gap-3 p-3 rounded-lg border ${isUnlocked
-                                                ? 'bg-primary/5 border-primary/20'
-                                                : 'bg-muted/50 border-muted opacity-70'
+                                            ? 'bg-primary/5 border-primary/20'
+                                            : 'bg-muted/50 border-muted opacity-70'
                                             }`}
                                     >
                                         <div className={`text-2xl ${!isUnlocked && 'grayscale'}`}>

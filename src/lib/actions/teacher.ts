@@ -17,13 +17,14 @@ export async function getClassStats() {
     // Activity for Heatmap (Last 365 Days)
     // We fetch updated_at from all notes.
     // Optimization: In a real app, use a materialized view or specialized table.
-    const { data: activityData } = await supabase
+    const { data: activityData } = await (supabase as any)
         .from('notes')
         .select('updated_at')
         .gte('updated_at', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString())
 
-    const activityMap = new Map<string, number>()
-    activityData?.forEach(note => {
+    const activityMap = new Map<string, number>();
+    const activityListRaw = activityData as any[];
+    activityListRaw?.forEach((note: any) => {
         const date = new Date(note.updated_at).toISOString().split('T')[0]
         activityMap.set(date, (activityMap.get(date) || 0) + 1)
     })
@@ -44,18 +45,18 @@ export async function getStudentLeaderboard() {
     const supabase = await createClient()
 
     // Get all users
-    const { data: users } = await supabase.from('users').select('id, codex_name, email')
+    const { data: users } = await (supabase as any).from('users').select('id, codex_name, email')
 
     if (!users) return { data: [] }
 
     // Aggregate stats for each user
-    const leaderboard = await Promise.all(users.map(async (user) => {
-        const { count: notes } = await supabase.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
-        const { count: connections } = await supabase.from('connections').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
-        const { count: comments } = await supabase.from('comments').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+    const leaderboard = await Promise.all((users as any[]).map(async (user: any) => {
+        const { count: notes } = await (supabase as any).from('notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+        const { count: connections } = await (supabase as any).from('connections').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+        const { count: comments } = await (supabase as any).from('comments').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
 
         // Fetch last activity
-        const { data: lastNote } = await supabase
+        const { data: lastNote } = await (supabase as any)
             .from('notes')
             .select('updated_at')
             .eq('user_id', user.id)
@@ -98,24 +99,26 @@ export async function getTeacherAnalytics() {
     // Links: Connections + Authorship (Student -> Note)
 
     // Fetch Users
-    const { data: users } = await supabase.from('users').select('id, codex_name, email')
+    const { data: users } = await (supabase as any).from('users').select('id, codex_name, email')
 
     // Fetch Public Notes
-    const { data: notes } = await supabase
+    const { data: notes } = await (supabase as any)
         .from('notes')
         .select('id, title, type, user_id')
         .eq('is_public', true)
 
     // Fetch Connections
-    const { data: connections } = await supabase
+    const { data: connections } = await (supabase as any)
         .from('connections')
         .select('source_note_id, target_note_id')
 
     const nodes: any[] = []
-    const links: any[] = []
+    const links: any[] = [];
 
     // Add Student Nodes
-    users?.forEach(u => {
+    // Add Student Nodes
+    const userList = users as any[];
+    userList?.forEach((u: any) => {
         nodes.push({
             id: u.id,
             name: u.codex_name || u.email,
@@ -126,7 +129,8 @@ export async function getTeacherAnalytics() {
     })
 
     // Add Note Nodes and Author Links
-    notes?.forEach(n => {
+    const noteList = notes as any[];
+    noteList?.forEach((n: any) => {
         nodes.push({
             id: n.id,
             name: n.title,
@@ -144,10 +148,11 @@ export async function getTeacherAnalytics() {
     })
 
     // Add Note Connections
-    connections?.forEach(c => {
+    const connectionList = connections as any[];
+    connectionList?.forEach((c: any) => {
         // Only add if both nodes exist (public)
         // Since we only fetched public notes, we should filter connections where source/target are in our note list
-        const noteIds = new Set(notes?.map(n => n.id))
+        const noteIds = new Set((notes as any[])?.map((n: any) => n.id))
         if (noteIds.has(c.source_note_id) && noteIds.has(c.target_note_id)) {
             links.push({
                 source: c.source_note_id,

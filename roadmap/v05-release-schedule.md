@@ -37,11 +37,12 @@ This document outlines the incremental release plan for the v0.5 cycle of Codex 
 - "Smart Connections" based on semantic similarity.
 - Add new filters and better search to graph view.
 
-## v0.5.7: Full LLM Integration
-**Status**: In Progress
-- Comprehensive AI feedback loops. With some parameters here, though. Ask me about them when we get there. I have thoughts.
-- Writing assistance (if aligned with pedagogy).
-- Enhanced "Promote" evaluation.
+## v0.5.7: Diagnostic AI
+**Status**: Complete
+- Refactor `evaluateNote` for structural diagnostics (no scoring).
+- Update `promoteNote` to block on form violations.
+- Remove quality points and score thresholds.
+- Implement internal telemetry.
 
 ## v0.5.8: Breadcrumbs & Sources
 **Status**: Planned

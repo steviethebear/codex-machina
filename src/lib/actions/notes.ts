@@ -17,7 +17,7 @@ type NoteInsert = Database['public']['Tables']['notes']['Insert']
 type NoteUpdate = Database['public']['Tables']['notes']['Update']
 
 export async function createNote(note: NoteInsert) {
-    const supabase = await createClient()
+    const supabase: any = await createClient()
 
     // Default to fleeting if not provided
     if (!note.type) note.type = 'fleeting'
@@ -52,7 +52,7 @@ export async function createNote(note: NoteInsert) {
 }
 
 export async function updateNote(id: string, updates: NoteUpdate) {
-    const supabase = await createClient()
+    const supabase: any = await createClient()
 
     // 1. Fetch current state to check type
     const { data: currentNote, error: fetchError } = await supabase
@@ -95,7 +95,7 @@ export async function updateNote(id: string, updates: NoteUpdate) {
 }
 
 export async function deleteNote(id: string) {
-    const supabase = await createClient()
+    const supabase: any = await createClient()
 
     // 1. Fetch current state to check type
     const { data: currentNote, error: fetchError } = await supabase
@@ -147,7 +147,7 @@ export async function getNotes(filters?: {
     type?: Note['type'],
     isPublic?: boolean
 }) {
-    const supabase = await createClient()
+    const supabase: any = await createClient()
 
     let query = supabase
         .from('notes')
@@ -175,7 +175,7 @@ export async function getNotes(filters?: {
 }
 
 export async function getNote(id: string) {
-    const supabase = await createClient()
+    const supabase: any = await createClient()
 
     const { data, error } = await supabase
         .from('notes')
@@ -192,7 +192,7 @@ export async function getNote(id: string) {
 }
 
 export async function promoteNote(id: string) {
-    const supabase = await createClient()
+    const supabase: any = await createClient()
 
     // 1. Fetch the note
     const { data: note, error: fetchError } = await supabase
@@ -213,28 +213,22 @@ export async function promoteNote(id: string) {
         return { error: 'Note content cannot be empty' }
     }
 
-    // 2. Run LLM Evaluation
-    // We pass 'permanent' to indicate we are evaluating FOR permanent status
-    const assessment = await evaluateNote(id, 'permanent')
-    if ('error' in assessment) {
-        return { error: assessment.error }
+    // 2. Run AI Diagnostic (Form Check)
+    const diagnosis = await evaluateNote(id)
+    if ('error' in diagnosis) {
+        return { error: diagnosis.error }
     }
 
-    // 3. Logic based on score
-    // Assuming score >= 3 is pass? Or just provide feedback?
-    // "Most important pedagogical innovation... conscious decision to make thinking public"
-    // "Rejected notes get 'Needs Revision' badge"
-    // Let's implement a threshold.
-    const PASS_THRESHOLD = 3
-    if (assessment.score < PASS_THRESHOLD) {
+    // 3. Block on Form Violations
+    if (!diagnosis.isValid) {
         return {
             success: false,
-            feedback: assessment.feedback,
-            score: assessment.score
+            feedback: "Note could not be promoted due to form issues.",
+            violations: diagnosis.violations
         }
     }
 
-    // 4. Success - Update Note
+    // 4. Success - Update Note (Become Permanent)
     const { error: updateError } = await supabase
         .from('notes')
         .update({
@@ -248,31 +242,61 @@ export async function promoteNote(id: string) {
         return { error: updateError.message }
     }
 
-    // 5. Sync Connections (and award link points?)
-    // "Links in permanent notes: 2 points"
-    const linksCount = await syncConnections(note.id, note.content, note.user_id)
+    // 5. Sync Connections & Gather Telemetry Data
+    // syncConnections returns validLinksCount (total outbound).
+    // We want detailed telemetry: Self vs Peer links.
+    await syncConnections(note.id, note.content, note.user_id)
 
-    // 6. Award Points
-    // Note Quality Points (from LLM score? or fixed?)
-    // "Permanent notes: 0-8 points (quality evaluation)"
-    // Let's use the score scaled or directly. If score is 0-4, maybe x2?
-    // Using assessment.score * 2 for now.
-    const qualityPoints = assessment.score * 2
-    await awardPoints(note.user_id, qualityPoints, 'note_promotion_quality', id)
+    // Telemetry Calculation (Internal Logging)
+    const { count: selfLinks } = await supabase.from('connections')
+        .select('*', { count: 'exact', head: true })
+        .eq('source_note_id', id)
+        .eq('user_id', note.user_id) // Links I made...
+    // Wait, connections table has user_id = creator of link. 
+    // To find "Self Link" (Target is MINE) vs "Peer Link" (Target is THEIRS), we need to check target note's owner.
 
-    // Link Points
-    if (linksCount > 0) {
-        // "[[Links]] in permanent notes: 2 points"
-        // Note: Differentiation of "Classmate link" (3pts) is handled in syncConnections? 
-        // Sync connections returned just Count. 
-        // For MVP simplification, just awarding 2pts per link here.
-        // Ideally syncConnections should calculate detailed points, but we'll stick to simple.
-        await awardPoints(note.user_id, linksCount * 2, 'note_promotion_links', id)
+    // Let's query connections with target note details
+    const { data: outConnections } = await supabase
+        .from('connections')
+        .select(`
+            target_note_id,
+            notes!connections_target_note_id_fkey ( user_id )
+        `)
+        .eq('source_note_id', id)
+
+    let telemetrySelfLinks = 0
+    let telemetryPeerLinks = 0
+
+    if (outConnections) {
+        outConnections.forEach((c: any) => {
+            if (c.notes?.user_id === note.user_id) telemetrySelfLinks++
+            else telemetryPeerLinks++
+        })
+    }
+
+    // Inbound Links (How many people link TO this note? - likely 0 for a new note, but maybe fleeting had links?)
+    const { count: inboundLinks } = await supabase
+        .from('connections')
+        .select('*', { count: 'exact', head: true })
+        .eq('target_note_id', id)
+
+    // Time since creation (Minutes)
+    const ageMinutes = Math.round((Date.now() - new Date(note.created_at).getTime()) / 1000 / 60)
+
+    console.log(`[Telemetry] Promotion: NoteID=${id}, SelfLinks=${telemetrySelfLinks}, PeerLinks=${telemetryPeerLinks}, Inbound=${inboundLinks || 0}, AgeMinutes=${ageMinutes}`)
+
+    // 6. Award Points (Deterministic Only)
+    // Removed Quality Points.
+
+    // Link Points (2pts per valid link)
+    const totalLinks = telemetrySelfLinks + telemetryPeerLinks
+    if (totalLinks > 0) {
+        await awardPoints(note.user_id, totalLinks * 2, 'note_promotion_links', id)
     }
 
     // 7. Award Mention Points (2 pts per mention to the TARGET)
     const mentionMatches = note.content.match(/@(\w+)/g) || []
-    const uniqueMentions = [...new Set(mentionMatches.map(m => m.slice(1)))] // remove @
+    const uniqueMentions = [...new Set(mentionMatches.map((m: any) => m.slice(1)))] // remove @
 
     // Use Admin Client for Lookup to bypass RLS
     const supabaseAdmin = createAdminClient(
@@ -304,24 +328,12 @@ export async function promoteNote(id: string) {
                 type: 'mention',
                 title: 'You were mentioned!',
                 message: `${author?.codex_name || 'Someone'} mentioned you in "${note.title}".`,
-                link: `/my-notes?noteId=${note.id}` // FIXED: take to user profile, or maybe the note? 
-                // Roadmap says: "When I click an @ link in a note, it should take me to information about that player"
-                // BUT this is a NOTIFICATION about a mention.
-                // Usually linking to the NOTE where you were mentioned is more useful?
-                // "New Mention: Bob mentioned you in 'Physics'" -> Click -> Go to 'Physics' note.
-                // The user request "When I click an @ mention, it just takes me to my-notes. ... [should take] to information about that player" was about CLICKING THE LINK IN THE CONTENT.
-                // For the NOTIFICATION, taking them to the note seems correct.
-                // Let's stick to link: `/my-notes?noteId=${note.id}` but wait, `my-notes` is for MY notes.
-                // If I am mentioned in SOMEONE ELSE'S note, can I see it in `my-notes`?
-                // `NotebookPage` fetches `notes` (mine) and `publicNotes` (public). 
-                // If the note is PERMANENT, it is PUBLIC, so it should be in `publicNotes`.
-                // So `/my-notes?noteId=${note.id}` SHOULD work if the note is promoted?
-                // YES, promoteNote is called when creating a permanent note.
+                link: `/my-notes?noteId=${note.id}`
             })
         }
     }
 
-    // 8. Check Achievements (NEW)
+    // 8. Check Achievements
     const newAchievements = await checkAndUnlockAchievements(note.user_id)
 
     revalidatePath('/dashboard')
@@ -330,14 +342,14 @@ export async function promoteNote(id: string) {
 
     return {
         success: true,
-        feedback: assessment.feedback,
-        score: assessment.score,
-        newAchievements // Pass this back to UI if we ever want to show a specific toast
+        feedback: "Promotion Successful",
+        observations: diagnosis.observations,
+        newAchievements
     }
 }
 
 export async function fetchClassFeed(filter: 'all' | 'teacher' | 'students' = 'all') {
-    const supabase = await createClient()
+    const supabase: any = await createClient()
 
     // 1. Fetch Notes
     let query = supabase
@@ -364,7 +376,7 @@ export async function fetchClassFeed(filter: 'all' | 'teacher' | 'students' = 'a
     }
 
     // 2. Fetch Authors manually to report avoid FK issues
-    const userIds = [...new Set(notes.map(n => n.user_id))]
+    const userIds = [...new Set(notes.map((n: any) => n.user_id))]
 
     const { data: users, error: usersError } = await supabase
         .from('users')
@@ -378,8 +390,8 @@ export async function fetchClassFeed(filter: 'all' | 'teacher' | 'students' = 'a
     }
 
     // 3. Merge Data
-    const enrichedNotes = notes.map(note => {
-        const author = users?.find(u => u.id === note.user_id)
+    const enrichedNotes = notes.map((note: any) => {
+        const author = users?.find((u: any) => u.id === note.user_id)
         return {
             ...note,
             user: author || { email: 'Unknown', codex_name: 'Unknown' }

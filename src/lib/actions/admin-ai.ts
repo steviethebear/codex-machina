@@ -11,7 +11,7 @@ export async function generateAllEmbeddings() {
     if (!user) throw new Error("Unauthorized")
 
     const { data: adminCheck } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
-    if (!adminCheck?.is_admin) throw new Error("Admin access required")
+    if (!(adminCheck as any)?.is_admin) throw new Error("Admin access required")
 
     // Fetch all notes with NO embedding (or just all notes?)
     // Let's fetch ALL notes to be safe, or check for null if we could.
@@ -33,7 +33,7 @@ export async function generateAllEmbeddings() {
 
     // Process in parallel with limit? Or sequential to avoid rate limits?
     // Gemini has rate limits. Let's do batches or sequential with delay.
-    for (const note of notes) {
+    for (const note of (notes as any[])) {
         try {
             // Check if title or content exists
             if (!note.title && !note.content) continue

@@ -49,7 +49,7 @@ export default function UserProfilePage() {
             let adminStatus = false
             if (currentUser) {
                 const { data: viewerData } = await supabase.from('users').select('is_admin').eq('id', currentUser.id).single()
-                adminStatus = !!viewerData?.is_admin
+                adminStatus = !!(viewerData as any)?.is_admin
                 setIsAdmin(adminStatus)
             }
 
@@ -59,7 +59,7 @@ export default function UserProfilePage() {
 
             if (adminStatus) {
                 // Admin Mode: Use Secure RPC to bypass RLS
-                const { data, error } = await supabase.rpc('get_admin_notes', {
+                const { data, error } = await (supabase.rpc as any)('get_admin_notes', {
                     target_user_id: userId
                 })
                 if (data) notesData = data as Note[]
@@ -93,7 +93,7 @@ export default function UserProfilePage() {
                 .select('amount')
                 .eq('user_id', userId)
 
-            const xp = points?.reduce((acc, curr) => acc + curr.amount, 0) || 0
+            const xp = (points as any[])?.reduce((acc, curr) => acc + curr.amount, 0) || 0
             setTotalXP(xp)
 
             setLoading(false)
@@ -192,7 +192,7 @@ function AchievementsList({ userId }: { userId: string }) {
                 .eq('user_id', userId)
 
             setAchievements(allAchievements || [])
-            setUserAchievements(new Set(myAchievements?.map(a => a.achievement_id) || []))
+            setUserAchievements(new Set((myAchievements as any[])?.map((a: any) => a.achievement_id) || []))
             setLoading(false)
         }
         fetchAchievements()

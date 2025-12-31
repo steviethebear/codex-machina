@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Database } from '@/types/database.types'
 import ForceGraph from '@/components/graph/force-graph'
 import { useAuth } from '@/components/auth-provider'
 import { NoteSlideOver } from '@/components/NoteSlideOver'
@@ -55,11 +56,13 @@ export default function GraphPage() {
         const { data: notes } = await supabase
             .from('notes')
             .select('*')
+            .returns<Database['public']['Tables']['notes']['Row'][]>()
 
         // 2. Fetch Connections
         const { data: connections } = await supabase
             .from('connections')
             .select('*')
+            .returns<Database['public']['Tables']['connections']['Row'][]>()
 
         if (notes && connections) {
             const nodes: any[] = notes.map((note) => ({

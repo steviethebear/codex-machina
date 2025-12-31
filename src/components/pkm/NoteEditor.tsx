@@ -80,7 +80,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                 setAuthor(note.user)
             } else if (note.user_id !== user?.id) {
                 const { data } = await supabase.from('users').select('email, codex_name').eq('id', note.user_id).single()
-                if (data) setAuthor({ email: data.email, codex_name: data.codex_name || undefined })
+                if (data) setAuthor({ email: (data as any).email, codex_name: (data as any).codex_name || undefined })
             } else if (user) {
                 setAuthor({ email: user.email!, codex_name: user?.user_metadata?.codex_name /** we don't have codex in auth user obj easily, skip for now or fetch */ })
                 // Actually better to just skip setting author if it's us, we know it's us.
@@ -89,7 +89,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
             // Points
             const { data: pointsData } = await supabase.from('points').select('amount').eq('source_id', note.id)
             if (pointsData) {
-                setPoints(pointsData.reduce((acc, curr) => acc + curr.amount, 0))
+                setPoints((pointsData as any[]).reduce((acc, curr) => acc + curr.amount, 0))
             }
         }
         loadMeta()

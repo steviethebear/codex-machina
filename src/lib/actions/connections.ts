@@ -9,7 +9,7 @@ type ConnectionInsert = Database['public']['Tables']['connections']['Insert']
 export async function createConnection(connection: ConnectionInsert) {
     const supabase = await createClient()
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
         .from('connections')
         .insert(connection)
         .select()
@@ -33,7 +33,7 @@ export async function createConnection(connection: ConnectionInsert) {
 export async function deleteConnection(id: string) {
     const supabase = await createClient()
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
         .from('connections')
         .delete()
         .eq('id', id)
@@ -53,7 +53,7 @@ export async function getConnections(filters?: {
 }) {
     const supabase = await createClient()
 
-    let query = supabase
+    let query = (supabase as any)
         .from('connections')
         .select(`
       *,

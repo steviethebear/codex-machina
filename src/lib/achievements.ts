@@ -33,13 +33,13 @@ export async function checkAndUnlockAchievements(userId: string) {
         .select('achievement_id')
         .eq('user_id', userId)
 
-    const unlockedIds = new Set(userAchievements?.map(ua => ua.achievement_id) || [])
+    const unlockedIds = new Set((userAchievements as any[])?.map((ua: any) => ua.achievement_id) || [])
     const newUnlocks: string[] = [] // Names of unlocked achievements
 
     if (!allAchievements) return []
 
     // 4. Check Logic
-    for (const ach of allAchievements) {
+    for (const ach of (allAchievements as any[])) {
         if (unlockedIds.has(ach.id)) continue
 
         let unlocked = false

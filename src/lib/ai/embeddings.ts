@@ -22,7 +22,7 @@ export async function updateNoteEmbedding(noteId: string) {
     const supabase = await createClient()
 
     // 1. Fetch Note Content
-    const { data: note, error: fetchError } = await supabase
+    const { data: note, error: fetchError } = await (supabase as any)
         .from('notes')
         .select('title, content')
         .eq('id', noteId)
@@ -43,7 +43,7 @@ export async function updateNoteEmbedding(noteId: string) {
     }
 
     // 3. Update Note with Vector
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
         .from('notes')
         .update({ embedding: embedding as any }) // Type casting as Supabase types might not have vector yet
         .eq('id', noteId)

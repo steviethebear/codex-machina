@@ -49,12 +49,12 @@ export async function syncConnections(noteId: string, content: string, userId: s
     const links = await parseLinks(content)
 
     // 1. Fetch Existing Connections
-    const { data: existingConnections } = await supabase
+    const { data: existingConnections } = await (supabase as any)
         .from('connections')
         .select('*')
         .eq('source_note_id', noteId)
 
-    const existingMap = new Map(existingConnections?.map(c => [c.target_note_id, c]) || [])
+    const existingMap = new Map((existingConnections as any[])?.map((c: any) => [c.target_note_id, c]) || [])
     const foundTargetIds = new Set<string>()
     let validLinksCount = 0
     const newConnections: ConnectionInsert[] = []
@@ -62,7 +62,7 @@ export async function syncConnections(noteId: string, content: string, userId: s
     // 2. Identify Targets from Content
     for (const link of links) {
         // Find target note by title
-        const { data: targetNote } = await supabase
+        const { data: targetNote } = await (supabase as any)
             .from('notes')
             .select('id, user_id, is_public, title')
             .eq('title', link.title)
@@ -80,7 +80,7 @@ export async function syncConnections(noteId: string, content: string, userId: s
                     // UPDATE existing: Check if context changed? 
                     // For now, let's always update context to keep it fresh
                     const validationId = existingMap.get(targetNote.id)!.id
-                    await supabase
+                    await (supabase as any)
                         .from('connections')
                         .update({ context })
                         .eq('id', validationId)
@@ -99,12 +99,12 @@ export async function syncConnections(noteId: string, content: string, userId: s
 
     // 3. Process New Connections
     if (newConnections.length > 0) {
-        const { error } = await supabase.from('connections').insert(newConnections)
+        const { error } = await (supabase as any).from('connections').insert(newConnections)
 
         if (!error) {
             // Trigger Notifications for NEW connections
             // We need the author's name for the notification
-            const { data: author } = await supabase
+            const { data: author } = await (supabase as any)
                 .from('users')
                 .select('codex_name')
                 .eq('id', userId)
@@ -114,7 +114,7 @@ export async function syncConnections(noteId: string, content: string, userId: s
 
             for (const conn of newConnections) {
                 // Fetch target note details to get owner (we could have cached this above, but cleaner here for now)
-                const { data: targetNote } = await supabase
+                const { data: targetNote } = await (supabase as any)
                     .from('notes')
                     .select('user_id, title')
                     .eq('id', conn.target_note_id)
@@ -145,7 +145,7 @@ export async function syncConnections(noteId: string, content: string, userId: s
     })
 
     if (toDeleteIds.length > 0) {
-        await supabase
+        await (supabase as any)
             .from('connections')
             .delete()
             .in('id', toDeleteIds)

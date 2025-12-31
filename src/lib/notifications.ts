@@ -13,7 +13,7 @@ export async function createNotification(notification: NotificationInsert) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    const { error } = await supabaseAdmin
+    const { error } = await (supabaseAdmin as any)
         .from('notifications')
         .insert(notification)
 

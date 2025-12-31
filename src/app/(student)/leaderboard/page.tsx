@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Database } from '@/types/database.types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Trophy, FileText, Network, MessageSquare, Star, AtSign } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -32,18 +33,18 @@ export default function LeaderboardPage() {
 
             // Fetch Data Needed for Stats
             // We could join, but independent fetches are okay for MVP
-            const { data: allPoints } = await supabase.from('points').select('user_id, amount, reason')
-            const { data: allNotes } = await supabase.from('notes').select('user_id, type')
-            const { data: allConnections } = await supabase.from('connections').select('user_id')
+            const { data: allPoints } = await supabase.from('points').select('user_id, amount, reason').returns<Database['public']['Tables']['points']['Row'][]>()
+            const { data: allNotes } = await supabase.from('notes').select('user_id, type').returns<Database['public']['Tables']['notes']['Row'][]>()
+            const { data: allConnections } = await supabase.from('connections').select('user_id').returns<Database['public']['Tables']['connections']['Row'][]>()
 
             // Aggregate stats for each user
-            const entries = users.map(user => {
-                const userPoints = allPoints?.filter(p => p.user_id === user.id).reduce((sum, p) => sum + p.amount, 0) || 0
+            const entries = (users as any[])?.map((user: any) => {
+                const userPoints = (allPoints as any)?.filter((p: any) => p.user_id === user.id).reduce((sum: any, p: any) => sum + p.amount, 0) || 0
                 // Count Permanent notes only? Or all? Usually leaderboard reflects Permanent count or Total?
                 // "Notes created" usually means Permanent in Codex context.
-                const userNotes = allNotes?.filter(n => n.user_id === user.id && n.type === 'permanent').length || 0
-                const userConnections = allConnections?.filter(c => c.user_id === user.id).length || 0
-                const userMentions = allPoints?.filter(p => p.user_id === user.id && p.reason === 'mentioned_in_note').length || 0
+                const userNotes = (allNotes as any)?.filter((n: any) => n.user_id === user.id && n.type === 'permanent').length || 0
+                const userConnections = (allConnections as any)?.filter((c: any) => c.user_id === user.id).length || 0
+                const userMentions = (allPoints as any)?.filter((p: any) => p.user_id === user.id && p.reason === 'mentioned_in_note').length || 0
 
                 return {
                     id: user.id,

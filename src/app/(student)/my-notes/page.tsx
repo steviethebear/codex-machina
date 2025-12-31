@@ -140,7 +140,7 @@ export default function NotebookPage() {
             const { data: userData } = await supabase.from('users').select('id, email, codex_name, is_admin')
             if (userData) {
                 setUsers(userData as UserProfile[])
-                const currentUser = userData.find(u => u.id === user.id)
+                const currentUser = (userData as any).find((u: any) => u.id === user.id)
                 if (currentUser?.is_admin) {
                     console.log("Admin privileges confirmed on client")
                     setIsAdmin(true)

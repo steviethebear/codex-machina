@@ -19,7 +19,7 @@ export async function searchSimilarNotes(query: string, threshold = 0.5, limit =
     }
 
     // 2. Call RPC
-    const { data: similarNotes, error } = await supabase.rpc('match_notes', {
+    const { data: similarNotes, error } = await (supabase.rpc as any)('match_notes', {
         query_embedding: embedding,
         match_threshold: threshold,
         match_count: limit,

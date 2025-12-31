@@ -96,7 +96,7 @@ export type Database = {
           is_public: boolean
           page_number: string | null
           title: string
-          type: Database["public"]["Enums"]["note_type"]
+          type: "fleeting" | "permanent" | "source"
           updated_at: string
           user_id: string
         }
@@ -109,7 +109,7 @@ export type Database = {
           is_public?: boolean
           page_number?: string | null
           title: string
-          type: Database["public"]["Enums"]["note_type"]
+          type: "fleeting" | "permanent" | "source"
           updated_at?: string
           user_id: string
         }
@@ -122,11 +122,19 @@ export type Database = {
           is_public?: boolean
           page_number?: string | null
           title?: string
-          type?: Database["public"]["Enums"]["note_type"]
+          type?: "fleeting" | "permanent" | "source"
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       points: {
         Row: {
@@ -153,7 +161,15 @@ export type Database = {
           source_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "points_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       texts: {
         Row: {
@@ -273,7 +289,7 @@ export type Database = {
           xp_reward?: number
           icon?: string | null
           tier?: number
-          requirement_type?: string
+          requirement_type: string
           requirement_value?: number | null
           requirement_metadata?: Json | null
           rewards?: Json | null
@@ -371,6 +387,29 @@ export type Database = {
           target_user_id: string
         }
         Returns: void
+      }
+      get_admin_notes: {
+        Args: {
+          target_user_id: string
+        }
+        Returns: Json
+      }
+      match_notes: {
+        Args: {
+          query_embedding: string
+          match_threshold: number
+          match_count: number
+          msg_user_id: string
+        }
+        Returns: {
+          id: string
+          content: string
+          title: string
+          similarity: number
+          type: string
+          updated_at: string
+          user_id: string
+        }[]
       }
     }
     Enums: {

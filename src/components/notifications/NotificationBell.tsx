@@ -44,6 +44,7 @@ export function NotificationBell() {
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(20) // Limit to last 20 for now
+                .returns<any>()
 
             if (data) {
                 setNotifications(data as Notification[])
@@ -82,9 +83,9 @@ export function NotificationBell() {
             setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, read: true } : n))
             setUnreadCount(prev => Math.max(0, prev - 1))
 
-            await supabase
+            await (supabase as any)
                 .from('notifications')
-                .update({ read: true })
+                .update({ read: true } as any)
                 .eq('id', notification.id)
         }
 
@@ -101,9 +102,9 @@ export function NotificationBell() {
         setNotifications(prev => prev.map(n => ({ ...n, read: true })))
         setUnreadCount(0)
 
-        await supabase
+        await (supabase as any)
             .from('notifications')
-            .update({ read: true })
+            .update({ read: true } as any)
             .in('id', unreadIds)
     }
 

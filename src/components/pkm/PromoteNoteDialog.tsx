@@ -31,7 +31,7 @@ export function PromoteNoteDialog({ note, open, onOpenChange, onSuccess }: Promo
     const [title, setTitle] = useState(note.title)
     const [step, setStep] = useState<'input' | 'result'>('input')
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [result, setResult] = useState<{ success: boolean, feedback: string, score: number } | null>(null)
+    const [result, setResult] = useState<{ success: boolean, feedback: string, violations?: string[], observations?: string[] } | null>(null)
 
     useEffect(() => {
         if (open) {
@@ -68,21 +68,27 @@ export function PromoteNoteDialog({ note, open, onOpenChange, onSuccess }: Promo
 
         // 3. Promote
         const res = await promoteNote(note.id)
-        if (res.error) {
+
+        // Handle Error (System/Network)
+        if ('error' in res && res.error) {
             toast.error(res.error)
             setIsSubmitting(false)
             return
         }
 
+        // Handle Success or Block
+        const response = res as any; // Cast to bypass previous type for now or rely on inference
+
         setIsSubmitting(false)
         setResult({
-            success: res.success || false,
-            feedback: res.feedback || '',
-            score: res.score || 0
+            success: response.success || false,
+            feedback: response.feedback || '',
+            violations: response.violations,
+            observations: response.observations
         })
         setStep('result')
 
-        if (res.success && onSuccess) {
+        if (response.success && onSuccess) {
             // Construct optimistic update
             const updatedNote: Note = {
                 ...note,
@@ -137,20 +143,43 @@ export function PromoteNoteDialog({ note, open, onOpenChange, onSuccess }: Promo
                 ) : (
                     <>
                         <DialogHeader>
-                            <DialogTitle className={result?.success ? "text-green-600 flex items-center gap-2" : "text-amber-600 flex items-center gap-2"}>
+                            <DialogTitle className={result?.success ? "text-green-600 flex items-center gap-2" : "text-destructive flex items-center gap-2"}>
                                 {result?.success ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-                                {result?.success ? "Promotion Successful!" : "Promotion Failed"}
+                                {result?.success ? "Promotion Successful!" : "Cannot Promote Yet"}
                             </DialogTitle>
-                            <DialogDescription className="pt-2">
-                                <div className="space-y-2">
-                                    <p className="font-medium text-foreground">Score: {result?.score}/4</p>
-                                    <p className="text-sm bg-muted p-3 rounded-md">{result?.feedback}</p>
+                            <DialogDescription className="pt-2 text-left">
+                                <div className="space-y-3">
+                                    <p className="text-foreground font-medium">{result?.feedback}</p>
+
+                                    {/* Violations */}
+                                    {result?.violations && result.violations.length > 0 && (
+                                        <div className="bg-destructive/10 p-3 rounded-md text-sm text-destructive border border-destructive/20">
+                                            <p className="font-semibold mb-1">Issues to Resolve:</p>
+                                            <ul className="list-disc list-inside space-y-1">
+                                                {result.violations.map((v, i) => (
+                                                    <li key={i}>{v}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {/* Observations */}
+                                    {result?.observations && result.observations.length > 0 && (
+                                        <div className="bg-muted p-3 rounded-md text-sm border">
+                                            <p className="font-semibold mb-1 text-muted-foreground">Diagnostics:</p>
+                                            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                                                {result.observations.map((o: string, i: number) => (
+                                                    <li key={i}>{o}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
                                 </div>
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter>
                             <Button onClick={reset}>
-                                {result?.success ? "Close" : "Try Again"}
+                                {result?.success ? "Close" : "Back to Edit"}
                             </Button>
                         </DialogFooter>
                     </>

@@ -9,7 +9,7 @@ export async function createComment(noteId: string, content: string, highlighted
 
     if (!user) return { error: 'Unauthorized' }
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
         .from('comments')
         .insert({
             note_id: noteId,
@@ -34,7 +34,7 @@ export async function createComment(noteId: string, content: string, highlighted
 export async function getComments(noteId: string) {
     const supabase = await createClient()
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
         .from('comments')
         .select(`
             *,
@@ -57,7 +57,7 @@ export async function forkNote(originalNoteId: string) {
     if (!user) return { error: 'Unauthorized' }
 
     // 1. Fetch original note
-    const { data: original, error: fetchError } = await supabase
+    const { data: original, error: fetchError } = await (supabase as any)
         .from('notes')
         .select('*')
         .eq('id', originalNoteId)
@@ -72,7 +72,7 @@ export async function forkNote(originalNoteId: string) {
     // Spec says: "Student can create connections from forked note..."
     // If it's read-only, they can't change content.
 
-    const { data: newNote, error: createError } = await supabase
+    const { data: newNote, error: createError } = await (supabase as any)
         .from('notes')
         .insert({
             user_id: user.id,
@@ -100,7 +100,7 @@ export async function getFeed() {
     const supabase = await createClient()
 
     // Fetch recent 20 public notes
-    const { data: notes } = await supabase
+    const { data: notes } = await (supabase as any)
         .from('notes')
         .select(`
             *,
@@ -111,7 +111,7 @@ export async function getFeed() {
         .limit(20)
 
     // Fetch recent 20 connections
-    const { data: connections } = await supabase
+    const { data: connections } = await (supabase as any)
         .from('connections')
         .select(`
             *,
@@ -124,9 +124,9 @@ export async function getFeed() {
 
     // Merge and sort
     const feedItems = [
-        ...(notes || []).map(n => ({ ...n, feedType: 'note' })),
-        ...(connections || []).map(c => ({ ...c, feedType: 'connection' }))
-    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        ...(notes || []).map((n: any) => ({ ...n, feedType: 'note' })),
+        ...(connections || []).map((c: any) => ({ ...c, feedType: 'connection' }))
+    ].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
     return { data: feedItems }
 }

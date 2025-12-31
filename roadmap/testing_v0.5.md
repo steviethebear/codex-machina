@@ -132,3 +132,24 @@ This document covers the verification steps for the v0.5 release series, includi
   3. **Similarity Score**: Check for "% match" text (e.g., "85% match").
   4. **Click Title**: Clicking the title should open the note in SlideOver (or Navigate).
   5. **Click +**: Clicking '+' should insert `[[Gravity]]` into the text.
+
+---
+
+## Part 4: Diagnostic AI (v0.5.7)
+
+### 1. Evaluate Note (Diagnostic check)
+- [ ] **Structural Validation**:
+  - Create a note with `test` as content. Try to Promote.
+  - **Verify**: Fails with "Issues to Resolve" listing "too short".
+  - Update note to be substantial (>50 words, clean text). Try Promote.
+  - **Verify**: Succeeds.
+- [ ] **Observations**:
+  - In the success dialog (or failure), check for "Diagnostics" section.
+  - If note has no connections, look for "No explicit connections detected".
+  - These should be INFORMATIONAL only.
+
+### 2. No Scoring
+- [ ] **Verify**: The promotion success dialog should **NOT** show a score (e.g. "Score: 3/4"). It should only show "Promotion Successful".
+
+### 3. Telemetry (Internal)
+- [ ] **Verify**: Check server logs for `[Telemetry]` line when promoting. It should list Self/Peer link counts.

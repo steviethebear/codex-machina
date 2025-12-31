@@ -10,11 +10,11 @@ export async function createSource(data: { title: string, content: string, url?:
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
     // Check admin role
-    const { data: dbUser } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
-    if (!dbUser?.is_admin) throw new Error("Unauthorized: Admin access required")
+    const { data: dbUser } = await (supabase as any).from('users').select('is_admin').eq('id', user.id).single()
+    if (!(dbUser as any)?.is_admin) throw new Error("Unauthorized: Admin access required")
 
     // Create Note
-    const { data: newNote, error } = await supabase.from('notes').insert({
+    const { data: newNote, error } = await (supabase as any).from('notes').insert({
         title: data.title,
         content: `**Author**: ${data.author || 'Unknown'}\n**URL**: ${data.url || 'N/A'}\n\n${data.content}`,
         type: 'source',

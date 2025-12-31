@@ -2,6 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { Database } from '@/types/database.types'
+
 
 // Admin Client Helper
 const getAdminClient = () => {
@@ -31,6 +33,7 @@ export async function getStudentProfile(studentId: string) {
         .select('*')
         .eq('user_id', studentId)
         .order('created_at', { ascending: false })
+        .returns<Database['public']['Tables']['points']['Row'][]>()
 
     return {
         profile,
@@ -45,7 +48,7 @@ export async function awardXP(studentId: string, amount: number, reason: string)
     // Check if requester is admin? RLS handles this mostly, but good to be safe.
     // For now we assume the page is protected.
 
-    const { error } = await supabase.from('points').insert({
+    const { error } = await (supabase as any).from('points').insert({
         user_id: studentId,
         amount: amount,
         reason: reason
@@ -66,12 +69,12 @@ export async function awardXP(studentId: string, amount: number, reason: string)
 
 export async function forcePromoteNote(noteId: string) {
     const supabase = await createClient()
-    await supabase.from('notes').update({ type: 'permanent' }).eq('id', noteId)
+    await (supabase as any).from('notes').update({ type: 'permanent' }).eq('id', noteId)
 }
 
 export async function forceDeleteNote(noteId: string) {
     const supabase = await createClient()
-    await supabase.from('notes').delete().eq('id', noteId)
+    await (supabase as any).from('notes').delete().eq('id', noteId)
 }
 
 export async function deleteStudent(studentId: string) {
@@ -82,7 +85,7 @@ export async function deleteStudent(studentId: string) {
     // We use the admin client to bypass RLS if necessary, though Teacher should have rights.
     // Actually, RPC runs as Owner/Definer so standard client is fine IF implemented that way.
     // Let's use standard client for RPC.
-    const { error } = await supabase.rpc('delete_user_data', { target_user_id: studentId })
+    const { error } = await (supabase.rpc as any)('delete_user_data', { target_user_id: studentId })
 
     if (error) {
         console.error("RPC Delete Error", error)

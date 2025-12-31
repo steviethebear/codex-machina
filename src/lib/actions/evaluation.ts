@@ -1,43 +1,99 @@
-'use server'
-
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '')
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
 
 // Types for Evaluation
-export type EvaluationResult = {
-    score: number // 0-4
-    feedback: string
-    suggestions?: string[]
+export type DiagnosticResult = {
+    isValid: boolean
+    violations: string[]
+    observations: string[]
 }
 
-export async function evaluateNote(noteId: string, noteType: 'literature' | 'permanent'): Promise<EvaluationResult | { error: string }> {
-    // TODO: Connect to actual LLM provider (OpenAI/Anthropic/Gemini)
-    // For v0.5 MVP Phase 2, we return a mock success response.
+export async function evaluateNote(noteId: string): Promise<DiagnosticResult | { error: string }> {
+    const supabase = await createClient()
 
-    console.log(`Evaluating ${noteType} note: ${noteId}`)
+    // 1. Fetch Note Content
+    const { data: note, error } = await supabase
+        .from('notes')
+        .select('title, content')
+        .eq('id', noteId)
+        .single() as any
 
-    // Mock delay
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    const mockResult: EvaluationResult = {
-        score: 3,
-        feedback: "This is a solid start. You've captured the main idea, but could deepen the connection to the core theme of the unit.",
-        suggestions: ["Consider adding a connection to 'Simulacra'"]
+    if (error || !note) {
+        return { error: 'Note not found' }
     }
 
-    return mockResult
+    // 2. Construct Prompt for Structural Analysis
+    const prompt = `
+    Analyze the following note for STRUCTURAL INTEGRETY and FORM only. 
+    Do not judge the quality of ideas.
+    
+    Criteria for Validity (Pass/Fail):
+    1. Length: Must be at least 3 sentences or ~50 words.
+    2. Content: Must NOT contain placeholder text like "lorem ipsum" or "insert text here".
+    3. Content: Must NOT appear to be junk text (e.g. keyboard mashing).
+
+    Criteria for Observations (Descriptive only, non-judgmental):
+    1. If the text does NOT appear to refer to other notes or concepts (e.g. no "similar to", "related to", "[[...]]"), add observation: "No explicit connections detected within this note."
+    2. If the text covers multiple distinct topics or claims rather than a single focused idea, add observation: "This note appears to contain multiple distinct claims."
+    
+    Do NOT check for:
+    - Questions
+    - Outbound links (validity)
+    - Bullet points
+
+    Note Title: "${note.title}"
+    Note Content:
+    """
+    ${note.content}
+    """
+
+    Return JSON:
+    {
+        "isValid": boolean,
+        "violations": string[], // List of failure reasons if isValid is false (e.g. "Too short")
+        "observations": string[] // List of factual observations
+    }
+    `
+
+    try {
+        const result = await model.generateContent(prompt)
+        const responseText = result.response.text()
+
+        // Clean markdown code blocks if any
+        const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim()
+        const data = JSON.parse(cleanedText) as DiagnosticResult
+
+        return {
+            isValid: data.isValid,
+            violations: data.violations || [],
+            observations: data.observations || []
+        }
+
+    } catch (e) {
+        console.error("Gemini Evaluation Error:", e)
+        // Fallback to basic local check if AI fails
+        const localCheck = basicLocalCheck(note.title, note.content)
+        return localCheck
+    }
 }
 
-export async function evaluateConnection(explanation: string): Promise<EvaluationResult | { error: string }> {
-    // TODO: Connect to actual LLM provider
-    console.log(`Evaluating connection: ${explanation}`)
+function basicLocalCheck(title: string, content: string): DiagnosticResult {
+    const violations: string[] = []
+    if (!content || content.length < 50) violations.push("Note appears too short.")
+    if (title.toLowerCase().includes("untitled")) violations.push("Title cannot be 'Untitled'.")
 
-    await new Promise(resolve => setTimeout(resolve, 800))
-
-    const mockResult: EvaluationResult = {
-        score: 4,
-        feedback: "Excellent connection. You clearly articulated the relationship between these two concepts.",
+    return {
+        isValid: violations.length === 0,
+        violations,
+        observations: ["AI unavailable, performed basic check."]
     }
+}
 
-    return mockResult
+// Deprecated or Unused for now
+export async function evaluateConnection(explanation: string) {
+    return { score: 0, feedback: "Not implemented" }
 }
