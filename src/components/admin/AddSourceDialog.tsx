@@ -13,19 +13,19 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createSource } from "@/lib/actions/sources"
 import { toast } from "sonner"
 import { PlusCircle } from "lucide-react"
 
-export function AddSourceDialog({ onSourceAdded }: { onSourceAdded?: (note: any) => void }) {
+export function AddSourceDialog({ onSourceAdded }: { onSourceAdded?: (source: any) => void }) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
         title: "",
         author: "",
         url: "",
-        content: ""
+        type: "article"
     })
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -33,13 +33,17 @@ export function AddSourceDialog({ onSourceAdded }: { onSourceAdded?: (note: any)
         setLoading(true)
 
         try {
-            const newSource = await createSource(formData)
-            toast.success("Source added successfully")
-            if (onSourceAdded && newSource) {
-                onSourceAdded(newSource)
+            const result = await createSource(formData)
+            if (result.error) {
+                toast.error(result.error)
+            } else {
+                toast.success("Source added successfully")
+                if (onSourceAdded && result.data) {
+                    onSourceAdded(result.data)
+                }
+                setOpen(false)
+                setFormData({ title: "", author: "", url: "", type: "article" })
             }
-            setOpen(false)
-            setFormData({ title: "", author: "", url: "", content: "" })
         } catch (error) {
             toast.error("Failed to add source")
             console.error(error)
@@ -91,6 +95,7 @@ export function AddSourceDialog({ onSourceAdded }: { onSourceAdded?: (note: any)
                                     value={formData.author}
                                     onChange={(e) => setFormData({ ...formData, author: e.target.value })}
                                     className="col-span-3"
+                                    required
                                 />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
@@ -105,17 +110,26 @@ export function AddSourceDialog({ onSourceAdded }: { onSourceAdded?: (note: any)
                                     placeholder="https://"
                                 />
                             </div>
-                            <div className="grid grid-cols-4 gap-4">
-                                <Label htmlFor="content" className="text-right mt-2">
-                                    Content / Abstract
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="type" className="text-right">
+                                    Type
                                 </Label>
-                                <Textarea
-                                    id="content"
-                                    value={formData.content}
-                                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                                    className="col-span-3 h-32"
-                                    required
-                                />
+                                <div className="col-span-3">
+                                    <Select
+                                        value={formData.type}
+                                        onValueChange={(v) => setFormData({ ...formData, type: v })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="article">Article</SelectItem>
+                                            <SelectItem value="book">Book</SelectItem>
+                                            <SelectItem value="video">Video</SelectItem>
+                                            <SelectItem value="website">Website</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                         </div>
                         <DialogFooter>

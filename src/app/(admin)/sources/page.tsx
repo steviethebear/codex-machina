@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Trash2, Library, Link as LinkIcon, BookOpen } from 'lucide-react'
+import { Plus, Trash2, Library, Link as LinkIcon, BookOpen, Clock } from 'lucide-react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -26,7 +27,7 @@ export default function SourcesPage() {
         title: '',
         author: '',
         url: '',
-        type: 'article' // article, book, video, website
+        type: 'article'
     })
 
     const fetchSources = async () => {
@@ -34,6 +35,7 @@ export default function SourcesPage() {
         const { data, error } = await supabase
             .from('texts')
             .select('*')
+            .eq('status', 'approved')
             .order('created_at', { ascending: false })
             .returns<Source[]>()
 
@@ -60,7 +62,8 @@ export default function SourcesPage() {
             title: newSource.title,
             author: newSource.author,
             url: newSource.url || null,
-            type: newSource.type
+            type: newSource.type,
+            status: 'approved' // Admins create approved sources directly
         })
 
         if (error) {
@@ -69,7 +72,7 @@ export default function SourcesPage() {
             toast.success("Source created successfully")
             setNewSource({ title: '', author: '', url: '', type: 'article' })
             setIsDialogOpen(false)
-            fetchSources() // Refresh list
+            fetchSources()
         }
         setIsSubmitting(false)
     }
@@ -94,70 +97,77 @@ export default function SourcesPage() {
                     <p className="text-muted-foreground mt-1">Manage shared reference anchors and resources for the Codex.</p>
                 </div>
 
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="gap-2">
-                            <Plus className="h-4 w-4" /> Add Source
+                <div className="flex items-center gap-2">
+                    <Link href="/admin/sources/pending">
+                        <Button variant="outline" className="gap-2 border-yellow-200 text-yellow-700 hover:bg-yellow-50">
+                            <Clock className="h-4 w-4" /> Pending Review
                         </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                            <DialogTitle>Add New Source</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="title">Title</Label>
-                                <Input
-                                    id="title"
-                                    value={newSource.title}
-                                    onChange={e => setNewSource({ ...newSource, title: e.target.value })}
-                                    placeholder="e.g. The Medium is the Message"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="author">Author</Label>
-                                <Input
-                                    id="author"
-                                    value={newSource.author}
-                                    onChange={e => setNewSource({ ...newSource, author: e.target.value })}
-                                    placeholder="e.g. Marshall McLuhan"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="url">URL (Optional)</Label>
-                                <Input
-                                    id="url"
-                                    value={newSource.url}
-                                    onChange={e => setNewSource({ ...newSource, url: e.target.value })}
-                                    placeholder="https://..."
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="type">Type</Label>
-                                <Select
-                                    value={newSource.type}
-                                    onValueChange={v => setNewSource({ ...newSource, type: v })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="article">Article</SelectItem>
-                                        <SelectItem value="book">Book</SelectItem>
-                                        <SelectItem value="video">Video</SelectItem>
-                                        <SelectItem value="website">Website</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                            <Button onClick={handleCreate} disabled={isSubmitting}>
-                                {isSubmitting ? "Creating..." : "Create Source"}
+                    </Link>
+                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="gap-2">
+                                <Plus className="h-4 w-4" /> Add Source
                             </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[500px]">
+                            <DialogHeader>
+                                <DialogTitle>Add New Source</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="title">Title</Label>
+                                    <Input
+                                        id="title"
+                                        value={newSource.title}
+                                        onChange={e => setNewSource({ ...newSource, title: e.target.value })}
+                                        placeholder="e.g. The Medium is the Message"
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="author">Author</Label>
+                                    <Input
+                                        id="author"
+                                        value={newSource.author}
+                                        onChange={e => setNewSource({ ...newSource, author: e.target.value })}
+                                        placeholder="e.g. Marshall McLuhan"
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="url">URL (Optional)</Label>
+                                    <Input
+                                        id="url"
+                                        value={newSource.url}
+                                        onChange={e => setNewSource({ ...newSource, url: e.target.value })}
+                                        placeholder="https://..."
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="type">Type</Label>
+                                    <Select
+                                        value={newSource.type}
+                                        onValueChange={v => setNewSource({ ...newSource, type: v })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="article">Article</SelectItem>
+                                            <SelectItem value="book">Book</SelectItem>
+                                            <SelectItem value="video">Video</SelectItem>
+                                            <SelectItem value="website">Website</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                                <Button onClick={handleCreate} disabled={isSubmitting}>
+                                    {isSubmitting ? "Creating..." : "Create Source"}
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
 
             {loading ? (

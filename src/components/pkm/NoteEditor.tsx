@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
-import { Brain, BookOpen, Lightbulb, Save, Trash2, Edit2, ExternalLink } from 'lucide-react'
+import { Brain, BookOpen, Lightbulb, Save, Trash2, Edit2, ExternalLink, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { updateNote, deleteNote, promoteNote } from '@/lib/actions/notes'
@@ -22,6 +22,7 @@ type UserProfile = { id: string, email: string, codex_name?: string }
 
 import { PromoteNoteDialog } from './PromoteNoteDialog'
 import { SmartSuggestions } from '@/components/SmartSuggestions'
+import { RequestSourceDialog } from './RequestSourceDialog'
 
 interface NoteEditorProps {
     note: Note
@@ -46,6 +47,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
     const [isSaving, setIsSaving] = useState(false)
     const [lastSaved, setLastSaved] = useState<Date>(new Date(note.updated_at))
     const [showPromoteDialog, setShowPromoteDialog] = useState(false)
+    const [showRequestSourceDialog, setShowRequestSourceDialog] = useState(false)
 
     // Autocomplete State
     const [users, setUsers] = useState<UserProfile[]>([])
@@ -424,25 +426,57 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                                         items = users.filter(u => u.email.toLowerCase().includes(mentionQuery.toLowerCase()) || (u.codex_name && u.codex_name.toLowerCase().includes(mentionQuery.toLowerCase())))
                                     }
 
+                                    if (items.length === 0 && mentionType === 'wiki') {
+                                        return (
+                                            <button
+                                                className="flex items-center w-full p-2 text-sm rounded-sm hover:bg-accent text-left text-primary font-medium"
+                                                onClick={() => setShowRequestSourceDialog(true)}
+                                            >
+                                                <Plus className="h-3 w-3 mr-2" />
+                                                Request New Source: "{mentionQuery}"
+                                            </button>
+                                        )
+                                    }
+
                                     if (items.length === 0) return <div className="text-xs p-2 italic text-muted-foreground">No matches</div>
 
-                                    return items.map((item: any) => (
-                                        <button
-                                            key={item.id}
-                                            className="flex items-center w-full p-2 text-sm rounded-sm hover:bg-accent text-left"
-                                            onClick={() => insertLink(item)}
-                                        >
-                                            {mentionType === 'wiki' ? (
-                                                item.url !== undefined ? // Is Source (has url field, optional) or check type
-                                                    <BookOpen className="h-3 w-3 mr-2 text-indigo-500" /> :
-                                                    <ExternalLink className="h-3 w-3 mr-2" />
-                                            ) : <ExternalLink className="h-3 w-3 mr-2" />}
-                                            <div className="flex flex-col overflow-hidden">
-                                                <span className="truncate">{item.title || item.codex_name || item.email}</span>
-                                                {item.author && <span className="text-[10px] text-muted-foreground truncate">by {item.author}</span>}
-                                            </div>
-                                        </button>
-                                    ))
+                                    return (
+                                        <>
+                                            {items.map((item: any) => (
+                                                <button
+                                                    key={item.id}
+                                                    className="flex items-center w-full p-2 text-sm rounded-sm hover:bg-accent text-left"
+                                                    onClick={() => insertLink(item)}
+                                                >
+                                                    {mentionType === 'wiki' ? (
+                                                        item.type === 'book' ? <BookOpen className="h-3 w-3 mr-2 text-indigo-500" /> :
+                                                            item.url ? <ExternalLink className="h-3 w-3 mr-2 text-indigo-500" /> :
+                                                                <Lightbulb className="h-3 w-3 mr-2" />
+                                                    ) : <ExternalLink className="h-3 w-3 mr-2" />}
+                                                    <div className="flex flex-col overflow-hidden">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="truncate">{item.title || item.codex_name || item.email}</span>
+                                                            {item.status === 'pending' && (
+                                                                <Badge variant="outline" className="text-[10px] px-1 py-0 h-3 uppercase bg-yellow-50 text-yellow-600 border-yellow-200">
+                                                                    Pending
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        {item.author && <span className="text-[10px] text-muted-foreground truncate">by {item.author}</span>}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                            {mentionType === 'wiki' && (
+                                                <button
+                                                    className="flex items-center w-full p-2 mt-2 text-xs rounded-sm hover:bg-accent text-left text-muted-foreground border-t pt-2"
+                                                    onClick={() => setShowRequestSourceDialog(true)}
+                                                >
+                                                    <Plus className="h-3 w-3 mr-2" />
+                                                    Can't find it? Request a source...
+                                                </button>
+                                            )}
+                                        </>
+                                    )
                                 })()}
                             </div>
                         )}
@@ -544,6 +578,16 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                     </ScrollArea>
                 )}
             </div>
+
+            <RequestSourceDialog
+                open={showRequestSourceDialog}
+                onOpenChange={setShowRequestSourceDialog}
+                initialTitle={mentionQuery || ''}
+                onSuccess={(newSource) => {
+                    setSources(prev => [...prev, newSource])
+                    insertLink(newSource)
+                }}
+            />
 
         </div >
     )
