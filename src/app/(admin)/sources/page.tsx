@@ -25,6 +25,7 @@ export default function SourcesPage() {
     const [newSource, setNewSource] = useState({
         title: '',
         author: '',
+        url: '',
         type: 'article' // article, book, video, website
     })
 
@@ -58,6 +59,7 @@ export default function SourcesPage() {
         const { error } = await supabase.from('texts').insert({
             title: newSource.title,
             author: newSource.author,
+            url: newSource.url || null,
             type: newSource.type
         })
 
@@ -65,7 +67,7 @@ export default function SourcesPage() {
             toast.error("Failed to create source: " + error.message)
         } else {
             toast.success("Source created successfully")
-            setNewSource({ title: '', author: '', type: 'article' })
+            setNewSource({ title: '', author: '', url: '', type: 'article' })
             setIsDialogOpen(false)
             fetchSources() // Refresh list
         }
@@ -119,6 +121,15 @@ export default function SourcesPage() {
                                     value={newSource.author}
                                     onChange={e => setNewSource({ ...newSource, author: e.target.value })}
                                     placeholder="e.g. Marshall McLuhan"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="url">URL (Optional)</Label>
+                                <Input
+                                    id="url"
+                                    value={newSource.url}
+                                    onChange={e => setNewSource({ ...newSource, url: e.target.value })}
+                                    placeholder="https://..."
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -180,6 +191,16 @@ export default function SourcesPage() {
                                             </span>
                                         </div>
                                         <p className="text-sm text-foreground/80">{source.author}</p>
+                                        {source.url && (
+                                            <a
+                                                href={source.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1 truncate"
+                                            >
+                                                <LinkIcon className="h-3 w-3" /> {source.url}
+                                            </a>
+                                        )}
                                     </div>
                                     <Button
                                         size="icon"

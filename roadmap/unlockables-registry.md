@@ -203,8 +203,8 @@ If accessed directly via URL, display:
 ### 5. Smart Connections
 
 **Feature Key:** `smart_connections`  
-**Introduced:** v1.x (planned)  
-**Status:** Defined, not implemented
+**Introduced:** v0.5 (implemented, ungated)
+**Status:** Implemented, pending unlock gating
 
 #### Purpose
 Smart Connections surfaces **algorithmically suggested resonances** between notes

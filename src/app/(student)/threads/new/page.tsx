@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft } from 'lucide-react'
-import { createThread } from '@/lib/actions/threads'
+import { createThread, type Thread } from '@/lib/actions/threads'
 import { toast } from 'sonner'
 
 export default function NewThreadPage() {
@@ -31,7 +31,7 @@ export default function NewThreadPage() {
             setCreating(false)
         } else if (result.data && 'id' in result.data) {
             toast.success('Thread created')
-            router.push(`/threads/${(result.data as any).id}`)
+            router.push(`/threads/${(result.data as Thread).id}`)
         }
     }
 
