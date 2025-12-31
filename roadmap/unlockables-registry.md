@@ -198,6 +198,120 @@ If accessed directly via URL, display:
 
 ---
 
+---
+
+### 5. Smart Connections
+
+**Feature Key:** `smart_connections`  
+**Introduced:** v1.x (planned)  
+**Status:** Defined, not implemented
+
+#### Purpose
+Smart Connections surfaces **algorithmically suggested resonances** between notes
+using semantic embeddings.
+
+Its role is to assist *discovery*, not to replace intentional linking.
+It offers a second perspective on the corpus once sufficient structure exists.
+
+Smart Connections does **not** create links.
+It suggests possibilities that students may choose to explore or ignore.
+
+---
+
+#### Why This Is Locked Initially
+When introduced too early, algorithmic suggestions:
+- short-circuit recall and search
+- bias the graph toward machine-shaped connections
+- undermine the pedagogical value of intentional [[linking]]
+
+Students must first demonstrate the ability to:
+- create notes independently
+- link ideas deliberately
+- revisit earlier thinking without prompts
+
+Smart Connections is appropriate only once a student has already learned
+how to connect ideas on their own.
+
+---
+
+#### Conceptual Readiness Rationale
+Smart Connections assumes:
+
+- a sufficiently large and stable note corpus
+- existing relational structure (links, revisitation)
+- student familiarity with:
+  - Graph View
+  - Threads
+- readiness for *assisted resonance* rather than guided direction
+
+At this stage, algorithmic similarity can **augment perception**
+without dictating it.
+
+---
+
+#### Representative Unlock Heuristic
+_The following conditions are illustrative and subject to revision based on
+real classroom use post–v1.0._
+
+- Dense enough corpus that embeddings are meaningful
+- Evidence of intentional linking and revisitation
+- Prior access to structural views (Graph, Threads)
+
+_Conceptual trigger: “algorithmic resonance as augmentation, not direction”_
+
+---
+
+#### Student Experience
+- Smart Connections appears as a **suggestion panel**, not an instruction.
+- Language is invitational, e.g.:
+  - “You might want to look at…”
+  - “Related ideas you may find interesting…”
+- Suggestions are optional and dismissible.
+- No auto-insertion of links.
+- No ranking framed as correctness or importance.
+
+---
+
+#### Teacher Override
+- Teachers may grant or revoke via:
+  `/admin/student/[id] → Capabilities`
+- Default state is **locked** until unlocked by system or teacher.
+
+---
+
+#### Design Constraints (Non-Negotiable)
+Smart Connections must **never**:
+- auto-link notes
+- recommend “better” or “stronger” connections
+- replace student search, recall, or judgment
+- be framed as guidance or evaluation
+- surface hidden scores or confidence levels
+
+It must remain a **perceptual aid**, not a thinking surrogate.
+
+---
+
+#### Relationship to Other Unlocks
+Smart Connections is intentionally **later** than:
+
+- Thinking Profile (self-reflection)
+- Graph View (structural perception)
+- Deep Breadcrumbs (navigational memory)
+- Threads (intentional synthesis)
+
+Ordering principle:
+**reflection → structure → memory → synthesis → assisted resonance**
+
+---
+
+#### Maintenance Note
+Any proposal to implement Smart Connections must:
+- revisit this registry entry
+- be tested only after v1.0 classroom use
+- demonstrate that it augments, rather than redirects, student thinking
+
+---
+
 ## Non-Unlockable Features
 
 The following features are **always available** and do not appear as gated capabilities:
