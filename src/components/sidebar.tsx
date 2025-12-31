@@ -4,19 +4,23 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Network, Trophy, LogOut, PlusCircle, ListChecks, BookOpen, Activity, Sparkles } from 'lucide-react'
+import { LayoutDashboard, Network, ShieldAlert, LogOut, PlusCircle, BookOpen, Sparkles, Library, Users } from 'lucide-react'
 import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { ViewSwitcher } from '@/components/view-switcher'
 import { createClient } from '@/lib/supabase/client'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 
-const navigation = [
+const studentNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Class Feed', href: '/feed', icon: Sparkles },
     { name: 'My Notes', href: '/my-notes', icon: BookOpen },
     { name: 'Graph', href: '/graph', icon: Network },
-    { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+]
+
+const adminNavigation = [
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Sources', href: '/admin/sources', icon: Library },
 ]
 
 export function Sidebar() {
@@ -57,11 +61,14 @@ export function Sidebar() {
         fetchCounts()
     }, [user, supabase])
 
+    const isInAdminView = pathname?.startsWith('/admin')
+    const navigation = isInAdminView ? adminNavigation : studentNavigation
+
     return (
         <div className="flex h-full w-64 flex-col border-r bg-card text-card-foreground">
             <div className="flex h-16 items-center justify-between px-6 border-b">
                 <h1 className="text-lg font-bold tracking-tight text-primary">Codex Machina</h1>
-                <NotificationBell />
+                {!isInAdminView && <NotificationBell />}
             </div>
 
             <ViewSwitcher isAdmin={isAdmin} />

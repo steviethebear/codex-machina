@@ -198,6 +198,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sources: {
+        Row: {
+          id: string
+          title: string
+          author: string
+          url: string | null
+          type: string
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          author: string
+          url?: string | null
+          type?: string
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          author?: string
+          url?: string | null
+          type?: string
+          metadata?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       units: {
         Row: {
           created_at: string

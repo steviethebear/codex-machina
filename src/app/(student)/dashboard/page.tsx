@@ -3,25 +3,25 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth-provider'
-import { Database } from '@/types/database.types'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Brain, FileText, Lightbulb, TrendingUp, Trophy } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Activity, Network, Rewind, Calendar as CalendarIcon, FileText } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function DashboardPage() {
     const { user } = useAuth()
     const supabase = createClient()
     const [loading, setLoading] = useState(true)
-    const [stats, setStats] = useState({
-        totalNotes: 0,
-        permanentNotes: 0,
-        fleetingNotes: 0,
-        totalXP: 0,
-        streak: 0
-    })
     const [profile, setProfile] = useState<{ codex_name: string | null } | null>(null)
-    const [achievements, setAchievements] = useState<any[]>([])
-    const [userAchievements, setUserAchievements] = useState<Set<string>>(new Set())
+
+    // Thinking Profile Metrics
+    const [metrics, setMetrics] = useState({
+        totalNotes: 0,
+        permanentCount: 0,
+        connectionCount: 0,
+        connectionDensity: 0, // Links per note
+        activityMap: new Map<string, number>(), // date -> count
+        revisits: [] as any[] // List of self-citations to older notes
+    })
 
     useEffect(() => {
         if (!user) return
@@ -35,196 +35,234 @@ export default function DashboardPage() {
                 .select('codex_name')
                 .eq('id', user.id)
                 .single()
-
             setProfile(profileData)
 
-            // 2. Fetch Notes Stats
+            // 2. Fetch Notes (for Counts & Heatmap)
+            // We need created_at to build the rhythm map
             const { data: notes } = await supabase
                 .from('notes')
-                .select('type, created_at')
+                .select('id, title, type, created_at')
                 .eq('user_id', user.id)
-                .returns<{ type: 'fleeting' | 'permanent' | 'source', created_at: string }[]>()
+                .order('created_at', { ascending: false })
 
             if (notes) {
                 const totalNotes = notes.length
-                const permanentNotes = notes.filter(n => n.type === 'permanent').length
-                const fleetingNotes = notes.filter(n => n.type === 'fleeting').length
-                const dates = [...new Set(notes.map(n => new Date(n.created_at).toDateString()))].sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-                const today = new Date().toDateString()
-                let streak = 0
-                if (dates.includes(today)) streak = 1
-                // Simplified streak for now
+                const permanentCount = notes.filter(n => n.type === 'permanent').length
 
-                // 3. Fetch Points
-                const { data: points } = await supabase
-                    .from('points')
-                    .select('amount')
+                // Build Activity Map (Production Rhythm)
+                const activityMap = new Map<string, number>()
+                notes.forEach(note => {
+                    const date = new Date(note.created_at).toISOString().split('T')[0]
+                    activityMap.set(date, (activityMap.get(date) || 0) + 1)
+                })
+
+                // 3. Fetch Connections (for Density & Revisitation)
+                const { data: connections } = await supabase
+                    .from('connections')
+                    .select('source_note_id, target_note_id, created_at')
                     .eq('user_id', user.id)
-                    .returns<{ amount: number }[]>()
 
-                const totalXP = points?.reduce((acc, curr) => acc + curr.amount, 0) || 0
+                const validConnections = connections || []
+                const connectionCount = validConnections.length
+                const connectionDensity = totalNotes > 0 ? (connectionCount / totalNotes) : 0
 
-                setStats({
+                // 4. Calculate Revisitation (Self-citations > 7 days old)
+                // We need to look up the created_at of the TARGET note to compare.
+                // Since we already fetched all USER notes in step 2, we can generate a lookup map.
+                const noteDateMap = new Map<string, string>(); // id -> created_at
+                const noteTitleMap = new Map<string, string>(); // id -> title
+                notes.forEach(n => {
+                    noteDateMap.set(n.id, n.created_at)
+                    noteTitleMap.set(n.id, n.title)
+                })
+
+                const revisits: any[] = []
+                validConnections.forEach(conn => {
+                    const sourceDate = noteDateMap.get(conn.source_note_id)
+                    const targetDate = noteDateMap.get(conn.target_note_id)
+
+                    // Only count if both notes belong to user (Self-revisitation)
+                    if (sourceDate && targetDate) {
+                        const sTime = new Date(sourceDate).getTime()
+                        const tTime = new Date(targetDate).getTime()
+                        const dayDiff = (sTime - tTime) / (1000 * 3600 * 24)
+
+                        // If source is significantly newer than target (> 7 days)
+                        // It means we revisited an old idea in a new note
+                        if (dayDiff > 7) {
+                            revisits.push({
+                                sourceTitle: noteTitleMap.get(conn.source_note_id),
+                                targetTitle: noteTitleMap.get(conn.target_note_id),
+                                date: conn.created_at,
+                                ageGap: Math.floor(dayDiff)
+                            })
+                        }
+                    }
+                })
+
+                // Sort revisits by connection creation date (newest first)
+                revisits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+                setMetrics({
                     totalNotes,
-                    permanentNotes,
-                    fleetingNotes,
-                    totalXP,
-                    streak
+                    permanentCount,
+                    connectionCount,
+                    connectionDensity,
+                    activityMap,
+                    revisits: revisits.slice(0, 5) // Top 5 recent revisits
                 })
             }
-
-            // 4. Fetch Achievements
-            const { data: allAchievements } = await supabase
-                .from('achievements')
-                .select('*')
-                .order('xp_reward', { ascending: true })
-                .returns<any[]>()
-
-            const { data: myAchievements } = await supabase
-                .from('user_achievements')
-                .select('achievement_id')
-                .eq('user_id', user.id)
-                .returns<any[]>()
-
-            setAchievements(allAchievements || [])
-            setUserAchievements(new Set(myAchievements?.map(a => a.achievement_id) || []))
-
             setLoading(false)
         }
         fetchData()
     }, [user, supabase])
+
+    // Constants for Heatmap
+    const getHeatmapData = () => {
+        const today = new Date()
+        const days = []
+        // Show last 60 days
+        for (let i = 59; i >= 0; i--) {
+            const d = new Date()
+            d.setDate(today.getDate() - i)
+            const dateStr = d.toISOString().split('T')[0]
+            days.push({
+                date: d,
+                count: metrics.activityMap.get(dateStr) || 0
+            })
+        }
+        return days
+    }
 
     if (loading) return <div className="p-8"><Skeleton className="h-48 w-full" /></div>
 
     return (
         <div className="flex flex-col gap-8 p-8 max-w-5xl mx-auto">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-3xl font-bold text-primary border-2 border-primary">
+            <div className="flex items-center gap-4 border-b pb-6">
+                <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center text-3xl font-bold text-secondary-foreground">
                     {profile?.codex_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase()}
                 </div>
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">
-                        {profile?.codex_name || "Student"}
+                        Thinking Profile
                     </h1>
                     <p className="text-muted-foreground">
-                        {user?.email} • Level {Math.floor(stats.totalXP / 100) + 1} Scribe
+                        {profile?.codex_name || "Student"} • {user?.email}
                     </p>
                 </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total XP</CardTitle>
-                        <Trophy className="h-4 w-4 text-muted-foreground" />
+            {/* Metrics Grid */}
+            <div className="grid gap-4 md:grid-cols-3">
+
+                {/* 1. Production Rhythm (Heatmap) */}
+                <Card className="col-span-1 md:col-span-3 lg:col-span-1">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <CalendarIcon className="h-4 w-4" /> Production Rhythm
+                        </CardTitle>
+                        <CardDescription>Consistency over time</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalXP}</div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                            {getHeatmapData().map((day, i) => (
+                                <div
+                                    key={i}
+                                    title={`${day.date.toDateString()}: ${day.count} notes`}
+                                    className={`w-3 h-3 rounded-sm ${day.count === 0 ? 'bg-muted' :
+                                            day.count === 1 ? 'bg-indigo-300 dark:bg-indigo-900' :
+                                                day.count < 3 ? 'bg-indigo-500' :
+                                                    'bg-indigo-700'
+                                        }`}
+                                />
+                            ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-3">Last 60 days of activity.</p>
+                    </CardContent>
+                </Card>
+
+                {/* 2. Connection Density */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <Network className="h-4 w-4" /> Connection Density
+                        </CardTitle>
+                        <CardDescription>Interconnectedness of ideas</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{metrics.connectionDensity.toFixed(2)}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Average links per note.
+                            {metrics.connectionDensity < 0.5 ? " Ideas are mostly isolated." :
+                                metrics.connectionDensity < 1.5 ? " Developing a web of thought." :
+                                    " Highly interconnected Codex."}
+                        </p>
+                        <div className="mt-4 text-xs flex gap-4 text-muted-foreground">
+                            <span>{metrics.totalNotes} Notes</span>
+                            <span>{metrics.connectionCount} Connections</span>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 3. Volume / Type */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <FileText className="h-4 w-4" /> Codex Composition
+                        </CardTitle>
+                        <CardDescription>Form of your knowledge base</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{metrics.permanentCount} <span className="text-sm text-muted-foreground font-normal">Permanent Notes</span></div>
                         <div className="w-full bg-secondary h-2 mt-2 rounded-full overflow-hidden">
                             <div
                                 className="bg-primary h-full"
-                                style={{ width: `${(stats.totalXP % 100)}%` }}
+                                style={{ width: metrics.totalNotes > 0 ? `${(metrics.permanentCount / metrics.totalNotes) * 100}%` : '0%' }}
                             />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            {100 - (stats.totalXP % 100)} XP to next level
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Notes</CardTitle>
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalNotes}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {stats.permanentNotes} Permanent • {stats.fleetingNotes} Fleeting
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Knowledge Score</CardTitle>
-                        <Brain className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{(stats.permanentNotes * 2.5).toFixed(0)}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Based on permanent notes quality
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.streak} Days</div>
-                        <p className="text-xs text-muted-foreground">
-                            Keep writing daily!
+                        <p className="text-xs text-muted-foreground mt-2">
+                            {metrics.totalNotes - metrics.permanentCount} items in Fleeting/Inbox.
                         </p>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Main Content Area */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                {/* Recent Activity */}
-                <Card className="col-span-4">
+            {/* Revisitation Section */}
+            <div className="grid gap-4 md:grid-cols-2">
+                <Card className="col-span-2">
                     <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
+                        <CardTitle className="flex items-center gap-2">
+                            <Rewind className="h-5 w-5 text-indigo-500" />
+                            Revisitation & Intellectual Return
+                        </CardTitle>
+                        <CardDescription>
+                            Recent moments where you connected new thinking to established ideas.
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground text-sm">No recent activity recorded.</p>
-                    </CardContent>
-                </Card>
-
-                {/* Achievements List */}
-                <Card className="col-span-3">
-                    <CardHeader>
-                        <CardTitle>Achievements</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col gap-3">
-                            {achievements.map((achievement) => {
-                                const isUnlocked = userAchievements.has(achievement.id)
-                                return (
-                                    <div
-                                        key={achievement.id}
-                                        className={`flex items-center gap-3 p-3 rounded-lg border ${isUnlocked
-                                            ? 'bg-primary/5 border-primary/20'
-                                            : 'bg-muted/50 border-muted opacity-70'
-                                            }`}
-                                    >
-                                        <div className={`text-2xl ${!isUnlocked && 'grayscale'}`}>
-                                            {achievement.icon || '🏆'}
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-center">
-                                                <h4 className={`font-semibold text-sm ${isUnlocked ? 'text-primary' : 'text-muted-foreground'}`}>
-                                                    {achievement.name}
-                                                </h4>
-                                                {isUnlocked && (
-                                                    <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
-                                                        +{achievement.xp_reward} XP
-                                                    </span>
-                                                )}
+                        {metrics.revisits.length === 0 ? (
+                            <div className="text-sm text-muted-foreground py-4 italic">
+                                No recent revisitations detected. Try linking a new note to an idea from last week.
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {metrics.revisits.map((rev, i) => (
+                                    <div key={i} className="flex items-center justify-between border-b last:border-0 pb-3 last:pb-0">
+                                        <div className="space-y-1">
+                                            <div className="text-sm">
+                                                <span className="font-medium text-foreground">{rev.sourceTitle}</span>
+                                                <span className="text-muted-foreground mx-2">linked back to</span>
+                                                <span className="font-medium text-foreground">{rev.targetTitle}</span>
                                             </div>
-                                            <p className="text-xs text-muted-foreground">
-                                                {achievement.description}
-                                            </p>
+                                            <div className="text-xs text-muted-foreground">
+                                                Original idea was {rev.ageGap} days old.
+                                            </div>
                                         </div>
                                     </div>
-                                )
-                            })}
-                            {achievements.length === 0 && (
-                                <p className="text-sm text-muted-foreground">No achievements available yet.</p>
-                            )}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

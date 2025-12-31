@@ -3,7 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '')
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+// Fallback models in priority order
+const MODELS = [
+    "gemini-2.5-flash-lite", // 10 RPM
+    "gemini-2.5-flash"       // 5 RPM
+]
 
 // Types for Evaluation
 export type DiagnosticResult = {
@@ -59,26 +63,34 @@ export async function evaluateNote(noteId: string): Promise<DiagnosticResult | {
     }
     `
 
-    try {
-        const result = await model.generateContent(prompt)
-        const responseText = result.response.text()
+    // 3. Try models in sequence
+    for (const modelName of MODELS) {
+        try {
+            console.log(`[Diagnostic] Trying model: ${modelName}`)
+            const model = genAI.getGenerativeModel({ model: modelName })
+            const result = await model.generateContent(prompt)
+            const responseText = result.response.text()
 
-        // Clean markdown code blocks if any
-        const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim()
-        const data = JSON.parse(cleanedText) as DiagnosticResult
+            // Clean markdown code blocks if any
+            const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim()
+            const data = JSON.parse(cleanedText) as DiagnosticResult
 
-        return {
-            isValid: data.isValid,
-            violations: data.violations || [],
-            observations: data.observations || []
+            return {
+                isValid: data.isValid,
+                violations: data.violations || [],
+                observations: data.observations || []
+            }
+
+        } catch (e: any) {
+            console.warn(`[Diagnostic] Model ${modelName} failed:`, e.message?.substring(0, 100))
+            // Continue to next model
         }
-
-    } catch (e) {
-        console.error("Gemini Evaluation Error:", e)
-        // Fallback to basic local check if AI fails
-        const localCheck = basicLocalCheck(note.title, note.content)
-        return localCheck
     }
+
+    // 4. All models failed, fallback to local
+    console.warn("[Diagnostic] All AI models failed, using local check.")
+    const localCheck = basicLocalCheck(note.title, note.content)
+    return localCheck
 }
 
 function basicLocalCheck(title: string, content: string): DiagnosticResult {

@@ -1,25 +1,24 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getClassStats, getStudentLeaderboard, getTeacherAnalytics } from '@/lib/actions/teacher'
+import { getClassStats, getCodexCheck, getTeacherAnalytics } from '@/lib/actions/teacher'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Users, FileText, Network, ListChecks, Trophy, AlertTriangle, Activity, UserPlus, ChevronRight } from 'lucide-react'
+import { Users, FileText, Network, Activity, Database, AlertTriangle, ChevronRight, Calendar, ListChecks } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { AddSourceDialog } from '@/components/admin/AddSourceDialog'
 import { InviteStudentDialog } from '@/components/admin/InviteStudentDialog'
 import { SimpleTooltip } from '@/components/ui/simple-tooltip'
-
 import { createClient } from '@/lib/supabase/client'
 import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { useRouter } from 'next/navigation'
 import { generateAllEmbeddings } from '@/lib/actions/admin-ai'
 import { toast } from 'sonner'
-import { Database } from 'lucide-react'
 
 // Load Graph dynamically
 const ForceGraph = dynamic(() => import('@/components/graph/force-graph'), {
@@ -32,20 +31,22 @@ export default function TeacherDashboard() {
     const router = useRouter()
 
     const [stats, setStats] = useState<any>(null)
-    const [leaderboard, setLeaderboard] = useState<any[]>([])
+    const [codexReport, setCodexReport] = useState<any[]>([])
     const [graphData, setGraphData] = useState<any>({ nodes: [], links: [] })
     const [loading, setLoading] = useState(true)
+    const [dateRange, setDateRange] = useState("14") // Days back
 
     // SlideOver State
     const [slideOverNote, setSlideOverNote] = useState<any>(null)
 
     useEffect(() => {
         const load = async () => {
+            setLoading(true)
             const { counts } = await getClassStats()
             if (counts) setStats(counts)
 
-            const { data } = await getStudentLeaderboard()
-            if (data) setLeaderboard(data)
+            const { data } = await getCodexCheck(parseInt(dateRange))
+            if (data) setCodexReport(data)
 
             const { graphData } = await getTeacherAnalytics()
             if (graphData) setGraphData(graphData)
@@ -53,11 +54,11 @@ export default function TeacherDashboard() {
             setLoading(false)
         }
         load()
-    }, [])
+    }, [dateRange])
 
-    const atRiskStudents = leaderboard.filter(s => s.isAtRisk)
+    const atRiskStudents = codexReport.filter(s => s.isAtRisk)
 
-    if (loading) return <div className="p-8 flex items-center justify-center h-screen">Initializing Assessment Procedures...</div>
+    if (loading && codexReport.length === 0) return <div className="p-8 flex items-center justify-center h-screen">Initializing Command Center...</div>
 
     return (
         <div className="flex flex-col h-full overflow-hidden bg-background">
@@ -120,159 +121,150 @@ export default function TeacherDashboard() {
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <SimpleTooltip content="Students inactive for > 7 days or with < 3 notes">
                                         <div className="flex items-center gap-2 cursor-help">
-                                            <CardTitle className="text-sm font-medium">At Risk Students</CardTitle>
+                                            <CardTitle className="text-sm font-medium">Support Needed</CardTitle>
                                             <AlertTriangle className={`h-4 w-4 ${atRiskStudents.length > 0 ? "text-red-500" : "text-muted-foreground"}`} />
                                         </div>
                                     </SimpleTooltip>
                                 </CardHeader>
                                 <CardContent>
                                     <div className={`text-2xl font-bold ${atRiskStudents.length > 0 ? "text-red-500" : ""}`}>{atRiskStudents.length}</div>
-                                    <p className="text-xs text-muted-foreground">Require intervention</p>
+                                    <p className="text-xs text-muted-foreground">Check in required</p>
                                 </CardContent>
                             </Card>
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <SimpleTooltip content="Average notes created per active student this week">
+                                    <SimpleTooltip content="% of active students in selected range">
                                         <div className="flex items-center gap-2 cursor-help">
-                                            <CardTitle className="text-sm font-medium">Engagement Score</CardTitle>
-                                            <Activity className="h-4 w-4 text-muted-foreground" />
+                                            <CardTitle className="text-sm font-medium">Active Cohort</CardTitle>
+                                            <Users className="h-4 w-4 text-muted-foreground" />
                                         </div>
                                     </SimpleTooltip>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold">87%</div>
-                                    <p className="text-xs text-muted-foreground">Average weekly activity</p>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Class Knowledge Graph */}
-                        <Card className="col-span-4 border-primary/20 bg-card/50 overflow-hidden relative z-0">
-                            <CardHeader>
-                                <CardTitle>Class Neural Network</CardTitle>
-                                <CardDescription>Visualizing the collective intelligence of the cohort. Violet nodes are students, others are public notes.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="p-0 h-[400px]">
-                                <ForceGraph
-                                    data={graphData}
-                                    nodeRelSize={6}
-                                    onNodeClick={async (node) => {
-                                        if (node.type === 'student') {
-                                            router.push(`/admin/student/${node.id}`)
-                                        } else {
-                                            // Fetch Note Content
-                                            const { data } = await supabase.from('notes').select('*').eq('id', node.id).single()
-                                            if (data) setSlideOverNote(data)
-                                        }
-                                    }}
-                                />
-                            </CardContent>
-                        </Card>
-
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 relative z-50">
-                            {/* At Risk List */}
-                            <Card className="col-span-3 shadow-sm">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <AlertTriangle className="h-5 w-5 text-red-500" />
-                                        Intervention Needed
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {atRiskStudents.length === 0 ? (
-                                        <div className="text-center p-4 text-muted-foreground">All systems nominal.</div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {atRiskStudents.map(student => (
-                                                <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg bg-background">
-                                                    <div>
-                                                        <div className="font-semibold">{student.name}</div>
-                                                        <div className="text-xs text-red-500">
-                                                            {student.daysInactive > 7 ? `${student.daysInactive} days inactive` : 'Low participation'}
-                                                        </div>
-                                                    </div>
-                                                    <Link href={`/admin/student/${student.id}`}>
-                                                        <Button size="sm" variant="outline">View</Button>
-                                                    </Link>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            {/* Top Students */}
-                            <Card className="col-span-4 shadow-sm bg-card" style={{ zIndex: 50 }}>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Trophy className="h-5 w-5 text-yellow-500" />
-                                        Top Contributors
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-4 relative z-50">
-                                        {leaderboard.slice(0, 5).map((student, i) => (
-                                            <div
-                                                key={student.id}
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    router.push(`/admin/student/${student.id}`);
-                                                }}
-                                                className="flex items-center justify-between p-3 hover:bg-accent/50 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-accent group relative z-50"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="font-bold text-muted-foreground w-4">{i + 1}</div>
-                                                    <div>
-                                                        <div className="font-medium text-foreground group-hover:text-primary transition-colors font-semibold">
-                                                            {student.name}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">{student.notes} Notes • {student.connections} Connections</div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <Badge variant="secondary">{student.points} XP</Badge>
-                                                    <ChevronRight className="h-4 w-4 opacity-30 group-hover:opacity-100 transition-opacity" />
-                                                </div>
-                                            </div>
-                                        ))}
+                                    <div className="text-2xl font-bold">
+                                        {codexReport.length > 0
+                                            ? Math.round((codexReport.filter(s => !s.isAtRisk).length / codexReport.length) * 100)
+                                            : 0}%
                                     </div>
+                                    <p className="text-xs text-muted-foreground">Active in last {dateRange} days</p>
                                 </CardContent>
                             </Card>
                         </div>
-                    </TabsContent>
 
-                    <TabsContent value="students">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Student Directory</CardTitle>
-                                <CardDescription>Manage student access and view detailed progress.</CardDescription>
+                        {/* Codex Check Section */}
+                        <Card className="col-span-4">
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <ListChecks className="h-5 w-5" />
+                                        Codex Check
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Formative engagement signals. Not for grading.
+                                    </CardDescription>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                                    <Select value={dateRange} onValueChange={setDateRange}>
+                                        <SelectTrigger className="w-[180px]">
+                                            <SelectValue placeholder="Select range" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="7">Last 7 Days</SelectItem>
+                                            <SelectItem value="14">Last 14 Days</SelectItem>
+                                            <SelectItem value="30">Last 30 Days</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 <div className="rounded-md border">
                                     <table className="w-full caption-bottom text-sm text-left">
-                                        <thead className="[&_tr]:border-b">
-                                            <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                                <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Student</th>
-                                                <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Last Active</th>
-                                                <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Status</th>
-                                                <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Actions</th>
+                                        <thead className="[&_tr]:border-b bg-muted/50">
+                                            <tr className="border-b">
+                                                <th className="h-10 px-4 font-medium text-muted-foreground w-[200px]">Student</th>
+                                                <th className="h-10 px-4 font-medium text-muted-foreground">Consistency</th>
+                                                <th className="h-10 px-4 font-medium text-muted-foreground">Connections</th>
+                                                <th className="h-10 px-4 font-medium text-muted-foreground">
+                                                    <SimpleTooltip content="Intellectual return across time">
+                                                        Revisitation
+                                                    </SimpleTooltip>
+                                                </th>
+                                                <th className="h-10 px-4 font-medium text-muted-foreground text-right">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {leaderboard.map((student) => (
-                                                <tr key={student.id} className="border-b transition-colors hover:bg-muted/50">
-                                                    <td className="p-4 align-middle font-medium">{student.name} <br /> <span className="text-xs text-muted-foreground font-normal">{student.email}</span></td>
-                                                    <td className="p-4 align-middle">{student.daysInactive === 999 ? 'Never' : `${student.daysInactive} days ago`}</td>
-                                                    <td className="p-4 align-middle">
-                                                        {student.isAtRisk ?
-                                                            <Badge variant="destructive">At Risk</Badge> :
-                                                            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Active</Badge>
-                                                        }
+                                            {codexReport.map((student) => (
+                                                <tr key={student.id}
+                                                    className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
+                                                    onClick={() => router.push(`/admin/student/${student.id}`)}
+                                                >
+                                                    <td className="p-4 font-medium">
+                                                        {student.name}
+                                                        <div className="text-xs text-muted-foreground font-normal">{student.email}</div>
                                                     </td>
-                                                    <td className="p-4 align-middle">
+                                                    <td className="p-4">
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {student.activeDays} active days / {student.recentNotes} notes
+                                                            </div>
+                                                            {/* Simple sparkline visualization */}
+                                                            <div className="h-1.5 w-24 bg-secondary rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-indigo-500"
+                                                                    style={{ width: `${Math.min((student.activeDays / parseInt(dateRange)) * 100, 100)}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium">{student.recentConnections}</span>
+                                                            <span className="text-xs text-muted-foreground">({student.density.toFixed(1)}/note)</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        {student.revisitationCount > 0 ? (
+                                                            <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                                                                {student.revisitationCount} Returns
+                                                            </Badge>
+                                                        ) : (
+                                                            <span className="text-muted-foreground text-xs">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        {student.isAtRisk ? (
+                                                            <Badge variant="destructive">Check In</Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200">Active</Badge>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                    </TabsContent>
+
+                    <TabsContent value="students">
+                        {/* Directory View (similar to Codex Check but distinct list) */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Full Directory</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="rounded-md border">
+                                    <table className="w-full caption-bottom text-sm text-left">
+                                        <tbody>
+                                            {codexReport.map((student) => (
+                                                <tr key={student.id} className="border-b p-4">
+                                                    <td className="p-4">{student.name}</td>
+                                                    <td className="p-4 text-right">
                                                         <Link href={`/admin/student/${student.id}`}>
-                                                            <Button size="sm" variant="outline">Manage</Button>
+                                                            <Button size="sm" variant="outline">Manage Profile</Button>
                                                         </Link>
                                                     </td>
                                                 </tr>
@@ -285,24 +277,15 @@ export default function TeacherDashboard() {
                     </TabsContent>
 
                     <TabsContent value="sources">
+                        {/* Placeholder for now as Sources are managed at /admin/sources, 
+                            but we can instruct user to go there or embed if desired. 
+                            For now, let's link to the dedicated page. */}
                         <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle>Course Resources</CardTitle>
-                                    <CardDescription>Manage the library of sources available to students.</CardDescription>
-                                </div>
-                                <div className="shrink-0">
-                                    <AddSourceDialog />
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-center p-8 text-muted-foreground border border-dashed rounded-lg bg-muted/5 flex flex-col items-center justify-center gap-4">
-                                    <div>
-                                        <p>Sources added here will appear in the global feed and search.</p>
-                                        <p className="text-sm mt-2">Currently showing 0 managed sources.</p>
-                                    </div>
-                                    <AddSourceDialog />
-                                </div>
+                            <CardContent className="p-8 text-center">
+                                <p className="mb-4">Standardized Sources have moved to their own manager.</p>
+                                <Link href="/admin/sources">
+                                    <Button variant="default">Go to Source Manager</Button>
+                                </Link>
                             </CardContent>
                         </Card>
                     </TabsContent>

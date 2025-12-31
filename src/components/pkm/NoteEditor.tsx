@@ -50,6 +50,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
     // Autocomplete State
     const [users, setUsers] = useState<UserProfile[]>([])
     const [publicNotes, setPublicNotes] = useState<Note[]>([])
+    const [sources, setSources] = useState<any[]>([])
     const [mentionQuery, setMentionQuery] = useState<string | null>(null)
     const [mentionType, setMentionType] = useState<'wiki' | 'mention' | null>(null)
     const [cursorPosition, setCursorPosition] = useState(0)
@@ -82,8 +83,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                 const { data } = await supabase.from('users').select('email, codex_name').eq('id', note.user_id).single()
                 if (data) setAuthor({ email: (data as any).email, codex_name: (data as any).codex_name || undefined })
             } else if (user) {
-                setAuthor({ email: user.email!, codex_name: user?.user_metadata?.codex_name /** we don't have codex in auth user obj easily, skip for now or fetch */ })
-                // Actually better to just skip setting author if it's us, we know it's us.
+                setAuthor({ email: user.email!, codex_name: user?.user_metadata?.codex_name })
             }
 
             // Points
@@ -95,12 +95,14 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
         loadMeta()
 
         const loadAutocompleteData = async () => {
-            const [notesRes, usersRes] = await Promise.all([
+            const [notesRes, usersRes, sourcesRes] = await Promise.all([
                 supabase.from('notes').select('*').eq('is_public', true),
-                supabase.from('users').select('id, email, codex_name')
+                supabase.from('users').select('id, email, codex_name'),
+                supabase.from('sources').select('*')
             ])
             if (notesRes.data) setPublicNotes(notesRes.data as Note[])
             if (usersRes.data) setUsers(usersRes.data as UserProfile[])
+            if (sourcesRes.data) setSources(sourcesRes.data)
         }
         loadAutocompleteData()
     }, [note.id, supabase, user, note.user_id, note.updated_at, note.title, note.content]) // Cleaned up deps
@@ -202,9 +204,15 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
         if (mentionQuery !== null && mentionType) {
             if (e.key === 'Enter' || e.key === 'Tab') {
                 e.preventDefault()
-                let match = null
+                let match: any = null
                 if (mentionType === 'wiki') {
-                    match = publicNotes.find(n => n.title.toLowerCase().includes(mentionQuery.toLowerCase()) && n.id !== note.id)
+                    // Search Notes + Sources
+                    const noteMatch = publicNotes.find(n => n.title.toLowerCase().includes(mentionQuery.toLowerCase()) && n.id !== note.id)
+                    if (noteMatch) {
+                        match = noteMatch
+                    } else {
+                        match = sources.find(s => s.title.toLowerCase().includes(mentionQuery.toLowerCase()))
+                    }
                 } else {
                     match = users.find(u => u.email.toLowerCase().includes(mentionQuery.toLowerCase()) || (u.codex_name && u.codex_name.toLowerCase().includes(mentionQuery.toLowerCase())))
                 }
@@ -414,9 +422,14 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                                     {mentionType === 'wiki' ? 'Link to Note' : 'Mention User'}
                                 </div>
                                 {(() => {
-                                    const items = mentionType === 'wiki'
-                                        ? publicNotes.filter(n => n.title.toLowerCase().includes(mentionQuery.toLowerCase()) && n.id !== note.id)
-                                        : users.filter(u => u.email.toLowerCase().includes(mentionQuery.toLowerCase()) || (u.codex_name && u.codex_name.toLowerCase().includes(mentionQuery.toLowerCase())))
+                                    let items: any[] = []
+                                    if (mentionType === 'wiki') {
+                                        const matchedNotes = publicNotes.filter(n => n.title.toLowerCase().includes(mentionQuery.toLowerCase()) && n.id !== note.id)
+                                        const matchedSources = sources.filter(s => s.title.toLowerCase().includes(mentionQuery.toLowerCase()))
+                                        items = [...matchedSources, ...matchedNotes]
+                                    } else {
+                                        items = users.filter(u => u.email.toLowerCase().includes(mentionQuery.toLowerCase()) || (u.codex_name && u.codex_name.toLowerCase().includes(mentionQuery.toLowerCase())))
+                                    }
 
                                     if (items.length === 0) return <div className="text-xs p-2 italic text-muted-foreground">No matches</div>
 
@@ -426,8 +439,15 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                                             className="flex items-center w-full p-2 text-sm rounded-sm hover:bg-accent text-left"
                                             onClick={() => insertLink(item)}
                                         >
-                                            {mentionType === 'wiki' ? <BookOpen className="h-3 w-3 mr-2" /> : <ExternalLink className="h-3 w-3 mr-2" />}
-                                            <span className="truncate">{item.title || item.codex_name || item.email}</span>
+                                            {mentionType === 'wiki' ? (
+                                                item.url !== undefined ? // Is Source (has url field, optional) or check type
+                                                    <BookOpen className="h-3 w-3 mr-2 text-indigo-500" /> :
+                                                    <ExternalLink className="h-3 w-3 mr-2" />
+                                            ) : <ExternalLink className="h-3 w-3 mr-2" />}
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="truncate">{item.title || item.codex_name || item.email}</span>
+                                                {item.author && <span className="text-[10px] text-muted-foreground truncate">by {item.author}</span>}
+                                            </div>
                                         </button>
                                     ))
                                 })()}

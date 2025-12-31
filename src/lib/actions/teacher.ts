@@ -41,8 +41,13 @@ export async function getClassStats() {
     }
 }
 
-export async function getStudentLeaderboard() {
+// Renamed from getStudentLeaderboard to reflect usage
+export async function getCodexCheck(daysBack: number = 14) {
     const supabase = await createClient()
+
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - daysBack)
+    const startDateStr = startDate.toISOString()
 
     // Get all users
     const { data: users } = await (supabase as any).from('users').select('id, codex_name, email')
@@ -50,12 +55,23 @@ export async function getStudentLeaderboard() {
     if (!users) return { data: [] }
 
     // Aggregate stats for each user
-    const leaderboard = await Promise.all((users as any[]).map(async (user: any) => {
-        const { count: notes } = await (supabase as any).from('notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
-        const { count: connections } = await (supabase as any).from('connections').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
-        const { count: comments } = await (supabase as any).from('comments').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+    const reports = await Promise.all((users as any[]).map(async (user: any) => {
 
-        // Fetch last activity
+        // 1. Fetch Notes in Range
+        const { data: recentNotes } = await (supabase as any)
+            .from('notes')
+            .select('id, created_at, type')
+            .eq('user_id', user.id)
+            .gte('created_at', startDateStr)
+
+        // 2. Fetch Connections in Range
+        const { data: recentConnections } = await (supabase as any)
+            .from('connections')
+            .select('id, source_note_id, target_note_id')
+            .eq('user_id', user.id)
+            .gte('created_at', startDateStr)
+
+        // 3. Last Active Check
         const { data: lastNote } = await (supabase as any)
             .from('notes')
             .select('updated_at')
@@ -67,28 +83,65 @@ export async function getStudentLeaderboard() {
         const lastActive = lastNote?.updated_at ? new Date(lastNote.updated_at) : null
         const daysInactive = lastActive ? Math.floor((Date.now() - lastActive.getTime()) / (1000 * 60 * 60 * 24)) : 999
 
-        // At Risk Logic
-        // 1. Inactive > 7 days
-        // 2. < 3 Notes total
-        const isAtRisk = daysInactive > 7 || (notes || 0) < 3
+        // 4. Activity Distribution (Consistency)
+        // Group recent notes by date
+        const validRecentNotes = recentNotes || []
+        const activityMap = new Map<string, number>()
+        validRecentNotes.forEach((n: any) => {
+            const d = new Date(n.created_at).toISOString().split('T')[0]
+            activityMap.set(d, (activityMap.get(d) || 0) + 1)
+        })
+        const activeDays = activityMap.size
 
-        const points = (notes || 0) * 2 + (connections || 0) * 1 + (comments || 0) * 1
+        // 5. Connection Density (in range)
+        const noteCount = validRecentNotes.length
+        const connectionCount = recentConnections?.length || 0
+        const density = noteCount > 0 ? connectionCount / noteCount : 0
+
+        // 6. Revisitation (Approximation for list view)
+        // Ideally we check if connections link to OLD notes.
+        // For efficiency in list view, we might skip deep checks or optimize.
+        // Let's do a quick check: are targets created before startDate?
+        let revisitationCount = 0
+        if (connectionCount > 0) {
+            const targetIds = recentConnections?.map((c: any) => c.target_note_id) || []
+            if (targetIds.length > 0) {
+                const { count } = await (supabase as any)
+                    .from('notes')
+                    .select('*', { count: 'exact', head: true })
+                    .in('id', targetIds)
+                    .lt('created_at', startDateStr) // created BEFORE the window
+                revisitationCount = count || 0
+            }
+        }
+
+        // At Risk Logic
+        // Inactive > 7 days OR Zero notes in window (if window > 3 days)
+        const isAtRisk = daysInactive > 7 || (daysBack > 3 && noteCount === 0)
 
         return {
             id: user.id,
             name: user.codex_name || user.email,
             email: user.email,
-            notes: notes || 0,
-            connections: connections || 0,
-            comments: comments || 0,
-            points,
+            recentNotes: noteCount,
+            recentConnections: connectionCount,
+            activeDays, // "Consistency"
+            density,
+            revisitationCount,
             daysInactive,
             isAtRisk
         }
     }))
 
-    // Sort by points
-    return { data: leaderboard.sort((a, b) => b.points - a.points) }
+    // Sort by At Risk (true first), then Name
+    return {
+        data: reports.sort((a, b) => {
+            if (a.isAtRisk === b.isAtRisk) {
+                return a.name.localeCompare(b.name)
+            }
+            return a.isAtRisk ? -1 : 1
+        })
+    }
 }
 
 export async function getTeacherAnalytics() {
