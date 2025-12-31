@@ -86,8 +86,8 @@ export async function checkAndUnlockAchievements(userId: string) {
                     user_id: userId,
                     type: 'achievement',
                     title: 'Achievement Unlocked!',
-                    message: `You unlocked "${ach.name}" and earned ${ach.xp_reward} XP!`,
-                    link: '/dashboard'
+                    message: `You unlocked "${ach.name}"!`,
+                    link_url: '/dashboard'
                 })
             }
         }

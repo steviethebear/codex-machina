@@ -24,7 +24,6 @@ export default function UserProfilePage() {
     const [loading, setLoading] = useState(true)
     const [profile, setProfile] = useState<{ codex_name: string | null } | null>(null)
     const [notes, setNotes] = useState<Note[]>([])
-    const [totalXP, setTotalXP] = useState(0)
     const [isAdmin, setIsAdmin] = useState(false)
 
     // SlideOver State
@@ -76,7 +75,7 @@ export default function UserProfilePage() {
                     .eq('is_public', true)
                     .order('updated_at', { ascending: false })
 
-                if (data) notesData = data as Note[]
+                if (data) notesData = data as any as Note[]
                 notesError = error
             }
 
@@ -86,15 +85,6 @@ export default function UserProfilePage() {
             } else {
                 setNotes(notesData)
             }
-
-            // 3. Fetch Points
-            const { data: points } = await supabase
-                .from('points')
-                .select('amount')
-                .eq('user_id', userId)
-
-            const xp = (points as any[])?.reduce((acc, curr) => acc + curr.amount, 0) || 0
-            setTotalXP(xp)
 
             setLoading(false)
         }
@@ -117,7 +107,7 @@ export default function UserProfilePage() {
                         {profile.codex_name || "Unknown Scholar"}
                     </h1>
                     <p className="text-muted-foreground">
-                        Level {Math.floor(totalXP / 100) + 1} Scribe • {notes.length} Public Scrolls
+                        {notes.length} Public Scrolls
                     </p>
                 </div>
             </div>
@@ -184,7 +174,7 @@ function AchievementsList({ userId }: { userId: string }) {
             const { data: allAchievements } = await supabase
                 .from('achievements')
                 .select('*')
-                .order('xp_reward', { ascending: true })
+                .order('name', { ascending: true }) // Sort by Name instead of XP
 
             const { data: myAchievements } = await supabase
                 .from('user_achievements')
@@ -199,11 +189,6 @@ function AchievementsList({ userId }: { userId: string }) {
     }, [userId, supabase])
 
     if (loading) return <Skeleton className="h-48 w-full" />
-
-    // Only show unlocked achievements on public profile?
-    // Or show all but greyscale? Let's show all but greyscale for now so people can see what they have.
-    // Actually, usually on public profiles you only show what they HAVE.
-    // Let's filter for ONLY unlocked ones for the public profile to keep it clean.
 
     const unlockedList = achievements.filter(a => userAchievements.has(a.id))
 
@@ -226,9 +211,6 @@ function AchievementsList({ userId }: { userId: string }) {
                             <h4 className="font-semibold text-sm text-primary">
                                 {achievement.name}
                             </h4>
-                            <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
-                                {achievement.xp_reward} XP
-                            </span>
                         </div>
                         <p className="text-xs text-muted-foreground">
                             {achievement.description}

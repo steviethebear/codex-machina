@@ -23,13 +23,30 @@ export default function DashboardPage() {
         revisits: [] as any[] // List of self-citations to older notes
     })
 
+    const [unlocked, setUnlocked] = useState(false)
+
     useEffect(() => {
         if (!user) return
 
         const fetchData = async () => {
             setLoading(true)
 
+            // 0. Check Unlock Status
+            const { data: unlockData } = await supabase
+                .from('unlocks')
+                .select('feature')
+                .eq('user_id', user.id)
+                .eq('feature', 'thinking_profile')
+                .single()
+
+            if (!unlockData) {
+                setLoading(false)
+                return // Remain locked
+            }
+            setUnlocked(true)
+
             // 1. Fetch Profile
+            // ... (rest of fetch logic)
             const { data: profileData } = await supabase
                 .from('users')
                 .select('codex_name')
@@ -136,6 +153,23 @@ export default function DashboardPage() {
 
     if (loading) return <div className="p-8"><Skeleton className="h-48 w-full" /></div>
 
+    if (!unlocked) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 min-h-[60vh] text-center max-w-lg mx-auto">
+                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-6">
+                    <Activity className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight mb-2">Thinking Profile</h1>
+                <p className="text-muted-foreground mb-8">
+                    Your thinking profile is currently forming. This view tracks the natural rhythms and patterns of your mind as they emerge over time.
+                </p>
+                <div className="bg-muted/30 p-4 rounded-lg text-sm text-left w-full text-muted-foreground italic">
+                    "We do not learn from experience... we learn from reflecting on experience."
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="flex flex-col gap-8 p-8 max-w-5xl mx-auto">
             {/* Header */}
@@ -171,9 +205,9 @@ export default function DashboardPage() {
                                     key={i}
                                     title={`${day.date.toDateString()}: ${day.count} notes`}
                                     className={`w-3 h-3 rounded-sm ${day.count === 0 ? 'bg-muted' :
-                                            day.count === 1 ? 'bg-indigo-300 dark:bg-indigo-900' :
-                                                day.count < 3 ? 'bg-indigo-500' :
-                                                    'bg-indigo-700'
+                                        day.count === 1 ? 'bg-indigo-300 dark:bg-indigo-900' :
+                                            day.count < 3 ? 'bg-indigo-500' :
+                                                'bg-indigo-700'
                                         }`}
                                 />
                             ))}

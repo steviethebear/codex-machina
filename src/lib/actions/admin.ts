@@ -35,8 +35,14 @@ export async function getStudentProfile(studentId: string) {
         .order('created_at', { ascending: false })
         .returns<Database['public']['Tables']['points']['Row'][]>()
 
+    // 4. Fetch Unlocks
+    const { data: unlocks } = await supabase
+        .from('unlocks')
+        .select('*')
+        .eq('user_id', studentId)
+
     return {
-        profile,
+        profile: { ...profile, unlocks: unlocks || [] },
         notes: notes || [],
         points: points || []
     }

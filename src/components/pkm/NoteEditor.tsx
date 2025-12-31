@@ -57,7 +57,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     const [author, setAuthor] = useState<{ email: string, codex_name?: string } | null>(null)
-    const [points, setPoints] = useState<number>(0)
+
 
     // Force exit edit mode if note becomes permanent
     useEffect(() => {
@@ -86,23 +86,18 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                 setAuthor({ email: user.email!, codex_name: user?.user_metadata?.codex_name })
             }
 
-            // Points
-            const { data: pointsData } = await supabase.from('points').select('amount').eq('source_id', note.id)
-            if (pointsData) {
-                setPoints((pointsData as any[]).reduce((acc, curr) => acc + curr.amount, 0))
-            }
         }
         loadMeta()
 
         const loadAutocompleteData = async () => {
-            const [notesRes, usersRes, sourcesRes] = await Promise.all([
+            const [notesRes, usersRes, textsRes] = await Promise.all([
                 supabase.from('notes').select('*').eq('is_public', true),
                 supabase.from('users').select('id, email, codex_name'),
-                supabase.from('sources').select('*')
+                supabase.from('texts').select('*')
             ])
             if (notesRes.data) setPublicNotes(notesRes.data as Note[])
             if (usersRes.data) setUsers(usersRes.data as UserProfile[])
-            if (sourcesRes.data) setSources(sourcesRes.data)
+            if (textsRes.data) setSources(textsRes.data)
         }
         loadAutocompleteData()
     }, [note.id, supabase, user, note.user_id, note.updated_at, note.title, note.content]) // Cleaned up deps
@@ -323,8 +318,6 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                             {note.type === 'fleeting' && <Badge variant="secondary"><Lightbulb className="h-3 w-3 mr-1" /> Inbox</Badge>}
                             {note.type === 'permanent' && <Badge variant="secondary"><Brain className="h-3 w-3 mr-1" /> Note</Badge>}
                             {note.type === 'source' && <Badge variant="secondary"><BookOpen className="h-3 w-3 mr-1" /> Source</Badge>}
-                            {/* Points Badge */}
-                            {points > 0 && <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">{points} XP</Badge>}
                             {/* Author Badge (if not owner) */}
                             {author && note.user_id !== user?.id && (
                                 <span className="text-xs font-medium text-muted-foreground px-2 py-0.5 rounded-full bg-muted">

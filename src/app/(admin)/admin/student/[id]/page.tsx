@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/dialog"
 import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
+import { toggleUnlock } from '@/lib/actions/unlocks'
+import { Switch } from '@/components/ui/switch'
 
 export default function StudentDetailPage() {
     const params = useParams()
@@ -198,6 +200,7 @@ export default function StudentDetailPage() {
             <Tabs defaultValue="notes" className="space-y-6">
                 <TabsList>
                     <TabsTrigger value="notes">Notes Management</TabsTrigger>
+                    <TabsTrigger value="capabilities">Capabilities</TabsTrigger>
                     <TabsTrigger value="history">XP History</TabsTrigger>
                     <TabsTrigger value="security" className="text-orange-600 data-[state=active]:text-orange-700">Account Security</TabsTrigger>
                 </TabsList>
@@ -339,6 +342,46 @@ export default function StudentDetailPage() {
                             </CardContent>
                         </Card>
                     </div>
+                </TabsContent>
+                <TabsContent value="capabilities">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Unlocked Capabilities</CardTitle>
+                            <CardDescription>Manually grant or revoke system capabilities.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-6">
+                                {[
+                                    { key: 'thinking_profile', label: 'Thinking Profile', desc: 'Visualization of engagement patterns (rhythm, density).' },
+                                    { key: 'graph_view', label: 'Knowledge Graph', desc: 'Network visualization of notes and connections.' },
+                                    { key: 'deep_breadcrumbs', label: 'Extended Breadcrumbs', desc: 'Longer history and persistence.' }
+                                ].map((cap) => {
+                                    const isUnlocked = profile?.unlocks?.some((u: any) => u.feature === cap.key)
+                                    return (
+                                        <div key={cap.key} className="flex items-center justify-between p-4 border rounded-lg">
+                                            <div>
+                                                <div className="font-medium">{cap.label}</div>
+                                                <div className="text-xs text-muted-foreground">{cap.desc}</div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    checked={isUnlocked}
+                                                    onCheckedChange={async (checked) => {
+                                                        await toggleUnlock(id, cap.key, checked)
+                                                        toast.success(`${cap.label} ${checked ? 'unlocked' : 'locked'}`)
+                                                        loadData()
+                                                    }}
+                                                />
+                                                <span className="text-sm text-muted-foreground w-16 text-right">
+                                                    {isUnlocked ? 'Active' : 'Locked'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
                 </TabsContent>
             </Tabs>
 

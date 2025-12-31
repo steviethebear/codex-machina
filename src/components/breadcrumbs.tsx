@@ -16,9 +16,32 @@ export function Breadcrumbs() {
     const searchParams = useSearchParams()
     const [history, setHistory] = useState<BreadcrumbItem[]>([])
 
-    // Effect to update breadcrumbs based on navigation
-    // Note: In a real app, we might need more complex logic to detect "back" vs "new path".
-    // For now, we'll keep a simple "stack" of the last 5 relevant locations.
+    // Unlock Check
+    const [limit, setLimit] = useState(3)
+
+    useEffect(() => {
+        const checkUnlock = async () => {
+            // We need to import createClient safely or just assume standard
+            // Since this is a component used everywhere, we should be careful about perf.
+            // But checking session storage for specific unlock flag is faster?
+            // Or just verify once per session. 
+            // Let's use the DB.
+            const { createClient } = await import('@/lib/supabase/client')
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+
+            const { data } = await supabase.from('unlocks')
+                .select('feature')
+                .eq('user_id', user.id)
+                .eq('feature', 'deep_breadcrumbs')
+                .single()
+
+            if (data) setLimit(10)
+        }
+        checkUnlock()
+    }, [])
+
     useEffect(() => {
         // Define relevant paths we want to track
         // We only care about main views and reading nodes
@@ -32,9 +55,6 @@ export function Breadcrumbs() {
         else if (pathname === '/graph') label = 'Graph'
         else if (pathname === '/feed') label = 'Class Feed'
         else if (pathname.startsWith('/note/')) {
-            // We can't easily get the note title here without client-side fetching or passing it down.
-            // For MVP, we'll just say "Note".
-            // Ideally, the Note page itself would update the context.
             label = 'Note'
         }
 
@@ -45,17 +65,15 @@ export function Breadcrumbs() {
             const last = prev[prev.length - 1]
             if (last && last.href === href) return prev
 
-            // If we are navigating "back" (e.g. clicking a breadcrumb), we should truncate?
-            // For now, let's just keep a rolling list of where we've been. "Paths of thought".
             const newItem = { label, href }
-            const newHistory = [...prev, newItem].slice(-5) // Keep last 5
+            const newHistory = [...prev, newItem].slice(-limit) // Dynamic limit
 
             // Persist to session storage so it survives refresh
             sessionStorage.setItem('codex-breadcrumbs', JSON.stringify(newHistory))
             return newHistory
         })
 
-    }, [pathname, searchParams])
+    }, [pathname, searchParams, limit])
 
     // Load from session on mount
     useEffect(() => {

@@ -97,11 +97,50 @@ export default function GraphPage() {
         setLoading(false)
     }
 
-    useEffect(() => {
-        fetchData()
-    }, [])
-
+    const [unlocked, setUnlocked] = useState(false)
     const [slideOverNote, setSlideOverNote] = useState<any>(null)
+
+    useEffect(() => {
+        if (!user) return
+        checkUnlock()
+        fetchData()
+    }, [user])
+
+    const checkUnlock = async () => {
+        if (!user) return
+        const { data } = await supabase.from('unlocks')
+            .select('feature')
+            .eq('user_id', user.id)
+            .eq('feature', 'graph_view')
+            .single()
+
+        if (data) setUnlocked(true)
+    }
+
+    // ... (rest of fetch logic in fetchData)
+
+    // Move fetchData outside effect if possible or keep. 
+    // Effect dependency above covers it properly.
+
+    if (loading) return <div className="h-full flex items-center justify-center text-muted-foreground">Loading Graph...</div>
+
+    if (!unlocked) {
+
+        return (
+            <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center p-8 bg-black/95 text-white text-center">
+                <div className="h-20 w-20 rounded-full border-2 border-dashed border-zinc-700 flex items-center justify-center mb-6">
+                    <span className="text-3xl">🕸️</span>
+                </div>
+                <h1 className="text-2xl font-bold mb-2">The Network is Forming</h1>
+                <p className="text-zinc-400 max-w-md mx-auto mb-8">
+                    Your Codex is simply a collection of notes right now. As you weave ideas together, a larger structure will begin to appear here.
+                </p>
+                <Button variant="outline" onClick={() => window.location.href = '/my-notes'}>
+                    Back to Notes
+                </Button>
+            </div>
+        )
+    }
 
     return (
         <div className="h-[calc(100vh-4rem)] w-full relative group bg-black">

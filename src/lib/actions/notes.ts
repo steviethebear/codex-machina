@@ -11,6 +11,7 @@ import { awardPoints } from '@/lib/points'
 import { checkAndUnlockAchievements } from '@/lib/achievements'
 import { createNotification } from '@/lib/notifications'
 import { updateNoteEmbedding } from '@/lib/ai/embeddings'
+import { checkUnlocks } from '@/lib/actions/unlocks'
 
 type Note = Database['public']['Tables']['notes']['Row']
 type NoteInsert = Database['public']['Tables']['notes']['Insert']
@@ -44,6 +45,9 @@ export async function createNote(note: NoteInsert) {
         // Generate Embedding
         await updateNoteEmbedding(data.id)
     }
+
+    // Check for unlocks (fire and forget, or await if critical)
+    await checkUnlocks(data.user_id)
 
     revalidatePath('/dashboard')
     revalidatePath('/my-notes')
@@ -294,6 +298,9 @@ export async function promoteNote(id: string) {
         await awardPoints(note.user_id, totalLinks * 2, 'note_promotion_links', id)
     }
 
+    // Check Unlocks
+    await checkUnlocks(note.user_id)
+
     // 7. Award Mention Points (2 pts per mention to the TARGET)
     const mentionMatches = note.content.match(/@(\w+)/g) || []
     const uniqueMentions = [...new Set(mentionMatches.map((m: any) => m.slice(1)))] // remove @
@@ -328,7 +335,7 @@ export async function promoteNote(id: string) {
                 type: 'mention',
                 title: 'You were mentioned!',
                 message: `${author?.codex_name || 'Someone'} mentioned you in "${note.title}".`,
-                link: `/my-notes?noteId=${note.id}`
+                link_url: `/my-notes?noteId=${note.id}`
             })
         }
     }

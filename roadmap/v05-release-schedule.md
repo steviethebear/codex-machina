@@ -123,7 +123,7 @@ visibility for formative Codex checks.
 - All profiles and dashboards function as **descriptive mirrors**, not performance meters.
 
 ## v0.5.9: Unlockables
-**Status:** Planned
+**Status:** Complete
 
 This release introduces **unlockable features** that emerge from sustained patterns
 of engagement. Unlocks are not rewards, ranks, or achievements; they are
@@ -217,8 +217,113 @@ Exact thresholds are **intentionally opaque to students** and may evolve.
 - Unlockables are not progression bars or levels.
 
 
-## v0.5.10: Bug Fixes
-**Status**: Planned
-- Fix any remaining bugs from previous releases.
-- Consider what needs to be done for beta deployment.
-- Get ready for v0.6.0 by creating release schedule.
+## v0.5.10: Stabilization, Polish, & Readiness
+**Status:** Complete
+
+This release focuses on **stability, clarity, and classroom readiness**. No new core features are introduced. The goal is to ensure that Codex Machina is reliable, interpretable, and trustworthy before broader use and before expanding into v0.6.0.
+
+---
+
+### Primary Goals
+
+- Eliminate residual bugs and edge cases from v0.5.7–v0.5.9
+- Polish language and UI so the system consistently communicates its epistemic stance
+- Verify teacher and student experiences under real classroom conditions
+- Prepare the codebase and product surface for beta deployment
+
+---
+
+### Bug Fixes & Stability
+
+- Resolve any remaining UI or state-sync issues related to:
+  - unlock gating
+  - teacher override toggles
+  - Thinking Profile rendering
+  - Breadcrumb persistence
+- Audit revalidation logic to ensure:
+  - student views update immediately after unlocks or overrides
+  - admin actions propagate reliably
+- Confirm that no deprecated leaderboard, XP, or ranking code paths remain.
+
+---
+
+### UX & Language Polish (High Priority)
+
+- Review all student-facing copy to ensure:
+  - no language implies ranking, progress, or achievement
+  - locked-state messaging remains observational, not prescriptive
+  - unlock notifications remain low-salience and non-celebratory
+- Review teacher-facing language to ensure:
+  - dashboards signal “support” and “patterns,” not evaluation
+  - “Support Needed” states are framed as intervention cues, not deficits
+- Ensure consistency of terms across the app:
+  - Thinking Profile
+  - Paths of Thought
+  - Intellectual Return
+  - Shared Reference Anchors
+
+---
+
+### Teacher Workflow Validation
+
+- Validate the Teacher Dashboard against real Codex Check use cases:
+  - selecting different date ranges
+  - identifying students who need check-ins
+  - quickly accessing representative notes
+- Ensure teacher override actions:
+  - are clearly visible
+  - are reversible
+  - always take precedence over system logic
+- Confirm that teacher views never expose student-facing unlock logic or thresholds.
+
+---
+
+### Performance & Data Integrity
+
+- Review performance of:
+  - signal calculations over longer time ranges
+  - unlock checks triggered during note creation/promote flows
+- Verify database integrity:
+  - no duplicate unlock records
+  - clean rollback when unlocks are revoked
+  - safe handling of deleted notes or users
+- Confirm that AI diagnostics remain:
+  - ephemeral
+  - non-persistent
+  - non-influential beyond form gating
+
+---
+
+### Beta Readiness
+
+- Identify any configuration flags needed for:
+  - enabling/disabling unlockables
+  - teacher-only features
+  - experimental views
+- Prepare internal notes for beta deployment:
+  - known limitations
+  - expected teacher behaviors
+  - things *not* to explain to students yet
+- Confirm rollback strategy if a feature needs to be temporarily disabled.
+
+---
+
+### Forward Planning (v0.6.0)
+
+- Draft the v0.6.0 release schedule, informed by:
+  - classroom use of unlockables
+  - teacher feedback on Codex Checks
+  - student interpretation of Thinking Profiles
+- Explicitly decide which areas are:
+  - ready for expansion
+  - intentionally frozen
+  - candidates for future experimentation
+
+---
+
+### Non-Goals (Explicit)
+
+- No new unlock types
+- No changes to unlock logic
+- No new analytics dimensions
+- No AI expansion beyond existing diagnostic use
