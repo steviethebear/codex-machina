@@ -19,6 +19,8 @@ import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { useRouter } from 'next/navigation'
 import { generateAllEmbeddings } from '@/lib/actions/admin-ai'
 import { toast } from 'sonner'
+import { getAdminTagTrends } from '@/lib/actions/tags'
+import { Tag } from 'lucide-react'
 
 // Load Graph dynamically
 const ForceGraph = dynamic(() => import('@/components/graph/force-graph'), {
@@ -32,6 +34,7 @@ export default function TeacherDashboard() {
 
     const [stats, setStats] = useState<any>(null)
     const [codexReport, setCodexReport] = useState<any[]>([])
+    const [tagTrends, setTagTrends] = useState<any[]>([])
     const [graphData, setGraphData] = useState<any>({ nodes: [], links: [] })
     const [loading, setLoading] = useState(true)
     const [dateRange, setDateRange] = useState("14") // Days back
@@ -50,6 +53,9 @@ export default function TeacherDashboard() {
 
             const { graphData } = await getTeacherAnalytics()
             if (graphData) setGraphData(graphData)
+
+            const { data: tagsData } = await getAdminTagTrends()
+            if (tagsData) setTagTrends(tagsData)
 
             setLoading(false)
         }
@@ -147,6 +153,42 @@ export default function TeacherDashboard() {
                                             : 0}%
                                     </div>
                                     <p className="text-xs text-muted-foreground">Active in last {dateRange} days</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Emerging Patterns (Tags) */}
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <Card className="md:col-span-1">
+                                <CardHeader>
+                                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                        <Tag className="h-4 w-4" />
+                                        Emerging Vocab
+                                    </CardTitle>
+                                    <CardDescription>Top user-generated tags across the cohort.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <ScrollArea className="h-[200px]">
+                                        <div className="flex flex-wrap gap-2">
+                                            {tagTrends.length > 0 ? (
+                                                tagTrends.map((t) => (
+                                                    <Badge key={t.tag} variant="secondary" className="cursor-default hover:bg-secondary/80">
+                                                        #{t.tag}
+                                                        <span className="ml-1 text-[10px] opacity-50">({t.count})</span>
+                                                    </Badge>
+                                                ))
+                                            ) : (
+                                                <div className="text-sm text-muted-foreground italic">No tags detected yet.</div>
+                                            )}
+                                        </div>
+                                    </ScrollArea>
+                                </CardContent>
+                            </Card>
+
+                            {/* Placeholder for future insights - keeping grid balanced */}
+                            <Card className="md:col-span-2 bg-muted/20 border-dashed">
+                                <CardContent className="h-full flex items-center justify-center text-muted-foreground text-sm italic p-6">
+                                    More semantic insights coming soon (e.g. Concept Drift)
                                 </CardContent>
                             </Card>
                         </div>

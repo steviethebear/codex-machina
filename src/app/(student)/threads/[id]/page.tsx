@@ -21,6 +21,9 @@ import {
 } from '@/lib/actions/threads'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { getUserTags } from '@/lib/actions/notes'
+// ...
 
 export default function ThreadWorkspacePage() {
     const router = useRouter()
@@ -34,11 +37,40 @@ export default function ThreadWorkspacePage() {
     const [showAddNotes, setShowAddNotes] = useState(false)
     const [editingLabel, setEditingLabel] = useState<string | null>(null)
     const [labelInput, setLabelInput] = useState('')
+    const [userTags, setUserTags] = useState<string[]>([])
+    const [tagFilter, setTagFilter] = useState<string>('all')
+    const [searchTerm, setSearchTerm] = useState('')
 
     useEffect(() => {
         loadThread()
         loadAvailableNotes()
+        loadTags()
     }, [threadId])
+
+    const loadTags = async () => {
+        const tags = await getUserTags()
+        if (tags) setUserTags(tags)
+    }
+
+    const loadAvailableNotes = async () => {
+        const { data, error } = await supabase
+            .from('notes')
+            .select(`
+                *,
+                note_tags ( tag )
+            `)
+            .in('type', ['permanent', 'source'])
+            .order('title')
+
+        if (data) {
+            // Transform tags
+            const enriched = data.map((n: any) => ({
+                ...n,
+                tags: n.note_tags?.map((t: any) => t.tag) || []
+            }))
+            setAvailableNotes(enriched)
+        }
+    }
 
     const loadThread = async () => {
         const result = await getThread(threadId)
@@ -46,17 +78,6 @@ export default function ThreadWorkspacePage() {
             setThread(result.data)
         }
         setLoading(false)
-    }
-
-    const loadAvailableNotes = async () => {
-        const { data, error } = await supabase
-            .from('notes')
-            .select('*')
-            .eq('type', 'permanent')
-            .eq('is_public', true)
-            .order('title')
-
-        if (data) setAvailableNotes(data)
     }
 
     const handleAddNote = async (noteId: string) => {
@@ -137,89 +158,93 @@ export default function ThreadWorkspacePage() {
         }
     }
 
-    if (loading) {
-        return <div className="flex h-full items-center justify-center text-muted-foreground">Loading...</div>
-    }
-
-    if (!thread) {
-        return <div className="flex h-full items-center justify-center text-muted-foreground">Thread not found</div>
-    }
-
     const notesInThread = new Set(thread.notes.map(n => n.note_id))
-    const notesToAdd = availableNotes.filter(n => !notesInThread.has(n.id))
+    const notesToAdd = availableNotes.filter(n =>
+        !notesInThread.has(n.id) &&
+        (tagFilter === 'all' || n.tags?.includes(tagFilter)) &&
+        (searchTerm === '' || n.title.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
 
     return (
         <div className="flex flex-col gap-6 p-8 max-w-5xl mx-auto">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-                <div className="flex-1">
-                    <Button
-                        variant="ghost"
-                        onClick={() => router.push('/threads')}
-                        className="mb-4"
-                    >
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back to Threads
-                    </Button>
-                    <h1 className="text-3xl font-bold">{thread.title}</h1>
-                    {thread.description && (
-                        <p className="text-muted-foreground mt-2">{thread.description}</p>
-                    )}
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleExport}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Export
-                    </Button>
-                    <Button variant="destructive" onClick={handleDelete}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
+            {/* ... */}
+            <div className="flex gap-2">
+                <Dialog open={showAddNotes} onOpenChange={setShowAddNotes}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Notes
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Add Notes to Thread</DialogTitle>
+                        </DialogHeader>
 
-            {/* Add Notes */}
-            <Dialog open={showAddNotes} onOpenChange={setShowAddNotes}>
-                <DialogTrigger asChild>
-                    <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Notes
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Add Notes to Thread</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-2 mt-4">
-                        {notesToAdd.length === 0 ? (
-                            <p className="text-muted-foreground text-center py-8">
-                                All permanent notes have been added
-                            </p>
-                        ) : (
-                            notesToAdd.map(note => (
-                                <Card
-                                    key={note.id}
-                                    className="cursor-pointer hover:bg-accent"
-                                    onClick={() => {
-                                        handleAddNote(note.id)
-                                        setShowAddNotes(false)
-                                    }}
-                                >
-                                    <CardHeader>
-                                        <CardTitle className="text-base">{note.title}</CardTitle>
-                                    </CardHeader>
-                                </Card>
-                            ))
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
+                        <div className="flex items-center gap-2 mt-2">
+                            <Input
+                                placeholder="Search notes..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="flex-1"
+                            />
+                            <Select value={tagFilter} onValueChange={setTagFilter}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Filter by tag" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Tags</SelectItem>
+                                    {userTags.map(t => (
+                                        <SelectItem key={t} value={t}>#{t}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2 mt-4">
+                            {notesToAdd.length === 0 ? (
+
+                                <p className="text-muted-foreground text-center py-8">
+                                    All permanent notes have been added
+                                </p>
+                            ) : (
+                                notesToAdd.map(note => (
+                                    <Card
+                                        key={note.id}
+                                        className="cursor-pointer hover:bg-accent"
+                                        onClick={() => {
+                                            handleAddNote(note.id)
+                                            setShowAddNotes(false)
+                                        }}
+                                    >
+                                        <CardHeader>
+                                            <CardTitle className="text-base">{note.title}</CardTitle>
+                                        </CardHeader>
+                                    </Card>
+                                ))
+                            )}
+                        </div>
+                    </DialogContent>
+                </Dialog>
+                <Button variant="outline" onClick={handleExport}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
 
             {/* Thread Notes */}
             <div className="space-y-4">
                 {thread.notes.length === 0 ? (
                     <Card>
-                        <CardContent className="pt-12 pb-12 text-center text-muted-foreground">
-                            No notes in this thread yet. Add some to begin weaving.
+                        <CardContent className="pt-12 pb-12 text-center text-muted-foreground flex flex-col items-center gap-4">
+                            <p>No notes in this thread yet. Add some to begin weaving.</p>
+                            <Button variant="secondary" onClick={() => setShowAddNotes(true)}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add First Note
+                            </Button>
                         </CardContent>
                     </Card>
                 ) : (
@@ -315,6 +340,6 @@ export default function ThreadWorkspacePage() {
                     ))
                 )}
             </div>
-        </div>
+        </div >
     )
 }

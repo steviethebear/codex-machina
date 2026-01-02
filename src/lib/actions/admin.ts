@@ -41,10 +41,18 @@ export async function getStudentProfile(studentId: string) {
         .select('*')
         .eq('user_id', studentId)
 
+    // 5. Fetch Reflections
+    const { data: reflections } = await supabase
+        .from('reflections')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+
     return {
         profile: { ...profile, unlocks: unlocks || [] },
         notes: notes || [],
-        points: points || []
+        points: points || [],
+        reflections: reflections || []
     }
 }
 

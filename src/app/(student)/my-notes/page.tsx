@@ -6,12 +6,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { createNote } from '@/lib/actions/notes'
+import { createNote, getUserTags } from '@/lib/actions/notes'
 import { Lightbulb, BookOpen, Brain, PlusCircle, Search, Layout } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import dynamic from 'next/dynamic'
 import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { NoteEditor } from '@/components/pkm/NoteEditor'
@@ -41,11 +42,13 @@ export default function NotebookPage() {
     const [notes, setNotes] = useState<Note[]>([])
     const [publicNotes, setPublicNotes] = useState<Note[]>([])
     const [users, setUsers] = useState<UserProfile[]>([])
+    const [userTags, setUserTags] = useState<string[]>([])
     const [loading, setLoading] = useState(true)
 
     // UI State
     const [activeTab, setActiveTab] = useState<'fleeting' | 'permanent' | 'source'>('fleeting')
     const [searchTerm, setSearchTerm] = useState('')
+    const [tagFilter, setTagFilter] = useState<string>('all')
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
     const [slideOverNote, setSlideOverNote] = useState<Note | null>(null)
     const [showPromotionDialog, setShowPromotionDialog] = useState(false)
@@ -136,6 +139,10 @@ export default function NotebookPage() {
                 .eq('is_public', true)
             if (pubData) setPublicNotes(pubData as Note[])
 
+            // Fetch User Tags
+            const _tags = await getUserTags()
+            if (_tags) setUserTags(_tags)
+
             // Fetch Users and Current User Role
             const { data: userData } = await supabase.from('users').select('id, email, codex_name, is_admin')
             if (userData) {
@@ -160,8 +167,9 @@ export default function NotebookPage() {
         : notes.filter(n => n.type === activeTab)
 
     const filteredNotes = currentList.filter(n =>
-        n.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        n.content?.toLowerCase().includes(searchTerm.toLowerCase())
+        (tagFilter === 'all' || n.tags?.includes(tagFilter)) &&
+        (n.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            n.content?.toLowerCase().includes(searchTerm.toLowerCase()))
     )
 
     const selectedNote = notes.find(n => n.id === selectedNoteId) || publicNotes.find(n => n.id === selectedNoteId)
@@ -207,8 +215,14 @@ export default function NotebookPage() {
         if (!user || !searchParams) return
         const action = searchParams.get('action')
         const noteId = searchParams.get('noteId')
+        const tagParam = searchParams.get('tag')
 
         const run = async () => {
+            // Handle Tag Filter
+            if (tagParam) {
+                setTagFilter(tagParam)
+            }
+
             // Handle "New Note"
             if (action === 'new' && !hasHandledNewRef.current) {
                 hasHandledNewRef.current = true
@@ -222,7 +236,7 @@ export default function NotebookPage() {
                 const target = notes.find(n => n.id === noteId) || publicNotes.find(n => n.id === noteId)
                 if (target) {
                     handleSelectNote(target)
-                    router.replace('/my-notes')
+                    router.replace(tagParam ? `/my-notes?tag=${tagParam}` : '/my-notes')
                 }
             }
         }
@@ -278,6 +292,21 @@ export default function NotebookPage() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
+
+                    {/* Tag Filter */}
+                    {userTags.length > 0 && (
+                        <Select value={tagFilter} onValueChange={setTagFilter}>
+                            <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Filter by tag" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Tags</SelectItem>
+                                {userTags.map(t => (
+                                    <SelectItem key={t} value={t}>#{t}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 </div>
 
                 {/* Note List */}

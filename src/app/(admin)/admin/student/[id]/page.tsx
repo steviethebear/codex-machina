@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, Trash2, Award, FileText, Activity, AlertTriangle, Key, Mail, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, Trash2, Award, FileText, Activity, AlertTriangle, Key, Mail, ShieldAlert, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import {
     Dialog,
@@ -33,6 +33,7 @@ export default function StudentDetailPage() {
     const [profile, setProfile] = useState<any>(null)
     const [notes, setNotes] = useState<any[]>([])
     const [history, setHistory] = useState<any[]>([])
+    const [reflections, setReflections] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
     // Action States
@@ -59,6 +60,7 @@ export default function StudentDetailPage() {
             setProfile(data.profile)
             setNotes(data.notes)
             setHistory(data.points)
+            setReflections(data.reflections)
 
             // Process XP for Chart: Accumulate over time
             const sortedHistory = [...data.points].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
@@ -160,6 +162,14 @@ export default function StudentDetailPage() {
                         <p className="text-muted-foreground">{profile.email}</p>
                     </div>
                 </div>
+                {/* Header Badges for Unlocks (Quick View) */}
+                <div className="flex gap-2 ml-4 flex-1">
+                    {profile.unlocks?.map((u: any) => (
+                        <Badge key={u.feature} variant="outline" className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200">
+                            {u.feature.replace('_', ' ')}
+                        </Badge>
+                    ))}
+                </div>
                 <div className="flex gap-2">
                     <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
                         <DialogTrigger asChild>
@@ -200,6 +210,7 @@ export default function StudentDetailPage() {
             <Tabs defaultValue="notes" className="space-y-6">
                 <TabsList>
                     <TabsTrigger value="notes">Notes Management</TabsTrigger>
+                    <TabsTrigger value="reflections">Reflections</TabsTrigger>
                     <TabsTrigger value="capabilities">Capabilities</TabsTrigger>
                     <TabsTrigger value="history">XP History</TabsTrigger>
                     <TabsTrigger value="security" className="text-orange-600 data-[state=active]:text-orange-700">Account Security</TabsTrigger>
@@ -244,6 +255,56 @@ export default function StudentDetailPage() {
                                                     )}
                                                     <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(note.id)}>
                                                         Delete
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="reflections">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Reflection History</CardTitle>
+                            <CardDescription>View status and transcripts of AI-guided reflections.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="rounded-md border">
+                                <table className="w-full caption-bottom text-sm text-left">
+                                    <thead className="[&_tr]:border-b">
+                                        <tr className="border-b transition-colors hover:bg-muted/50">
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Context</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Status</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Created</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {reflections.length === 0 && (
+                                            <tr>
+                                                <td colSpan={4} className="p-4 text-center text-muted-foreground italic">No reflections assigned.</td>
+                                            </tr>
+                                        )}
+                                        {reflections.map((r) => (
+                                            <tr key={r.id} className="border-b transition-colors hover:bg-muted/50">
+                                                <td className="p-4 align-middle font-medium">{r.context}</td>
+                                                <td className="p-4 align-middle">
+                                                    <Badge variant={
+                                                        r.status === 'completed' ? 'default' :
+                                                            r.status === 'in_progress' ? 'secondary' : 'outline'
+                                                    } className={r.status === 'pending' ? 'animate-pulse' : ''}>
+                                                        {r.status.replace('_', ' ')}
+                                                    </Badge>
+                                                </td>
+                                                <td className="p-4 align-middle">{new Date(r.created_at).toLocaleDateString()}</td>
+                                                <td className="p-4 align-middle text-right">
+                                                    <Button size="sm" variant="ghost" onClick={() => router.push(`/admin/reflections/${r.id}`)}>
+                                                        <MessageSquare className="h-4 w-4 mr-1" />
+                                                        View Transcript
                                                     </Button>
                                                 </td>
                                             </tr>
@@ -354,6 +415,7 @@ export default function StudentDetailPage() {
                                 {[
                                     { key: 'thinking_profile', label: 'Thinking Profile', desc: 'Visualization of engagement patterns (rhythm, density).' },
                                     { key: 'graph_view', label: 'Knowledge Graph', desc: 'Network visualization of notes and connections.' },
+                                    { key: 'threads', label: 'Threads', desc: 'Ability to stitch notes into linear narratives.' },
                                     { key: 'deep_breadcrumbs', label: 'Extended Breadcrumbs', desc: 'Longer history and persistence.' }
                                 ].map((cap) => {
                                     const isUnlocked = profile?.unlocks?.some((u: any) => u.feature === cap.key)

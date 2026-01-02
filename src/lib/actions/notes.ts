@@ -17,21 +17,40 @@ type Note = Database['public']['Tables']['notes']['Row']
 type NoteInsert = Database['public']['Tables']['notes']['Insert']
 type NoteUpdate = Database['public']['Tables']['notes']['Update']
 
-export async function createNote(note: NoteInsert) {
+// New Type for Extended Note with Tags
+interface NoteWithTags extends Note {
+    tags: string[]
+}
+
+export async function createNote(note: NoteInsert & { tags?: string[] }) {
     const supabase: any = await createClient()
 
     // Default to fleeting if not provided
     if (!note.type) note.type = 'fleeting'
 
+    // Separate tags from note data
+    const { tags, ...noteData } = note
+
     const { data, error } = await supabase
         .from('notes')
-        .insert(note)
+        .insert(noteData)
         .select()
         .single()
 
     if (error) {
         console.error('Error creating note:', error)
         return { error: error.message }
+    }
+
+    // Insert Tags if present
+    if (tags && tags.length > 0) {
+        const tagInserts = tags.map(tag => ({
+            note_id: data.id,
+            user_id: data.user_id,
+            tag: tag.trim()
+        }))
+        const { error: tagError } = await supabase.from('note_tags').insert(tagInserts)
+        if (tagError) console.error('Error adding initial tags:', tagError)
     }
 
     // Award 1 point for creating a fleeting note (Coherence check implied or just participation for now)
@@ -46,16 +65,25 @@ export async function createNote(note: NoteInsert) {
         await updateNoteEmbedding(data.id)
     }
 
+    // ... (after updateNoteEmbedding)
+
+    // Fetch tags to return complete object
+    const { data: noteTags } = await supabase
+        .from('note_tags')
+        .select('tag')
+        .eq('note_id', data.id)
+
     // Check for unlocks (fire and forget, or await if critical)
     await checkUnlocks(data.user_id)
 
     revalidatePath('/dashboard')
     revalidatePath('/my-notes')
     revalidatePath('/graph')
-    return { data }
+
+    return { data: { ...data, tags: noteTags?.map((t: any) => t.tag) || [] } }
 }
 
-export async function updateNote(id: string, updates: NoteUpdate) {
+export async function updateNote(id: string, updates: NoteUpdate & { tags?: string[] }) {
     const supabase: any = await createClient()
 
     // 1. Fetch current state to check type
@@ -73,9 +101,13 @@ export async function updateNote(id: string, updates: NoteUpdate) {
         return { error: 'Permanent notes cannot be edited.' }
     }
 
+    // Strip tags from updates to prevent legacy column write
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { tags, ...safeUpdates } = updates
+
     const { data, error } = await supabase
         .from('notes')
-        .update(updates)
+        .update(safeUpdates)
         .eq('id', id)
         .select()
         .single()
@@ -92,10 +124,18 @@ export async function updateNote(id: string, updates: NoteUpdate) {
         await updateNoteEmbedding(data.id)
     }
 
+    // Fetch tags to return complete object
+    // We can assume tags haven't changed during this update since we handle them separately, 
+    // BUT we need to return them so the UI doesn't lose them.
+    const { data: noteTags } = await supabase
+        .from('note_tags')
+        .select('tag')
+        .eq('note_id', data.id)
+
     revalidatePath('/dashboard')
     revalidatePath('/my-notes')
     revalidatePath('/graph')
-    return { data }
+    return { data: { ...data, tags: noteTags?.map((t: any) => t.tag) || [] } }
 }
 
 export async function deleteNote(id: string) {
@@ -144,6 +184,26 @@ export async function deleteNote(id: string) {
     revalidatePath('/my-notes')
     revalidatePath('/graph') // Ensure graph updates too
     return { success: true }
+}
+
+export async function getUserTags(userId?: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // If no userId provided, use current user
+    const targetId = userId || user?.id
+    if (!targetId) return []
+
+    // Use RPC function
+    const { data, error } = await supabase.rpc('get_user_tags', { p_user_id: targetId })
+
+    if (error) {
+        console.error('Error fetching user tags:', error)
+        return []
+    }
+
+    // Return just the strings
+    return data.map((d: any) => d.tag)
 }
 
 export async function getNotes(filters?: {

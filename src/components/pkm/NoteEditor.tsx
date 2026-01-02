@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Brain, BookOpen, Lightbulb, Save, Trash2, Edit2, ExternalLink, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { updateNote, deleteNote, promoteNote } from '@/lib/actions/notes'
+import { updateNote, deleteNote, promoteNote, getUserTags } from '@/lib/actions/notes'
+import { addTag, removeTag } from '@/lib/actions/tags'
 import { Database } from '@/types/database.types'
 import { useAuth } from '@/components/auth-provider'
 import ReactMarkdown from 'react-markdown'
@@ -23,6 +24,7 @@ type UserProfile = { id: string, email: string, codex_name?: string }
 import { PromoteNoteDialog } from './PromoteNoteDialog'
 import { SmartSuggestions } from '@/components/SmartSuggestions'
 import { RequestSourceDialog } from './RequestSourceDialog'
+import { TagsInput } from '@/components/ui/tags-input'
 
 interface NoteEditorProps {
     note: Note
@@ -43,6 +45,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
     // State
     const [title, setTitle] = useState(note.title)
     const [content, setContent] = useState(note.content)
+    const [tags, setTags] = useState<string[]>(note.tags || [])
     const [isEditing, setIsEditing] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const [lastSaved, setLastSaved] = useState<Date>(new Date(note.updated_at))
@@ -53,6 +56,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
     const [users, setUsers] = useState<UserProfile[]>([])
     const [publicNotes, setPublicNotes] = useState<Note[]>([])
     const [sources, setSources] = useState<any[]>([])
+    const [userTags, setUserTags] = useState<string[]>([])
     const [mentionQuery, setMentionQuery] = useState<string | null>(null)
     const [mentionType, setMentionType] = useState<'wiki' | 'mention' | null>(null)
     const [cursorPosition, setCursorPosition] = useState(0)
@@ -72,6 +76,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
     useEffect(() => {
         setTitle(note.title)
         setContent(note.content)
+        setTags(note.tags || [])
         setLastSaved(new Date(note.updated_at))
 
         const loadMeta = async () => {
@@ -92,14 +97,16 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
         loadMeta()
 
         const loadAutocompleteData = async () => {
-            const [notesRes, usersRes, textsRes] = await Promise.all([
+            const [notesRes, usersRes, textsRes, tagsRes] = await Promise.all([
                 supabase.from('notes').select('*').eq('is_public', true),
                 supabase.from('users').select('id, email, codex_name'),
-                supabase.from('texts').select('*')
+                supabase.from('texts').select('*'),
+                getUserTags()
             ])
             if (notesRes.data) setPublicNotes(notesRes.data as Note[])
             if (usersRes.data) setUsers(usersRes.data as UserProfile[])
             if (textsRes.data) setSources(textsRes.data)
+            if (tagsRes) setUserTags(tagsRes)
         }
         loadAutocompleteData()
     }, [note.id, supabase, user, note.user_id, note.updated_at, note.title, note.content]) // Cleaned up deps
@@ -111,6 +118,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
         const timer = setTimeout(async () => {
             if (content !== note.content || title !== note.title) {
                 setIsSaving(true)
+                // Do not send tags here
                 const result = await updateNote(note.id, { title, content })
                 if (result.data) {
                     setLastSaved(new Date())
@@ -135,6 +143,34 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
             toast.error("Save failed")
         }
         setIsSaving(false)
+    }
+
+    // Tag Handlers
+    const handleAddTag = async (tag: string) => {
+        // Optimistic
+        if (!tags.includes(tag)) setTags([...tags, tag])
+
+        const result = await addTag(note.id, tag)
+        if (result.error) {
+            toast.error("Failed to add tag")
+            // Revert
+            setTags(prev => prev.filter(t => t !== tag))
+        } else {
+            // Refresh user tags list to include new tag if unique
+            if (!userTags.includes(tag)) setUserTags(prev => [...prev, tag])
+        }
+    }
+
+    const handleRemoveTag = async (tag: string) => {
+        // Optimistic
+        setTags(prev => prev.filter(t => t !== tag))
+
+        const result = await removeTag(note.id, tag)
+        if (result.error) {
+            toast.error("Failed to remove tag")
+            // Revert
+            setTags(prev => [...prev, tag])
+        }
     }
 
     const handleDelete = async () => {
@@ -328,6 +364,20 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                             )}
                             <span className="text-xs text-muted-foreground ml-auto sm:ml-0">{lastSaved.toLocaleDateString()}</span>
                         </div>
+
+                        {/* Tags Input (Always Visible) */}
+                        <div className="mb-2">
+                            <TagsInput
+                                value={tags}
+                                onAddTag={handleAddTag}
+                                onRemoveTag={handleRemoveTag}
+                                onChange={setTags}
+                                suggestions={userTags}
+                                disabled={note.type === 'permanent'}
+                                onTagClick={(tag) => router.push(`/my-notes?tag=${tag}`)}
+                            />
+                        </div>
+
                         {isEditing ? (
                             <Input
                                 value={title}

@@ -45,6 +45,7 @@ CREATE POLICY "Students can create sources"
   );
 
 -- Admins can view all sources
+DROP POLICY IF EXISTS "Admins can view all sources" ON texts;
 CREATE POLICY "Admins can view all sources"
   ON texts FOR SELECT
   USING (
@@ -56,6 +57,7 @@ CREATE POLICY "Admins can view all sources"
   );
 
 -- Admins can update any source (for approval/rejection)
+DROP POLICY IF EXISTS "Admins can update sources" ON texts;
 CREATE POLICY "Admins can update sources"
   ON texts FOR UPDATE
   USING (
@@ -67,6 +69,7 @@ CREATE POLICY "Admins can update sources"
   );
 
 -- Admins can delete any source
+DROP POLICY IF EXISTS "Admins can delete sources" ON texts;
 CREATE POLICY "Admins can delete sources"
   ON texts FOR DELETE
   USING (

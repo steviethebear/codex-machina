@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/auth-provider'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Activity, Network, Rewind, Calendar as CalendarIcon, FileText } from 'lucide-react'
+import { Activity, Network, Rewind, Calendar as CalendarIcon, FileText, MessageSquare } from 'lucide-react'
+import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function DashboardPage() {
@@ -12,11 +13,13 @@ export default function DashboardPage() {
     const supabase = createClient()
     const [loading, setLoading] = useState(true)
     const [profile, setProfile] = useState<{ codex_name: string | null } | null>(null)
+    const [pendingReflections, setPendingReflections] = useState<number>(0)
 
     // Thinking Profile Metrics
     const [metrics, setMetrics] = useState({
         totalNotes: 0,
         permanentCount: 0,
+        fleetingCount: 0, // Explicit count
         connectionCount: 0,
         connectionDensity: 0, // Links per note
         activityMap: new Map<string, number>(), // date -> count
@@ -30,6 +33,14 @@ export default function DashboardPage() {
 
         const fetchData = async () => {
             setLoading(true)
+
+            // 0. Fetch Reflections status (Ungated)
+            const { count: pendingCount } = await supabase
+                .from('reflections')
+                .select('id', { count: 'exact' })
+                .eq('student_id', user.id)
+                .neq('status', 'completed')
+            setPendingReflections(pendingCount || 0)
 
             // 0. Check Unlock Status
             const { data: unlockData } = await supabase
@@ -65,6 +76,7 @@ export default function DashboardPage() {
             if (notes) {
                 const totalNotes = notes.length
                 const permanentCount = notes.filter(n => n.type === 'permanent').length
+                const fleetingCount = notes.filter(n => n.type === 'fleeting').length
 
                 // Build Activity Map (Production Rhythm)
                 const activityMap = new Map<string, number>()
@@ -123,6 +135,7 @@ export default function DashboardPage() {
                 setMetrics({
                     totalNotes,
                     permanentCount,
+                    fleetingCount,
                     connectionCount,
                     connectionDensity,
                     activityMap,
@@ -186,6 +199,25 @@ export default function DashboardPage() {
                     </p>
                 </div>
             </div>
+
+            {/* Reflections Alert */}
+            {pendingReflections > 0 && (
+                <Link href="/reflections">
+                    <Card className="mb-8 border-l-4 border-l-blue-500 hover:bg-muted/50 transition-colors">
+                        <CardContent className="p-4 flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0 text-blue-600">
+                                <MessageSquare className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold">Reflections Pending</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    You have {pendingReflections} active reflection conversations waiting for you.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
+            )}
 
             {/* Metrics Grid */}
             <div className="grid gap-4 md:grid-cols-3">
@@ -256,7 +288,7 @@ export default function DashboardPage() {
                             />
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                            {metrics.totalNotes - metrics.permanentCount} items in Fleeting/Inbox.
+                            {metrics.fleetingCount} items in Fleeting/Inbox.
                         </p>
                     </CardContent>
                 </Card>
