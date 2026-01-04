@@ -10,7 +10,6 @@ import Link from 'next/link'
 function ErrorContent() {
     const searchParams = useSearchParams()
     const error = searchParams.get('error')
-    const cookies = searchParams.get('cookies')
 
     return (
         <Card className="w-full max-w-sm">
@@ -23,19 +22,9 @@ function ErrorContent() {
                 <CardTitle>Authentication Error</CardTitle>
                 <CardDescription>
                     {error ? (
-                        <div className="space-y-2 mt-2">
-                            <span className="font-mono text-xs block bg-muted p-2 rounded text-foreground break-all">
-                                {error}
-                            </span>
-                            {cookies && (
-                                <div className="text-left">
-                                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Debug Info (Cookies):</p>
-                                    <span className="font-mono text-[10px] block bg-muted p-2 rounded text-muted-foreground break-all">
-                                        {cookies}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
+                        <span className="font-mono text-xs block mt-2 bg-muted p-2 rounded text-foreground break-all">
+                            {error}
+                        </span>
                     ) : (
                         "We couldn't verify your login link. It may have expired or been used already."
                     )}
