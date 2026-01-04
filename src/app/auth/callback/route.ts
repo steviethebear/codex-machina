@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(`${origin}${next}`)
         } else {
             console.error("Auth Exchange Error:", error)
-            return NextResponse.redirect(`${origin}/auth/auth-code-error?error=${encodeURIComponent(error.message)}`)
+            const cookieNames = (await cookies()).getAll().map(c => c.name).join(', ')
+            return NextResponse.redirect(`${origin}/auth/auth-code-error?error=${encodeURIComponent(error.message)}&cookies=${encodeURIComponent(cookieNames)}`)
         }
     }
 
