@@ -83,13 +83,11 @@ export default function SourcesPage() {
                             Review Pending
                         </Link>
                     </Button>
+                    <Button onClick={() => setShowAdd(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Source
+                    </Button>
                     <Dialog open={showAdd} onOpenChange={setShowAdd}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <Plus className="h-4 w-4 mr-2" />
-                                Add New Source
-                            </Button>
-                        </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Add to Library</DialogTitle>
