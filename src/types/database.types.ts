@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -64,7 +64,6 @@ export type Database = {
       }
       actions: {
         Row: {
-          bonus_type: string | null
           created_at: string
           description: string | null
           id: string
@@ -77,7 +76,6 @@ export type Database = {
           xp: number | null
         }
         Insert: {
-          bonus_type?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -90,7 +88,6 @@ export type Database = {
           xp?: number | null
         }
         Update: {
-          bonus_type?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -121,7 +118,6 @@ export type Database = {
           sp_reading: number | null
           sp_thinking: number | null
           sp_writing: number | null
-          title: string | null
           user_id: string
           xp_total: number | null
         }
@@ -133,7 +129,6 @@ export type Database = {
           sp_reading?: number | null
           sp_thinking?: number | null
           sp_writing?: number | null
-          title?: string | null
           user_id: string
           xp_total?: number | null
         }
@@ -145,7 +140,6 @@ export type Database = {
           sp_reading?: number | null
           sp_thinking?: number | null
           sp_writing?: number | null
-          title?: string | null
           user_id?: string
           xp_total?: number | null
         }
@@ -322,34 +316,31 @@ export type Database = {
       }
       notifications: {
         Row: {
-          created_at: string | null
+          created_at: string
           id: string
-          link_url: string | null
+          link: string | null
           message: string
-          metadata: Json | null
-          read: boolean | null
+          read: boolean
           title: string
           type: string
           user_id: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           id?: string
-          link_url?: string | null
+          link?: string | null
           message: string
-          metadata?: Json | null
-          read?: boolean | null
+          read?: boolean
           title: string
           type: string
           user_id: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           id?: string
-          link_url?: string | null
+          link?: string | null
           message?: string
-          metadata?: Json | null
-          read?: boolean | null
+          read?: boolean
           title?: string
           type?: string
           user_id?: string
@@ -400,7 +391,7 @@ export type Database = {
           messages: Json
           status: string
           student_id: string
-          teacher_id: string
+          teacher_id: string | null
           updated_at: string
         }
         Insert: {
@@ -411,7 +402,7 @@ export type Database = {
           messages?: Json
           status?: string
           student_id: string
-          teacher_id: string
+          teacher_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -422,7 +413,7 @@ export type Database = {
           messages?: Json
           status?: string
           student_id?: string
-          teacher_id?: string
+          teacher_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -437,44 +428,6 @@ export type Database = {
             foreignKeyName: "reflections_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      streaks: {
-        Row: {
-          created_at: string | null
-          current_streak: number | null
-          id: string
-          last_contribution_date: string | null
-          longest_streak: number | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          current_streak?: number | null
-          id?: string
-          last_contribution_date?: string | null
-          longest_streak?: number | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          current_streak?: number | null
-          id?: string
-          last_contribution_date?: string | null
-          longest_streak?: number | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "streaks_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -700,75 +653,6 @@ export type Database = {
           },
         ]
       }
-      user_signals: {
-        Row: {
-          activated_at: string | null
-          completed_at: string | null
-          created_at: string | null
-          discovered_at: string | null
-          estimated_review_time: unknown
-          id: string
-          queue_reason: string | null
-          queued_at: string | null
-          signal_id: string
-          sp_awarded: Json | null
-          status: string
-          submission_data: Json | null
-          submission_notes: string | null
-          submitted_at: string | null
-          updated_at: string | null
-          user_id: string
-          validated_by: string | null
-          validation_feedback: string | null
-          validation_result: Json | null
-          xp_awarded: number | null
-        }
-        Insert: {
-          activated_at?: string | null
-          completed_at?: string | null
-          created_at?: string | null
-          discovered_at?: string | null
-          estimated_review_time?: unknown
-          id?: string
-          queue_reason?: string | null
-          queued_at?: string | null
-          signal_id: string
-          sp_awarded?: Json | null
-          status?: string
-          submission_data?: Json | null
-          submission_notes?: string | null
-          submitted_at?: string | null
-          updated_at?: string | null
-          user_id: string
-          validated_by?: string | null
-          validation_feedback?: string | null
-          validation_result?: Json | null
-          xp_awarded?: number | null
-        }
-        Update: {
-          activated_at?: string | null
-          completed_at?: string | null
-          created_at?: string | null
-          discovered_at?: string | null
-          estimated_review_time?: unknown
-          id?: string
-          queue_reason?: string | null
-          queued_at?: string | null
-          signal_id?: string
-          sp_awarded?: Json | null
-          status?: string
-          submission_data?: Json | null
-          submission_notes?: string | null
-          submitted_at?: string | null
-          updated_at?: string | null
-          user_id?: string
-          validated_by?: string | null
-          validation_feedback?: string | null
-          validation_result?: Json | null
-          xp_awarded?: number | null
-        }
-        Relationships: []
-      }
       users: {
         Row: {
           codex_name: string | null
@@ -801,38 +685,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      hub_stats: {
+        Row: {
+          incoming_links_count: number | null
+          note_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connections_target_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      delete_user_data: { Args: { target_user_id: string }; Returns: undefined }
-      get_admin_notes: { Args: { target_user_id: string }; Returns: Json }
-      get_atom_questions: {
-        Args: { atom_id: string }
-        Returns: {
-          author_id: string
-          created_at: string
-          is_resolved: boolean
-          question_body: string
-          question_id: string
-          question_title: string
-        }[]
-      }
       get_global_tag_trends: {
         Args: never
         Returns: {
           count: number
           tag: string
-        }[]
-      }
-      get_question_replies: {
-        Args: { question_id: string }
-        Returns: {
-          atom_body: string
-          atom_id: string
-          atom_title: string
-          author_id: string
-          created_at: string
-          relation_type: string
         }[]
       }
       get_user_tags: {
@@ -842,69 +716,8 @@ export type Database = {
           tag: string
         }[]
       }
-      increment_question_views: {
-        Args: { question_id: string }
-        Returns: undefined
-      }
-      match_notes:
-        | {
-            Args: {
-              match_count: number
-              match_threshold: number
-              query_embedding: string
-            }
-            Returns: {
-              body: string
-              created_at: string
-              id: string
-              similarity: number
-              title: string
-            }[]
-          }
-        | {
-            Args: {
-              match_count: number
-              match_threshold: number
-              msg_user_id: string
-              query_embedding: string
-            }
-            Returns: {
-              content: string
-              id: string
-              similarity: number
-              title: string
-              type: string
-            }[]
-          }
-      moderate_atom: {
-        Args: {
-          new_status: Database["public"]["Enums"]["moderation_status"]
-          should_hide: boolean
-          target_atom_id: string
-        }
-        Returns: undefined
-      }
-      search_similar_questions: {
-        Args: {
-          match_count?: number
-          match_threshold?: number
-          query_embedding: string
-        }
-        Returns: {
-          body: string
-          id: string
-          similarity: number
-          title: string
-        }[]
-      }
     }
     Enums: {
-      moderation_status:
-        | "pending"
-        | "approved"
-        | "flagged"
-        | "rejected"
-        | "draft"
       note_type: "fleeting" | "permanent" | "source"
     }
     CompositeTypes: {
@@ -1033,13 +846,6 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      moderation_status: [
-        "pending",
-        "approved",
-        "flagged",
-        "rejected",
-        "draft",
-      ],
       note_type: ["fleeting", "permanent", "source"],
     },
   },

@@ -1,4 +1,8 @@
 -- v0.5 Zettelkasten Schema
+SET search_path = public, extensions;
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 
 -- NOTES TABLE
 CREATE TYPE note_type AS ENUM ('fleeting', 'permanent', 'source');
