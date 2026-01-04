@@ -39,26 +39,18 @@ export async function GET(request: NextRequest) {
             // Create user profile if it doesn't exist
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                // Basic profile creation if trigger missed it
-                const { error: profileError } = await supabase
-                    .from('users')
-                    .insert({
-                        id: user.id,
-                        email: user.email!,
-                        codex_name: 'Novice Scribe'
-                    })
-                    .select()
-                    .single()
-
-                if (profileError?.code === '23505') {
-                    // Ignore conflict (user already exists)
-                }
+                // We rely on the DB trigger for profile creation now.
+                // But just in case, we can verify or log.
+                console.log(`User authenticated: ${user.id}`)
             }
 
             return NextResponse.redirect(`${origin}${next}`)
+        } else {
+            console.error("Auth Exchange Error:", error)
+            return NextResponse.redirect(`${origin}/auth/auth-code-error?error=${encodeURIComponent(error.message)}`)
         }
     }
 
     // return the user to an error page with instructions
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+    return NextResponse.redirect(`${origin}/auth/auth-code-error?error=NoCodeProvided`)
 }
