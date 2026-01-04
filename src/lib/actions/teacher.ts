@@ -49,8 +49,11 @@ export async function getCodexCheck(daysBack: number = 14) {
     startDate.setDate(startDate.getDate() - daysBack)
     const startDateStr = startDate.toISOString()
 
-    // Get all users
-    const { data: users } = await (supabase as any).from('users').select('id, codex_name, email, class_section, teacher')
+    // Get all users (students only)
+    const { data: users } = await (supabase as any)
+        .from('users')
+        .select('id, codex_name, email, class_section, teacher')
+        .eq('is_admin', false)
 
     if (!users) return { data: [] }
 
