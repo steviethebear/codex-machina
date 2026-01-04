@@ -54,13 +54,28 @@ export default function TeacherDashboard() {
             const { graphData } = await getTeacherAnalytics()
             if (graphData) setGraphData(graphData)
 
-            const { data: tagsData } = await getAdminTagTrends()
+            const tagsData = await getAdminTagTrends()
             if (tagsData) setTagTrends(tagsData)
 
             setLoading(false)
         }
         load()
     }, [dateRange])
+
+    const [sectionFilter, setSectionFilter] = useState('all')
+    const [teacherFilter, setTeacherFilter] = useState('all')
+    const [needsAttentionFilter, setNeedsAttentionFilter] = useState(false)
+
+    // Derived Data
+    const sections = Array.from(new Set(codexReport.map(s => s.section).filter(Boolean))).sort()
+    const teachers = Array.from(new Set(codexReport.map(s => s.teacher).filter(Boolean))).sort()
+
+    const filteredReport = codexReport.filter(s => {
+        if (sectionFilter !== 'all' && s.section !== sectionFilter) return false
+        if (teacherFilter !== 'all' && s.teacher !== teacherFilter) return false
+        if (needsAttentionFilter && !s.isAtRisk) return false
+        return true
+    })
 
     const atRiskStudents = codexReport.filter(s => s.isAtRisk)
 
@@ -95,6 +110,62 @@ export default function TeacherDashboard() {
             </div>
 
             <ScrollArea className="flex-1 p-6">
+                {/* Cohort Filters */}
+                <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/20 rounded-lg border">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <ListChecks className="h-4 w-4" />
+                        Cohort Filter:
+                    </div>
+
+                    <Select value={sectionFilter} onValueChange={setSectionFilter}>
+                        <SelectTrigger className="w-[140px] h-8 text-xs">
+                            <SelectValue placeholder="All Sections" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Sections</SelectItem>
+                            {sections.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={teacherFilter} onValueChange={setTeacherFilter}>
+                        <SelectTrigger className="w-[140px] h-8 text-xs">
+                            <SelectValue placeholder="All Teachers" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Teachers</SelectItem>
+                            {teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+
+                    <div className="flex items-center space-x-2 bg-background p-1.5 px-3 rounded-md border">
+                        <input
+                            type="checkbox"
+                            id="needs-attention"
+                            checked={needsAttentionFilter}
+                            onChange={(e) => setNeedsAttentionFilter(e.target.checked)}
+                            className="rounded border-gray-300"
+                        />
+                        <label htmlFor="needs-attention" className="text-xs font-medium leading-none cursor-pointer">
+                            Needs Attention ({atRiskStudents.length})
+                        </label>
+                    </div>
+
+                    {(sectionFilter !== 'all' || teacherFilter !== 'all' || needsAttentionFilter) && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-xs ml-auto"
+                            onClick={() => {
+                                setSectionFilter('all')
+                                setTeacherFilter('all')
+                                setNeedsAttentionFilter(false)
+                            }}
+                        >
+                            Reset
+                        </Button>
+                    )}
+                </div>
+
                 <Tabs defaultValue="overview" className="space-y-6">
                     <TabsList>
                         <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -236,7 +307,7 @@ export default function TeacherDashboard() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {codexReport.map((student) => (
+                                            {filteredReport.map((student) => (
                                                 <tr key={student.id}
                                                     className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
                                                     onClick={() => router.push(`/admin/student/${student.id}`)}
@@ -244,6 +315,12 @@ export default function TeacherDashboard() {
                                                     <td className="p-4 font-medium">
                                                         {student.name}
                                                         <div className="text-xs text-muted-foreground font-normal">{student.email}</div>
+                                                        {(student.section || student.teacher) && (
+                                                            <div className="flex gap-1 mt-1">
+                                                                {student.section && <Badge variant="secondary" className="text-[9px] px-1 py-0">{student.section}</Badge>}
+                                                                {student.teacher && <Badge variant="outline" className="text-[9px] px-1 py-0">{student.teacher}</Badge>}
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="p-4">
                                                         <div className="flex flex-col gap-1">
@@ -301,9 +378,17 @@ export default function TeacherDashboard() {
                                 <div className="rounded-md border">
                                     <table className="w-full caption-bottom text-sm text-left">
                                         <tbody>
-                                            {codexReport.map((student) => (
+                                            {filteredReport.map((student) => (
                                                 <tr key={student.id} className="border-b p-4">
-                                                    <td className="p-4">{student.name}</td>
+                                                    <td className="p-4">
+                                                        <div>{student.name}</div>
+                                                        {(student.section || student.teacher) && (
+                                                            <div className="flex gap-1 mt-1">
+                                                                {student.section && <Badge variant="secondary" className="text-[9px] px-1 py-0">{student.section}</Badge>}
+                                                                {student.teacher && <Badge variant="outline" className="text-[9px] px-1 py-0">{student.teacher}</Badge>}
+                                                            </div>
+                                                        )}
+                                                    </td>
                                                     <td className="p-4 text-right">
                                                         <Link href={`/admin/student/${student.id}`}>
                                                             <Button size="sm" variant="outline">Manage Profile</Button>

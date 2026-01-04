@@ -9,6 +9,7 @@ type Note = Database['public']['Tables']['notes']['Row'] & {
         codex_name?: string | null
         email?: string | null
     }
+    tags?: string[] | null
 }
 
 interface FeedCardProps {
@@ -38,6 +39,15 @@ export function FeedCard({ note, onClick }: FeedCardProps) {
                 <p className="text-sm text-muted-foreground line-clamp-4 font-mono">
                     {note.content}
                 </p>
+                {note.tags && note.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-3">
+                        {note.tags.map(tag => (
+                            <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal text-muted-foreground bg-muted hover:bg-muted-foreground/10">
+                                #{tag}
+                            </Badge>
+                        ))}
+                    </div>
+                )}
             </CardContent>
             <CardFooter className="pt-4 border-t bg-muted/5 flex justify-between items-center text-xs text-muted-foreground">
                 <div className="flex items-center gap-1">

@@ -158,6 +158,10 @@ export default function ThreadWorkspacePage() {
         }
     }
 
+    if (loading || !thread) {
+        return <div className="p-8 flex justify-center text-muted-foreground">Loading thread...</div>
+    }
+
     const notesInThread = new Set(thread.notes.map(n => n.note_id))
     const notesToAdd = availableNotes.filter(n =>
         !notesInThread.has(n.id) &&
@@ -201,22 +205,12 @@ export default function ThreadWorkspacePage() {
                             </Select>
                         </div>
 
-                        <div className="space-y-2 mt-4">
+                        <div className="flex flex-col gap-2 mt-4">
                             {notesToAdd.length === 0 ? (
-
-                                <p className="text-muted-foreground text-center py-8">
-                                    All permanent notes have been added
-                                </p>
+                                <p className="text-muted-foreground text-center py-8">No matching notes found.</p>
                             ) : (
                                 notesToAdd.map(note => (
-                                    <Card
-                                        key={note.id}
-                                        className="cursor-pointer hover:bg-accent"
-                                        onClick={() => {
-                                            handleAddNote(note.id)
-                                            setShowAddNotes(false)
-                                        }}
-                                    >
+                                    <Card key={note.id} className="cursor-pointer hover:bg-muted" onClick={() => handleAddNote(note.id)}>
                                         <CardHeader>
                                             <CardTitle className="text-base">{note.title}</CardTitle>
                                         </CardHeader>
@@ -224,8 +218,20 @@ export default function ThreadWorkspacePage() {
                                 ))
                             )}
                         </div>
+                        {/* Create New Note (Convenience) */}
+                        <div className="pt-2 border-t mt-2">
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start text-muted-foreground hover:text-foreground h-auto py-2"
+                                onClick={() => window.open('/my-notes?action=new', '_blank')}
+                            >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Create new note (opens in new tab)
+                            </Button>
+                        </div>
+
                     </DialogContent>
-                </Dialog>
+                </Dialog >
                 <Button variant="outline" onClick={handleExport}>
                     <Download className="h-4 w-4 mr-2" />
                     Export
@@ -233,113 +239,121 @@ export default function ThreadWorkspacePage() {
                 <Button variant="destructive" onClick={handleDelete}>
                     <Trash2 className="h-4 w-4" />
                 </Button>
-            </div>
+            </div >
 
             {/* Thread Notes */}
-            <div className="space-y-4">
-                {thread.notes.length === 0 ? (
-                    <Card>
-                        <CardContent className="pt-12 pb-12 text-center text-muted-foreground flex flex-col items-center gap-4">
-                            <p>No notes in this thread yet. Add some to begin weaving.</p>
-                            <Button variant="secondary" onClick={() => setShowAddNotes(true)}>
-                                <Plus className="h-4 w-4 mr-2" />
-                                Add First Note
-                            </Button>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    thread.notes.map((threadNote, index) => (
-                        <Card key={threadNote.id}>
-                            <CardHeader className="pb-3">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1">
-                                        {/* Group Label */}
-                                        {editingLabel === threadNote.id ? (
-                                            <div className="flex gap-2 mb-2">
-                                                <Input
-                                                    value={labelInput}
-                                                    onChange={(e) => setLabelInput(e.target.value)}
-                                                    placeholder="Group label (e.g., Tension, Context)"
-                                                    className="h-8 text-sm"
-                                                    autoFocus
-                                                />
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => handleUpdateLabel(threadNote.note_id, labelInput)}
-                                                >
-                                                    Save
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
+            < div className="space-y-4" >
+                {
+                    thread.notes.length === 0 ? (
+                        <Card>
+                            <CardContent className="pt-12 pb-12 text-center text-muted-foreground flex flex-col items-center gap-4">
+                                <p>No notes in this thread yet. Add some to begin weaving.</p>
+                                <Button variant="secondary" onClick={() => setShowAddNotes(true)}>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add First Note
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        thread.notes.map((threadNote, index) => (
+                            <Card key={threadNote.id}>
+                                <CardHeader className="pb-3">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1">
+                                            {/* Group Label */}
+                                            {editingLabel === threadNote.id ? (
+                                                <div className="flex gap-2 mb-2">
+                                                    <Input
+                                                        value={labelInput}
+                                                        onChange={(e) => setLabelInput(e.target.value)}
+                                                        placeholder="Group label (e.g., Tension, Context)"
+                                                        className="h-8 text-sm"
+                                                        autoFocus
+                                                    />
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => handleUpdateLabel(threadNote.note_id, labelInput)}
+                                                    >
+                                                        Save
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => {
+                                                            setEditingLabel(null)
+                                                            setLabelInput('')
+                                                        }}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </div>
+                                            ) : threadNote.group_label ? (
+                                                <div
+                                                    className="inline-flex items-center gap-2 bg-muted px-2 py-1 rounded text-xs font-medium mb-2 cursor-pointer"
                                                     onClick={() => {
-                                                        setEditingLabel(null)
-                                                        setLabelInput('')
+                                                        setEditingLabel(threadNote.id)
+                                                        setLabelInput(threadNote.group_label || '')
                                                     }}
                                                 >
-                                                    Cancel
+                                                    {threadNote.group_label}
+                                                    <Edit2 className="h-3 w-3" />
+                                                </div>
+                                            ) : (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-6 text-xs mb-2"
+                                                    onClick={() => setEditingLabel(threadNote.id)}
+                                                >
+                                                    + Add Label
                                                 </Button>
+                                            )}
+
+                                            <CardTitle>{threadNote.note.title}</CardTitle>
+                                            <div className="flex items-center gap-2 mt-1 mb-2">
+                                                {/* Author Attribution */}
+                                                <span className="text-xs text-muted-foreground font-medium">
+                                                    by {threadNote.note.author_name || 'Unknown'}
+                                                </span>
                                             </div>
-                                        ) : threadNote.group_label ? (
-                                            <div
-                                                className="inline-flex items-center gap-2 bg-muted px-2 py-1 rounded text-xs font-medium mb-2 cursor-pointer"
-                                                onClick={() => {
-                                                    setEditingLabel(threadNote.id)
-                                                    setLabelInput(threadNote.group_label || '')
-                                                }}
-                                            >
-                                                {threadNote.group_label}
-                                                <Edit2 className="h-3 w-3" />
-                                            </div>
-                                        ) : (
+                                            <p className="text-sm text-muted-foreground line-clamp-3">
+                                                {threadNote.note.content}
+                                            </p>
+                                        </div>
+
+                                        {/* Controls */}
+                                        <div className="flex flex-col gap-1">
                                             <Button
-                                                variant="ghost"
                                                 size="sm"
-                                                className="h-6 text-xs mb-2"
-                                                onClick={() => setEditingLabel(threadNote.id)}
+                                                variant="ghost"
+                                                onClick={() => handleMoveNote(index, 'up')}
+                                                disabled={index === 0}
                                             >
-                                                + Add Label
+                                                <MoveUp className="h-4 w-4" />
                                             </Button>
-                                        )}
-
-                                        <CardTitle>{threadNote.note.title}</CardTitle>
-                                        <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
-                                            {threadNote.note.content}
-                                        </p>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleMoveNote(index, 'down')}
+                                                disabled={index === thread.notes.length - 1}
+                                            >
+                                                <MoveDown className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleRemoveNote(threadNote.note_id)}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
-
-                                    {/* Controls */}
-                                    <div className="flex flex-col gap-1">
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleMoveNote(index, 'up')}
-                                            disabled={index === 0}
-                                        >
-                                            <MoveUp className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleMoveNote(index, 'down')}
-                                            disabled={index === thread.notes.length - 1}
-                                        >
-                                            <MoveDown className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleRemoveNote(threadNote.note_id)}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                        </Card>
-                    ))
-                )}
-            </div>
+                                </CardHeader>
+                            </Card>
+                        ))
+                    )
+                }
+            </div >
         </div >
     )
 }

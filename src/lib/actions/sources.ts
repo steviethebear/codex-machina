@@ -15,7 +15,8 @@ export async function createSource(data: {
     title: string,
     author: string,
     type: string,
-    url?: string
+    url?: string,
+    description?: string // Added
 }) {
     const supabase = await createClient()
 
@@ -39,6 +40,7 @@ export async function createSource(data: {
             author: data.author,
             type: data.type,
             url: data.url || null,
+            description: data.description || null, // Added
             status,
             created_by: user.id,
             reviewed_by: isAdmin ? user.id : null,
@@ -77,6 +79,28 @@ export async function fuzzyMatchSources(query: string) {
     }
 
     return { data: data as TextRow[] }
+}
+
+/**
+ * Fetches count of pending sources (for badges)
+ */
+export async function getPendingSourceCount() {
+    const supabase = await createClient()
+
+    // We can assume this is only called by admins or we check inside
+    // For badges, we might want it to be fast and non-throwing if not admin (just return 0)
+
+    const { count, error } = await supabase
+        .from('texts')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+
+    if (error) {
+        console.error("Error counting pending sources:", error)
+        return 0
+    }
+
+    return count || 0
 }
 
 /**

@@ -21,20 +21,26 @@ export default function GraphPage() {
     // Control States
     const [searchText, setSearchText] = useState('')
     const [showMyNotesOnly, setShowMyNotesOnly] = useState(false)
+    const [selectedTag, setSelectedTag] = useState('all')
+    const [availableTags, setAvailableTags] = useState<string[]>([])
+    const [slideOverNote, setSlideOverNote] = useState<any>(null)
+
+    useEffect(() => {
+        fetchData()
+    }, [])
 
     // Helper to calculate highlighted nodes
     const highlightedNodeIds = useMemo(() => {
         const ids = new Set<string>()
         if (highlightNodeId) ids.add(highlightNodeId)
 
-        if (!searchText && !showMyNotesOnly && !highlightNodeId) return ids
+        if (!searchText && !showMyNotesOnly && !highlightNodeId && selectedTag === 'all') return ids
 
         data.nodes.forEach(node => {
             let matches = true
 
             if (searchText) {
                 const searchLower = searchText.toLowerCase()
-                // Check title and content if available
                 const titleMatch = node.name?.toLowerCase().includes(searchLower)
                 const contentMatch = node.note?.content?.toLowerCase().includes(searchLower)
                 if (!titleMatch && !contentMatch) matches = false
@@ -44,10 +50,14 @@ export default function GraphPage() {
                 if (node.note && node.note.user_id !== user.id) matches = false
             }
 
+            if (selectedTag !== 'all') {
+                if (!node.tags || !node.tags.includes(selectedTag)) matches = false
+            }
+
             if (matches) ids.add(node.id)
         })
         return ids
-    }, [data.nodes, searchText, showMyNotesOnly, user, highlightNodeId])
+    }, [data.nodes, searchText, showMyNotesOnly, user, highlightNodeId, selectedTag])
 
     const fetchData = async () => {
         setLoading(true)
@@ -64,13 +74,33 @@ export default function GraphPage() {
             .select('*')
             .returns<Database['public']['Tables']['connections']['Row'][]>()
 
+        // 3. Fetch Tags
+        const { data: tagsData } = await supabase
+            .from('note_tags')
+            .select('note_id, tag')
+
         if (notes && connections) {
+            // Process Tags
+            const tagMap = new Map<string, string[]>()
+            const uniqueTags = new Set<string>()
+
+            if (tagsData) {
+                tagsData.forEach(t => {
+                    const current = tagMap.get(t.note_id) || []
+                    current.push(t.tag)
+                    tagMap.set(t.note_id, current)
+                    uniqueTags.add(t.tag)
+                })
+            }
+            setAvailableTags(Array.from(uniqueTags).sort())
+
             const nodes: any[] = notes.map((note) => ({
                 id: note.id,
                 name: note.title,
-                val: 1, // Size
-                type: note.type, // 'fleeting', 'source', 'permanent'
+                val: 1,
+                type: note.type,
                 note: note,
+                tags: tagMap.get(note.id) || [],
                 connection_count: 0
             }))
 
@@ -81,7 +111,7 @@ export default function GraphPage() {
             const validLinks = connections.map(c => ({
                 source: c.source_note_id,
                 target: c.target_note_id,
-                explanation: c.context // Renamed to context in v0.5
+                explanation: c.context
             })).filter(l => nodeIds.has(l.source) && nodeIds.has(l.target))
 
             // Calculate connection counts for sizing
@@ -97,50 +127,7 @@ export default function GraphPage() {
         setLoading(false)
     }
 
-    const [unlocked, setUnlocked] = useState(false)
-    const [slideOverNote, setSlideOverNote] = useState<any>(null)
-
-    useEffect(() => {
-        if (!user) return
-        checkUnlock()
-        fetchData()
-    }, [user])
-
-    const checkUnlock = async () => {
-        if (!user) return
-        const { data } = await supabase.from('unlocks')
-            .select('feature')
-            .eq('user_id', user.id)
-            .eq('feature', 'graph_view')
-            .single()
-
-        if (data) setUnlocked(true)
-    }
-
-    // ... (rest of fetch logic in fetchData)
-
-    // Move fetchData outside effect if possible or keep. 
-    // Effect dependency above covers it properly.
-
-    if (loading) return <div className="h-full flex items-center justify-center text-muted-foreground">Loading Graph...</div>
-
-    if (!unlocked) {
-
-        return (
-            <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center p-8 bg-black/95 text-white text-center">
-                <div className="h-20 w-20 rounded-full border-2 border-dashed border-zinc-700 flex items-center justify-center mb-6">
-                    <span className="text-3xl">🕸️</span>
-                </div>
-                <h1 className="text-2xl font-bold mb-2">The Network is Forming</h1>
-                <p className="text-zinc-400 max-w-md mx-auto mb-8">
-                    Your Codex is simply a collection of notes right now. As you weave ideas together, a larger structure will begin to appear here.
-                </p>
-                <Button variant="outline" onClick={() => window.location.href = '/my-notes'}>
-                    Back to Notes
-                </Button>
-            </div>
-        )
-    }
+    // ... (rest of code) ...
 
     return (
         <div className="h-[calc(100vh-4rem)] w-full relative group bg-black">
@@ -150,7 +137,6 @@ export default function GraphPage() {
                     if (node.note) setSlideOverNote(node.note)
                 }}
                 highlightNodes={highlightedNodeIds}
-            // filterType={activeTypeFilter}
             />
 
             {/* Overlay Controls */}
@@ -167,6 +153,21 @@ export default function GraphPage() {
                         />
                     </div>
                 </div>
+
+                {/* Tag Filter */}
+                {availableTags.length > 0 && (
+                    <select
+                        className="w-full p-2 bg-background/80 backdrop-blur border rounded-md text-sm cursor-pointer"
+                        value={selectedTag}
+                        onChange={(e) => setSelectedTag(e.target.value)}
+                    >
+                        <option value="all">All Tags</option>
+                        {availableTags.map(tag => (
+                            <option key={tag} value={tag}>#{tag}</option>
+                        ))}
+                    </select>
+                )}
+
                 <div className="flex items-center space-x-2 bg-background/80 p-2 rounded-md border">
                     <input
                         type="checkbox"

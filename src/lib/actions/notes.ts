@@ -456,12 +456,22 @@ export async function fetchClassFeed(filter: 'all' | 'teacher' | 'students' = 'a
         // Better to return notes with partial info than nothing.
     }
 
-    // 3. Merge Data
+    // 3. Fetch Tags
+    const noteIds = notes.map((n: any) => n.id)
+    const { data: tagsData } = await supabase
+        .from('note_tags')
+        .select('note_id, tag')
+        .in('note_id', noteIds)
+
+    // 4. Merge Data
     const enrichedNotes = notes.map((note: any) => {
         const author = users?.find((u: any) => u.id === note.user_id)
+        const noteTags = tagsData?.filter((t: any) => t.note_id === note.id).map((t: any) => t.tag) || []
+
         return {
             ...note,
-            user: author || { email: 'Unknown', codex_name: 'Unknown' }
+            user: author || { email: 'Unknown', codex_name: 'Unknown' },
+            tags: noteTags
         }
     })
 

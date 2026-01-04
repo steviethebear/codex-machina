@@ -94,22 +94,33 @@ export async function getThread(threadId: string) {
 
     if (threadError) return { error: threadError.message }
 
-    // Get thread notes with note content
+    // Get thread notes with note content and author
     const { data: threadNotes, error: notesError } = await supabase
         .from('thread_notes')
         .select(`
             *,
-            note:notes(*)
+            note:notes(
+                *,
+                author:users(codex_name, email)
+            )
         `)
         .eq('thread_id', threadId)
         .order('position', { ascending: true })
 
     if (notesError) return { error: notesError.message }
 
+    const notesWithAuthor = threadNotes?.map((tn: any) => ({
+        ...tn,
+        note: {
+            ...tn.note,
+            author_name: tn.note?.author?.codex_name || tn.note?.author?.email || 'Unknown'
+        }
+    }))
+
     return {
         data: {
             ...thread,
-            notes: threadNotes || []
+            notes: notesWithAuthor || []
         } as ThreadWithNotes
     }
 }

@@ -212,7 +212,7 @@ export default function NotebookPage() {
 
     // Handle URL Actions (New Note / Open Specific Note)
     useEffect(() => {
-        if (!user || !searchParams) return
+        if (loading || !user || !searchParams) return
         const action = searchParams.get('action')
         const noteId = searchParams.get('noteId')
         const tagParam = searchParams.get('tag')
@@ -241,7 +241,7 @@ export default function NotebookPage() {
             }
         }
         run()
-    }, [user, searchParams, notes, publicNotes])
+    }, [user, searchParams, notes, publicNotes, loading])
 
     if (loading) return <div className="h-full flex items-center justify-center text-muted-foreground">Loading Codex...</div>
 

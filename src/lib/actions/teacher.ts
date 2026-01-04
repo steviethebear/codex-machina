@@ -50,7 +50,7 @@ export async function getCodexCheck(daysBack: number = 14) {
     const startDateStr = startDate.toISOString()
 
     // Get all users
-    const { data: users } = await (supabase as any).from('users').select('id, codex_name, email')
+    const { data: users } = await (supabase as any).from('users').select('id, codex_name, email, section, teacher')
 
     if (!users) return { data: [] }
 
@@ -123,6 +123,8 @@ export async function getCodexCheck(daysBack: number = 14) {
             id: user.id,
             name: user.codex_name || user.email,
             email: user.email,
+            section: user.section,
+            teacher: user.teacher,
             recentNotes: noteCount,
             recentConnections: connectionCount,
             activeDays, // "Consistency"

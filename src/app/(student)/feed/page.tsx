@@ -85,7 +85,7 @@ export default function FeedPage() {
                             className="text-xs gap-1"
                         >
                             <Users className="h-3 w-3" />
-                            Students
+                            Peers
                         </Button>
                     </div>
                 </div>

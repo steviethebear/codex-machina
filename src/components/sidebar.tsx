@@ -11,8 +11,12 @@ import { ViewSwitcher } from '@/components/view-switcher'
 import { createClient } from '@/lib/supabase/client'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 
+import { getPendingSourceCount } from '@/lib/actions/sources' // Import action
+
+// ... imports
+
 const studentNavigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Thinking Profile', href: '/dashboard', icon: LayoutDashboard }, // Renamed
     { name: 'Class Feed', href: '/feed', icon: Sparkles },
     { name: 'My Notes', href: '/my-notes', icon: BookOpen },
     { name: 'Threads', href: '/threads', icon: Layers },
@@ -31,6 +35,7 @@ export function Sidebar() {
     const { signOut, user } = useAuth()
     const [isAdmin, setIsAdmin] = useState(false)
     const [counts, setCounts] = useState({ fleeting: 0, permanent: 0 })
+    const [pendingSources, setPendingSources] = useState(0) // New state
     const supabase = createClient()
 
     useEffect(() => {
@@ -42,7 +47,14 @@ export function Sidebar() {
                     .eq('id', user.id)
                     .single()
                 // @ts-ignore
-                setIsAdmin(data?.is_admin || false)
+                const adminStatus = data?.is_admin || false
+                setIsAdmin(adminStatus)
+
+                // If admin, fetch pending sources
+                if (adminStatus) { // Modified check
+                    const count = await getPendingSourceCount()
+                    setPendingSources(count)
+                }
             }
         }
         checkAdmin()
@@ -105,17 +117,25 @@ export function Sidebar() {
                                         <span className="text-muted-foreground">{counts.permanent}</span>
                                     </div>
                                 )}
+                                {item.name === 'Sources' && pendingSources > 0 && ( // Pending badge
+                                    <div className="ml-auto flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200">
+                                        {pendingSources}
+                                    </div>
+                                )}
                             </Link>
                         )
                     })}
                 </nav>
 
-                <div className="mt-8 px-4">
-                    <Link href="/my-notes?action=new" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                        <PlusCircle className="h-4 w-4" />
-                        New Note
-                    </Link>
-                </div>
+                {/* Remove New Note button for Admins */}
+                {!isInAdminView && (
+                    <div className="mt-8 px-4">
+                        <Link href="/my-notes?action=new" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                            <PlusCircle className="h-4 w-4" />
+                            New Note
+                        </Link>
+                    </div>
+                )}
             </div>
 
             <div className="border-t p-4">
