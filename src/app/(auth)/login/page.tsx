@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button' // We need to create this
@@ -20,6 +20,22 @@ export default function LoginPage() {
     const [teacher, setTeacher] = useState('')
     const [section, setSection] = useState('')
     const [isSignUp, setIsSignUp] = useState(false)
+
+    // Check if user is already logged in
+    useEffect(() => {
+        const checkUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                // Determine redirect based on admin status? 
+                // Alternatively rely on dashboard to redirect admin if needed.
+                // But dashboard redirects to /admin if clean.
+                // Let's just fetch admin status for correctness or default to dashboard.
+                // Actually, dashboard will handle the admin check!
+                router.replace('/dashboard')
+            }
+        }
+        checkUser()
+    }, [supabase, router])
 
     const handleSignUp = async () => {
         setLoading(true)
