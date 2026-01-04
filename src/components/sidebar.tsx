@@ -16,12 +16,12 @@ import { getPendingSourceCount } from '@/lib/actions/sources' // Import action
 // ... imports
 
 const studentNavigation = [
-    { name: 'Thinking Profile', href: '/dashboard', icon: LayoutDashboard }, // Renamed
+    { name: 'Thinking Profile', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Class Feed', href: '/feed', icon: Sparkles },
     { name: 'My Notes', href: '/my-notes', icon: BookOpen },
-    { name: 'Threads', href: '/threads', icon: Layers },
+    { name: 'Threads', href: '/threads', icon: Layers, feature: 'threads' }, // Requires unlock
     { name: 'Reflections', href: '/reflections', icon: MessageSquare },
-    { name: 'Graph', href: '/graph', icon: Network },
+    { name: 'Graph', href: '/graph', icon: Network, feature: 'graph' }, // Requires unlock
 ]
 
 const adminNavigation = [
@@ -35,43 +35,54 @@ export function Sidebar() {
     const { signOut, user } = useAuth()
     const [isAdmin, setIsAdmin] = useState(false)
     const [counts, setCounts] = useState({ fleeting: 0, permanent: 0 })
-    const [pendingSources, setPendingSources] = useState(0) // New state
+    const [pendingSources, setPendingSources] = useState(0)
+    const [unlockedFeatures, setUnlockedFeatures] = useState<string[]>([]) // New state
     const supabase = createClient()
 
     useEffect(() => {
-        const checkAdmin = async () => {
-            if (user) {
-                const { data } = await supabase
-                    .from('users')
-                    .select('is_admin')
-                    .eq('id', user.id)
-                    .single()
-                // @ts-ignore
-                const adminStatus = data?.is_admin || false
-                setIsAdmin(adminStatus)
+        if (!user) return
 
-                // If admin, fetch pending sources
-                if (adminStatus) { // Modified check
-                    const count = await getPendingSourceCount()
-                    setPendingSources(count)
-                }
+        const checkAdmin = async () => {
+            const { data } = await supabase
+                .from('users')
+                .select('is_admin')
+                .eq('id', user.id)
+                .single()
+            // @ts-ignore
+            const adminStatus = data?.is_admin || false
+            setIsAdmin(adminStatus)
+
+            if (adminStatus) {
+                const count = await getPendingSourceCount()
+                setPendingSources(count)
             }
         }
         checkAdmin()
 
+        // Fetch unlocks
+        const fetchUnlocks = async () => {
+            const { data } = await supabase
+                .from('unlocks')
+                .select('feature')
+                .eq('user_id', user.id)
+
+            if (data) {
+                setUnlockedFeatures(data.map((u: any) => u.feature))
+            }
+        }
+        fetchUnlocks()
+
         // Fetch note counts
         const fetchCounts = async () => {
-            if (user) {
-                const [fleeting, permanent] = await Promise.all([
-                    supabase.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('type', 'fleeting'),
-                    supabase.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('type', 'permanent')
-                ])
+            const [fleeting, permanent] = await Promise.all([
+                supabase.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('type', 'fleeting'),
+                supabase.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('type', 'permanent')
+            ])
 
-                setCounts({
-                    fleeting: fleeting.count || 0,
-                    permanent: permanent.count || 0
-                })
-            }
+            setCounts({
+                fleeting: fleeting.count || 0,
+                permanent: permanent.count || 0
+            })
         }
         fetchCounts()
     }, [user, supabase])
@@ -91,6 +102,12 @@ export function Sidebar() {
             <div className="flex-1 overflow-y-auto py-4">
                 <nav className="space-y-1 px-2">
                     {navigation.map((item) => {
+                        // Check Unlock
+                        // @ts-ignore
+                        if (item.feature && !unlockedFeatures.includes(item.feature)) {
+                            return null
+                        }
+
                         const isActive = pathname === item.href
                         return (
                             <Link
@@ -117,7 +134,7 @@ export function Sidebar() {
                                         <span className="text-muted-foreground">{counts.permanent}</span>
                                     </div>
                                 )}
-                                {item.name === 'Sources' && pendingSources > 0 && ( // Pending badge
+                                {item.name === 'Sources' && pendingSources > 0 && (
                                     <div className="ml-auto flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200">
                                         {pendingSources}
                                     </div>

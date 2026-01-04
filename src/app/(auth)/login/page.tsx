@@ -16,61 +16,61 @@ export default function LoginPage() {
     const router = useRouter()
     const supabase = createClient()
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const [codexName, setCodexName] = useState('')
+    const [isSignUp, setIsSignUp] = useState(false)
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
         setError(null)
 
-        const { data: authData, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        })
+        if (isSignUp) {
+            const { error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    emailRedirectTo: `${location.origin}/auth/callback`,
+                    data: {
+                        codex_name: codexName
+                    }
+                },
+            })
 
-        if (error) {
-            console.error("Supabase Login Error:", error)
-            setError(error.message)
-            setLoading(false)
-        } else if (authData.user) {
-            console.log("Login successful, fetching user profile...")
-            // Check if user is admin
-            const { data: userData, error: profileError } = await supabase
-                .from('users')
-                .select('is_admin')
-                .eq('id', authData.user.id)
-                .single()
-
-            if (profileError) {
-                console.error("Profile Fetch Error:", profileError)
-                // Fallback: If public profile missing, just go to dashboard (middleware might catch it, or we handle it)
-                // But for now let's just log it.
+            if (error) {
+                setError(error.message)
+                setLoading(false)
+            } else {
+                setError('Check your email for the confirmation link.')
+                setLoading(false)
             }
-
-            // Redirect based on admin status
-            // @ts-ignore
-            router.push(userData?.is_admin ? '/admin' : '/dashboard')
-            router.refresh()
-        }
-    }
-
-    const handleSignUp = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setLoading(true)
-        setError(null)
-
-        const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                emailRedirectTo: `${location.origin}/auth/callback`,
-            },
-        })
-
-        if (error) {
-            setError(error.message)
-            setLoading(false)
         } else {
-            setError('Check your email for the confirmation link.')
-            setLoading(false)
+            const { data: authData, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
+
+            if (error) {
+                console.error("Supabase Login Error:", error)
+                setError(error.message)
+                setLoading(false)
+            } else if (authData.user) {
+                console.log("Login successful, fetching user profile...")
+                // Check if user is admin
+                const { data: userData, error: profileError } = await supabase
+                    .from('users')
+                    .select('is_admin')
+                    .eq('id', authData.user.id)
+                    .single()
+
+                if (profileError) {
+                    console.error("Profile Fetch Error:", profileError)
+                }
+
+                // Redirect based on admin status
+                // @ts-ignore
+                router.push(userData?.is_admin ? '/admin' : '/dashboard')
+                router.refresh()
+            }
         }
     }
 
@@ -89,8 +89,25 @@ export default function LoginPage() {
                     </p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="space-y-4 rounded-md shadow-sm">
+                        {isSignUp && (
+                            <div>
+                                <label htmlFor="codex-name" className="sr-only">
+                                    Codex Name
+                                </label>
+                                <Input
+                                    id="codex-name"
+                                    name="codex-name"
+                                    type="text"
+                                    required={isSignUp}
+                                    className="relative block w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:z-10 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                                    placeholder="Your Name (e.g. Scribe John)"
+                                    value={codexName}
+                                    onChange={(e) => setCodexName(e.target.value)}
+                                />
+                            </div>
+                        )}
                         <div>
                             <label htmlFor="email-address" className="sr-only">
                                 Email address
@@ -138,15 +155,15 @@ export default function LoginPage() {
                             className="group relative flex w-full justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Sign in
+                            {isSignUp ? 'Sign up' : 'Sign in'}
                         </button>
                         <button
                             type="button"
-                            onClick={handleSignUp}
+                            onClick={() => setIsSignUp(!isSignUp)}
                             disabled={loading}
                             className="group relative flex w-full justify-center rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground hover:bg-secondary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Sign up
+                            {isSignUp ? 'Already have an account? Sign in' : 'No account? Sign up'}
                         </button>
                     </div>
                 </form>
