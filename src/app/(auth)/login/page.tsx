@@ -24,6 +24,13 @@ export default function LoginPage() {
     const handleSignUp = async () => {
         setLoading(true)
         setError(null)
+
+        if (!email.endsWith('@webb.org')) {
+            setError('Sign up is restricted to @webb.org email addresses.')
+            setLoading(false)
+            return
+        }
+
         const { error } = await supabase.auth.signUp({
             email,
             password,
