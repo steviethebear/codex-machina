@@ -131,7 +131,7 @@ export default function NotificationsPage() {
                                 </p>
 
                                 <div className="flex items-center gap-3">
-                                    {notification.link_url && (
+                                    {notification.link && (
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -139,7 +139,7 @@ export default function NotificationsPage() {
                                             asChild
                                             onClick={() => !notification.read && handleMarkAsRead(notification.id)}
                                         >
-                                            <Link href={notification.link_url}>
+                                            <Link href={notification.link}>
                                                 View <ExternalLink className="h-3 w-3 ml-1" />
                                             </Link>
                                         </Button>

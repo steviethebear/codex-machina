@@ -126,7 +126,7 @@ export async function syncConnections(noteId: string, content: string, userId: s
                         type: 'citation',
                         title: 'New Citation',
                         message: `${authorName} linked to your note "${targetNote.title}".`,
-                        link_url: `/my-notes?noteId=${noteId}` // Link to the SOURCE note so they can see the context
+                        link: `/my-notes?noteId=${noteId}` // Link to the SOURCE note so they can see the context
                     })
                 }
             }

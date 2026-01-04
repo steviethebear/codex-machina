@@ -395,7 +395,7 @@ export async function promoteNote(id: string) {
                 type: 'mention',
                 title: 'You were mentioned!',
                 message: `${author?.codex_name || 'Someone'} mentioned you in "${note.title}".`,
-                link_url: `/my-notes?noteId=${note.id}`
+                link: `/my-notes?noteId=${note.id}`
             })
         }
     }
