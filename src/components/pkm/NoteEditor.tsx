@@ -109,7 +109,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
             if (tagsRes) setUserTags(tagsRes)
         }
         loadAutocompleteData()
-    }, [note.id, supabase, user, note.user_id, note.updated_at, note.title, note.content]) // Cleaned up deps
+    }, [note.id, supabase, user, note.user_id]) // Fixed race condition by removing mutable props from deps
 
     // Autosave
     useEffect(() => {

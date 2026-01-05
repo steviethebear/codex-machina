@@ -67,17 +67,20 @@ export default function TeacherDashboard() {
     const [needsAttentionFilter, setNeedsAttentionFilter] = useState(false)
 
     // Derived Data
-    const sections = Array.from(new Set(codexReport.map(s => s.section).filter(Boolean))).sort()
-    const teachers = Array.from(new Set(codexReport.map(s => s.teacher).filter(Boolean))).sort()
+    // Derived Data
+    const students = codexReport.filter(u => !u.is_admin)
 
-    const filteredReport = codexReport.filter(s => {
+    const sections = Array.from(new Set(students.map(s => s.section).filter(Boolean))).sort()
+    const teachers = Array.from(new Set(students.map(s => s.teacher).filter(Boolean))).sort()
+
+    const filteredReport = students.filter(s => {
         if (sectionFilter !== 'all' && s.section !== sectionFilter) return false
         if (teacherFilter !== 'all' && s.teacher !== teacherFilter) return false
         if (needsAttentionFilter && !s.isAtRisk) return false
         return true
     })
 
-    const atRiskStudents = codexReport.filter(s => s.isAtRisk)
+    const atRiskStudents = students.filter(s => s.isAtRisk)
 
     if (loading && codexReport.length === 0) return <div className="p-8 flex items-center justify-center h-screen">Initializing Command Center...</div>
 
@@ -219,8 +222,8 @@ export default function TeacherDashboard() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-2xl font-bold">
-                                        {codexReport.length > 0
-                                            ? Math.round((codexReport.filter(s => !s.isAtRisk).length / codexReport.length) * 100)
+                                        {students.length > 0
+                                            ? Math.round((students.filter(s => !s.isAtRisk).length / students.length) * 100)
                                             : 0}%
                                     </div>
                                     <p className="text-xs text-muted-foreground">Active in last {dateRange} days</p>
@@ -378,7 +381,11 @@ export default function TeacherDashboard() {
                                 <div className="rounded-md border">
                                     <table className="w-full caption-bottom text-sm text-left">
                                         <tbody>
-                                            {filteredReport.map((student) => (
+                                            {codexReport.filter(s => {
+                                                if (sectionFilter !== 'all' && s.section !== sectionFilter) return false
+                                                if (teacherFilter !== 'all' && s.teacher !== teacherFilter) return false
+                                                return true
+                                            }).map((student) => (
                                                 <tr key={student.id} className="border-b p-4">
                                                     <td className="p-4">
                                                         <div>{student.name}</div>
