@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { getStudentProfile, awardXP, forceDeleteNote, forcePromoteNote, deleteStudent, sendPasswordReset, updateStudentPassword } from '@/lib/actions/admin'
+import { getStudentProfile, awardXP, forceDeleteNote, forcePromoteNote, deleteStudent, sendPasswordReset, updateStudentPassword, updateStudentProfile } from '@/lib/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -41,6 +41,7 @@ export default function StudentDetailPage() {
     const [xpReason, setXpReason] = useState('Excellent contribution')
     const [isAwarding, setIsAwarding] = useState(false)
     const [awardDialogOpen, setAwardDialogOpen] = useState(false)
+    const [editProfileOpen, setEditProfileOpen] = useState(false)
 
     // Password States
     const [newPassword, setNewPassword] = useState('')
@@ -171,6 +172,24 @@ export default function StudentDetailPage() {
                     ))}
                 </div>
                 <div className="flex gap-2">
+                    <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline">Edit Profile</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Edit Student Profile</DialogTitle>
+                                <DialogDescription>Update cohort and teacher assignments.</DialogDescription>
+                            </DialogHeader>
+                            <ActionForm profile={profile} onSave={async (data: any) => {
+                                await updateStudentProfile(profile.id, data)
+                                toast.success("Profile updated")
+                                loadData()
+                                setEditProfileOpen(false)
+                            }} />
+                        </DialogContent>
+                    </Dialog>
+
                     <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline">
@@ -416,7 +435,8 @@ export default function StudentDetailPage() {
                                     { key: 'thinking_profile', label: 'Thinking Profile', desc: 'Visualization of engagement patterns (rhythm, density).' },
                                     { key: 'graph_view', label: 'Knowledge Graph', desc: 'Network visualization of notes and connections.' },
                                     { key: 'threads', label: 'Threads', desc: 'Ability to stitch notes into linear narratives.' },
-                                    { key: 'deep_breadcrumbs', label: 'Extended Breadcrumbs', desc: 'Longer history and persistence.' }
+                                    { key: 'deep_breadcrumbs', label: 'Extended Breadcrumbs', desc: 'Longer history and persistence.' },
+                                    { key: 'smart_connections', label: 'Smart Connections', desc: 'AI-powered suggestions for related notes.' }
                                 ].map((cap) => {
                                     const isUnlocked = profile?.unlocks?.some((u: any) => u.feature === cap.key)
                                     return (
@@ -457,5 +477,41 @@ export default function StudentDetailPage() {
             // For now, let's keep it simple.
             />
         </div>
+    )
+}
+
+function ActionForm({ profile, onSave }: { profile: any, onSave: (data: any) => Promise<void> }) {
+    const [name, setName] = useState(profile.codex_name || '')
+    const [section, setSection] = useState(profile.section || '')
+    const [teacher, setTeacher] = useState(profile.teacher || '')
+    const [loading, setLoading] = useState(false)
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setLoading(true)
+        await onSave({ codex_name: name, section, teacher })
+        setLoading(false)
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+            <div className="space-y-2">
+                <Label>Codex Name</Label>
+                <Input value={name} onChange={e => setName(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>Section</Label>
+                    <Input value={section} onChange={e => setSection(e.target.value)} placeholder="e.g. 5A" />
+                </div>
+                <div className="space-y-2">
+                    <Label>Teacher</Label>
+                    <Input value={teacher} onChange={e => setTeacher(e.target.value)} placeholder="e.g. Mr. Smith" />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</Button>
+            </DialogFooter>
+        </form>
     )
 }

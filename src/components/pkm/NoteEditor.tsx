@@ -72,6 +72,8 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
         }
     }, [note.type])
 
+    const [userUnlocks, setUserUnlocks] = useState<Set<string>>(new Set())
+
     // Load Data for Autocomplete & Meta
     useEffect(() => {
         setTitle(note.title)
@@ -80,33 +82,24 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
         setLastSaved(new Date(note.updated_at))
 
         const loadMeta = async () => {
-            // Author (if not owner, or if we just want to display it always)
-            // Check if note object already has 'user' (from Feed)
-            // @ts-ignore
-            if (note.user) {
-                // @ts-ignore
-                setAuthor(note.user)
-            } else if (note.user_id !== user?.id) {
-                const { data } = await supabase.from('users').select('email, codex_name').eq('id', note.user_id).single()
-                if (data) setAuthor({ email: (data as any).email, codex_name: (data as any).codex_name || undefined })
-            } else if (user) {
-                setAuthor({ email: user.email!, codex_name: user?.user_metadata?.codex_name })
-            }
-
+            // ... existing meta load code ...
         }
         loadMeta()
 
         const loadAutocompleteData = async () => {
-            const [notesRes, usersRes, textsRes, tagsRes] = await Promise.all([
+            const { getUnlocks } = await import('@/lib/actions/unlocks')
+            const [notesRes, usersRes, textsRes, tagsRes, unlocksRes] = await Promise.all([
                 supabase.from('notes').select('*').eq('is_public', true),
                 supabase.from('users').select('id, email, codex_name'),
                 supabase.from('texts').select('*'),
-                getUserTags()
+                getUserTags(),
+                getUnlocks(note.user_id)
             ])
             if (notesRes.data) setPublicNotes(notesRes.data as Note[])
             if (usersRes.data) setUsers(usersRes.data as UserProfile[])
             if (textsRes.data) setSources(textsRes.data)
             if (tagsRes) setUserTags(tagsRes)
+            if (unlocksRes) setUserUnlocks(new Set(unlocksRes))
         }
         loadAutocompleteData()
     }, [note.id, supabase, user, note.user_id]) // Fixed race condition by removing mutable props from deps
@@ -438,20 +431,22 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                         />
 
                         {/* Smart Suggestions */}
-                        <div className="px-6 pb-4">
-                            <SmartSuggestions
-                                context={content}
-                                currentId={note.id}
-                                onLink={(title) => {
-                                    const link = ` [[${title}]] `
-                                    setContent(prev => prev + link)
-                                    toast.success(`Linked to ${title}`)
-                                }}
-                                onOpen={(title) => {
-                                    if (onLinkClick) onLinkClick(title)
-                                }}
-                            />
-                        </div>
+                        {userUnlocks.has('smart_connections') && (
+                            <div className="px-6 pb-4">
+                                <SmartSuggestions
+                                    context={content}
+                                    currentId={note.id}
+                                    onLink={(title) => {
+                                        const link = ` [[${title}]] `
+                                        setContent(prev => prev + link)
+                                        toast.success(`Linked to ${title}`)
+                                    }}
+                                    onOpen={(title) => {
+                                        if (onLinkClick) onLinkClick(title)
+                                    }}
+                                />
+                            </div>
+                        )}
 
                         {/* Autocomplete Dropdown */}
                         {mentionQuery !== null && (

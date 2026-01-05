@@ -116,8 +116,18 @@ function getFeatureName(key: string): string {
         case 'thinking_profile': return 'Thinking Profile'
         case 'graph_view': return 'Graph View'
         case 'deep_breadcrumbs': return 'Extended Breadcrumbs'
+        case 'smart_connections': return 'Smart Connections'
         default: return 'New Feature'
     }
+}
+
+/**
+ * Helper to get all unlocks for a user (Client Consumption)
+ */
+export async function getUnlocks(userId: string) {
+    const supabase = await createClient()
+    const { data } = await supabase.from('unlocks').select('feature').eq('user_id', userId)
+    return data?.map(u => u.feature) || []
 }
 
 /**

@@ -137,3 +137,13 @@ export async function inviteStudent(email: string) {
     const { error } = await admin.auth.admin.inviteUserByEmail(email)
     if (error) throw error
 }
+
+export async function updateStudentProfile(userId: string, data: { codex_name?: string, section?: string, teacher?: string }) {
+    const supabase = await createClient()
+    const { error } = await supabase.from('users').update(data).eq('id', userId)
+
+    if (error) throw error
+
+    // Attempt to update metadata if codex_name changed (optional but good for sync)
+    // We can't easily update auth metadata from here without admin client, but public 'users' table is the source of truth for display now.
+}
