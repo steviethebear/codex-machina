@@ -124,6 +124,9 @@ export default function SourcesPage() {
                                                 <SelectItem value="article">Article</SelectItem>
                                                 <SelectItem value="video">Video</SelectItem>
                                                 <SelectItem value="paper">Paper</SelectItem>
+                                                <SelectItem value="poem">Poem</SelectItem>
+                                                <SelectItem value="song">Song</SelectItem>
+                                                <SelectItem value="excerpt">Excerpt</SelectItem>
                                                 <SelectItem value="other">Other</SelectItem>
                                             </SelectContent>
                                         </Select>
@@ -173,6 +176,9 @@ export default function SourcesPage() {
                         <SelectItem value="article">Articles</SelectItem>
                         <SelectItem value="video">Videos</SelectItem>
                         <SelectItem value="paper">Papers</SelectItem>
+                        <SelectItem value="poem">Poems</SelectItem>
+                        <SelectItem value="song">Songs</SelectItem>
+                        <SelectItem value="excerpt">Excerpts</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                 </Select>

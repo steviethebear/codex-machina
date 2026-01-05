@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getClassStats, getCodexCheck, getTeacherAnalytics } from '@/lib/actions/teacher'
+import { unlockFeatureForGroup } from '@/lib/actions/unlocks'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Users, FileText, Network, Activity, Database, AlertTriangle, ChevronRight, Calendar, ListChecks } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -106,6 +107,12 @@ export default function TeacherDashboard() {
                             <Database className="h-4 w-4 mr-2" />
                             Reindex
                         </Button>
+                        <BulkUnlockDialog
+                            sections={sections}
+                            teachers={teachers}
+                            currentSection={sectionFilter}
+                            currentTeacher={teacherFilter}
+                        />
                         <AddSourceDialog />
                         <InviteStudentDialog />
                     </div>
@@ -429,9 +436,235 @@ export default function TeacherDashboard() {
             <NoteSlideOver
                 open={!!slideOverNote}
                 note={slideOverNote}
-                onClose={() => setSlideOverNote(null)}
-                onOpenNote={(n) => window.open(`/notes/${n.id}`, '_blank')}
-                onNavigate={(n) => setSlideOverNote(n)}
+
+                function BulkUnlockDialog({sections, teachers, currentSection, currentTeacher}: {
+                sections: string[], teachers: string[], currentSection: string, currentTeacher: string
+}) {
+    const [open, setOpen] = useState(false)
+            const [targetType, setTargetType] = useState<'section' | 'teacher'>('section')
+            const [targetValue, setTargetValue] = useState('')
+            const [feature, setFeature] = useState('smart_connections')
+            const [loading, setLoading] = useState(false)
+
+    // Auto-select if filter is active
+    useEffect(() => {
+        if (open) {
+            if (currentSection !== 'all') {
+                setTargetType('section')
+                setTargetValue(currentSection)
+            } else if (currentTeacher !== 'all') {
+                setTargetType('teacher')
+                setTargetValue(currentTeacher)
+            }
+        }
+    }, [open, currentSection, currentTeacher])
+
+    const handleUnlock = async () => {
+        if (!targetValue) {
+                toast.error("Please select a target group")
+            return
+        }
+
+            setLoading(true)
+            try {
+            const result = await unlockFeatureForGroup(targetType, targetValue, feature)
+            toast.success(`Unlocked ${feature} for ${result.count} students in ${targetValue}`)
+            setOpen(false)
+        } catch (e) {
+                console.error(e)
+            toast.error("Failed to unlock feature")
+        }
+            setLoading(false)
+    }
+
+            return (
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="outline">
+                        <ListChecks className="h-4 w-4 mr-2" />
+                        Bulk Unlock
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Bulk Feature Unlock</DialogTitle>
+                        <DialogDescription>
+                            Unlock a capability for an entire Section or Teacher group.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Target Group</Label>
+                                <Select value={targetType} onValueChange={(v: any) => setTargetType(v)}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="section">Section</SelectItem>
+                                        <SelectItem value="teacher">Teacher</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Value</Label>
+                                <Select value={targetValue} onValueChange={setTargetValue}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {targetType === 'section'
+                                            ? sections.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)
+                                            : teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)
+                                        }
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Feature to Unlock</Label>
+                            <Select value={feature} onValueChange={setFeature}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="smart_connections">Smart Connections</SelectItem>
+                                    <SelectItem value="graph_view">Graph View</SelectItem>
+                                    <SelectItem value="thinking_profile">Thinking Profile</SelectItem>
+                                    <SelectItem value="threads">Threads</SelectItem>
+                                    <SelectItem value="deep_breadcrumbs">Extended Breadcrumbs</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button onClick={handleUnlock} disabled={loading}>
+                            {loading ? "Unlocking..." : "Unlock for Group"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            )
+}
+
+            function BulkUnlockDialog({sections, teachers, currentSection, currentTeacher}: {
+                sections: string[], teachers: string[], currentSection: string, currentTeacher: string
+}) {
+    const [open, setOpen] = useState(false)
+            const [targetType, setTargetType] = useState<'section' | 'teacher'>('section')
+            const [targetValue, setTargetValue] = useState('')
+            const [feature, setFeature] = useState('smart_connections')
+            const [loading, setLoading] = useState(false)
+
+    // Auto-select if filter is active
+    useEffect(() => {
+        if (open) {
+            if (currentSection !== 'all') {
+                setTargetType('section')
+                setTargetValue(currentSection)
+            } else if (currentTeacher !== 'all') {
+                setTargetType('teacher')
+                setTargetValue(currentTeacher)
+            }
+        }
+    }, [open, currentSection, currentTeacher])
+
+    const handleUnlock = async () => {
+        if (!targetValue) {
+                toast.error("Please select a target group")
+            return
+        }
+
+            setLoading(true)
+            try {
+            const result = await unlockFeatureForGroup(targetType, targetValue, feature)
+            toast.success(`Unlocked ${feature} for ${result.count} students in ${targetValue}`)
+            setOpen(false)
+        } catch (e) {
+                console.error(e)
+            toast.error("Failed to unlock feature")
+        }
+            setLoading(false)
+    }
+
+            return (
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="outline">
+                        <ListChecks className="h-4 w-4 mr-2" />
+                        Bulk Unlock
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Bulk Feature Unlock</DialogTitle>
+                        <DialogDescription>
+                            Unlock a capability for an entire Section or Teacher group.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Target Group</Label>
+                                <Select value={targetType} onValueChange={(v: any) => setTargetType(v)}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="section">Section</SelectItem>
+                                        <SelectItem value="teacher">Teacher</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Value</Label>
+                                <Select value={targetValue} onValueChange={setTargetValue}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {targetType === 'section'
+                                            ? sections.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)
+                                            : teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)
+                                        }
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Feature to Unlock</Label>
+                            <Select value={feature} onValueChange={setFeature}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="smart_connections">Smart Connections</SelectItem>
+                                    <SelectItem value="graph_view">Graph View</SelectItem>
+                                    <SelectItem value="thinking_profile">Thinking Profile</SelectItem>
+                                    <SelectItem value="threads">Threads</SelectItem>
+                                    <SelectItem value="deep_breadcrumbs">Extended Breadcrumbs</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button onClick={handleUnlock} disabled={loading}>
+                            {loading ? "Unlocking..." : "Unlock for Group"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            )
+}
+            onClose={() => setSlideOverNote(null)}
+            onOpenNote={(n) => window.open(`/notes/${n.id}`, '_blank')}
+            onNavigate={(n) => setSlideOverNote(n)}
             />
         </div>
     )

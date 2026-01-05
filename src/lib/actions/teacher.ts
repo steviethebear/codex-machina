@@ -125,7 +125,7 @@ export async function getCodexCheck(daysBack: number = 14) {
             id: user.id,
             name: user.codex_name || user.email,
             email: user.email,
-            section: user.section,
+            section: user.class_section, // user.section was null, using class_section
             teacher: user.teacher,
             is_admin: user.is_admin,
             recentNotes: noteCount,

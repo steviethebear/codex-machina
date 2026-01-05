@@ -21,6 +21,7 @@ export function RequestSourceDialog({ open, onOpenChange, initialTitle = '', onS
     const [title, setTitle] = useState(initialTitle)
     const [author, setAuthor] = useState('')
     const [url, setUrl] = useState('')
+    const [description, setDescription] = useState('')
     const [type, setType] = useState('article')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [matches, setMatches] = useState<any[]>([])
@@ -42,7 +43,7 @@ export function RequestSourceDialog({ open, onOpenChange, initialTitle = '', onS
         }
 
         setIsSubmitting(true)
-        const result = await createSource({ title, author, type, url })
+        const result = await createSource({ title, author, type, url, description })
 
         if (result.error) {
             toast.error(result.error)
@@ -53,7 +54,9 @@ export function RequestSourceDialog({ open, onOpenChange, initialTitle = '', onS
             // Reset form
             setTitle('')
             setAuthor('')
+            setAuthor('')
             setUrl('')
+            setDescription('')
             setType('article')
         }
         setIsSubmitting(false)
@@ -125,8 +128,23 @@ export function RequestSourceDialog({ open, onOpenChange, initialTitle = '', onS
                                 <SelectItem value="book">Book</SelectItem>
                                 <SelectItem value="video">Video</SelectItem>
                                 <SelectItem value="website">Website</SelectItem>
+                                <SelectItem value="paper">Paper</SelectItem>
+                                <SelectItem value="poem">Poem</SelectItem>
+                                <SelectItem value="song">Song</SelectItem>
+                                <SelectItem value="excerpt">Excerpt</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
                             </SelectContent>
                         </Select>
+                    </div>
+                    {/* Add Description Field */}
+                    <div className="grid gap-2">
+                        <Label htmlFor="description">Description (Optional)</Label>
+                        <Input
+                            id="description"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="Brief context..."
+                        />
                     </div>
                 </div>
 

@@ -155,3 +155,36 @@ export async function toggleUnlock(userId: string, feature: string, shouldUnlock
     revalidatePath('/dashboard')
     revalidatePath('/graph')
 }
+
+/**
+ * Bulk Unlock for a group (Teacher or Section)
+ */
+export async function unlockFeatureForGroup(groupBy: 'section' | 'teacher', groupValue: string, feature: string) {
+    const supabase = await createClient()
+
+    // 1. Find all users in this group
+    // Note: We use 'class_section' column based on recent findings
+    const column = groupBy === 'section' ? 'class_section' : 'teacher'
+
+    const { data: users } = await (supabase as any)
+        .from('users')
+        .select('id')
+        .eq(column, groupValue)
+
+    if (!users || users.length === 0) return { count: 0 }
+
+    // 2. Prepare bulk insert/upsert data
+    const unlocks = users.map((u: any) => ({
+        user_id: u.id,
+        feature,
+        check_metadata: { trigger: 'admin_bulk_unlock', group: groupValue }
+    }))
+
+    // 3. Upsert
+    const { error } = await supabase.from('unlocks').upsert(unlocks, { onConflict: 'user_id, feature' })
+
+    if (error) throw error
+
+    revalidatePath('/dashboard')
+    return { count: users.length }
+}
