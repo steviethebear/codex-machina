@@ -43,41 +43,24 @@ export default function UserProfilePage() {
                 .single()
             setProfile(profileData)
 
-            // 1.5 Check if Viewer is Admin
-            const { data: { user: currentUser } } = await supabase.auth.getUser()
-            let adminStatus = false
-            if (currentUser) {
-                const { data: viewerData } = await supabase.from('users').select('is_admin').eq('id', currentUser.id).single()
-                adminStatus = !!(viewerData as any)?.is_admin
-                setIsAdmin(adminStatus)
-            }
+            // 2. Fetch Notes (Public Codex)
+            const { data, error } = await supabase
+                .from('notes')
+                .select(`
+                    *,
+                    user:users(codex_name, email)
+                `)
+                .eq('user_id', userId)
+                .eq('type', 'permanent')
+                .eq('is_public', true)
+                .order('updated_at', { ascending: false })
 
-            // 2. Fetch Notes (Public for all, All for Admin)
-            let notesData: Note[] = []
-            let notesError = null
-
-            if (adminStatus) {
-                // Admin Mode: Use Secure RPC to bypass RLS
-                const { data, error } = await (supabase.rpc as any)('get_admin_notes', {
-                    target_user_id: userId
-                })
-                if (data) notesData = data as Note[]
-                notesError = error
+            if (data) setNotes(data as any as Note[])
+            if (error) {
+                console.error("Error fetching notes:", error)
+                toast.error("Failed to load notes")
             } else {
-                // Public Mode: Standard Query
-                const { data, error } = await supabase
-                    .from('notes')
-                    .select(`
-                        *,
-                        user:users(codex_name, email)
-                    `)
-                    .eq('user_id', userId)
-                    .eq('type', 'permanent')
-                    .eq('is_public', true)
-                    .order('updated_at', { ascending: false })
-
-                if (data) notesData = data as any as Note[]
-                notesError = error
+                setLoading(false)
             }
 
             if (notesError) {
