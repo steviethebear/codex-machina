@@ -72,6 +72,7 @@ export default function UserProfilePage() {
                         user:users(codex_name, email)
                     `)
                     .eq('user_id', userId)
+                    .eq('type', 'permanent')
                     .eq('is_public', true)
                     .order('updated_at', { ascending: false })
 
