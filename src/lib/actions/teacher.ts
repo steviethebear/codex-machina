@@ -52,7 +52,7 @@ export async function getCodexCheck(daysBack: number = 14) {
     // Get all users (including admins)
     const { data: users } = await (supabase as any)
         .from('users')
-        .select('id, codex_name, email, class_section, teacher, is_admin')
+        .select('id, codex_name, email, section, teacher, is_admin')
 
     if (!users) return { data: [] }
 
@@ -126,7 +126,7 @@ export async function getCodexCheck(daysBack: number = 14) {
             id: user.id,
             name: user.codex_name || user.email,
             email: user.email,
-            section: user.class_section,
+            section: user.section,
             teacher: user.teacher,
             is_admin: user.is_admin,
             recentNotes: noteCount,

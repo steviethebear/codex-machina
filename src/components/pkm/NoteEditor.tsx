@@ -558,8 +558,8 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, onUserClick,
                                                 </span>
                                             )
                                         }
-                                        if (href?.startsWith('mention:')) {
-                                            const name = href.replace('mention:', '')
+                                        if (href?.startsWith('#mention-')) {
+                                            const name = href.replace('#mention-', '')
                                             return (
                                                 <span
                                                     className="text-green-600 font-semibold cursor-pointer hover:underline"
@@ -623,9 +623,9 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, onUserClick,
                                     processed = processed.replace(/\[\[(.*?)\]\]/g, (match, title) => {
                                         return `[${title}](#wiki-${encodeURIComponent(title)})`
                                     })
-                                    // Mentions @User -> [@User](mention:User)
+                                    // Mentions @User -> [@User](#mention-User)
                                     processed = processed.replace(/@(\w+)/g, (match, username) => {
-                                        return `[${match}](mention:${username})`
+                                        return `[${match}](#mention-${username})`
                                     })
                                     return processed
                                 })()}
