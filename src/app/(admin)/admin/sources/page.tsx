@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { createSource } from '@/lib/actions/sources'
+import { createSource, updateSource } from '@/lib/actions/sources'
 import { SourceForm } from '@/components/admin/SourceForm'
 
 export default function SourcesPage() {
@@ -25,6 +25,9 @@ export default function SourcesPage() {
     // Add Source State
     const [showAdd, setShowAdd] = useState(false)
     const [newSource, setNewSource] = useState({ title: '', author: '', type: 'book', url: '', description: '' })
+
+    // Edit State
+    const [editingSource, setEditingSource] = useState<any>(null)
 
     const fetchSources = async () => {
         setLoading(true)
@@ -60,6 +63,17 @@ export default function SourcesPage() {
             toast.success('Source added to library')
             setShowAdd(false)
             setNewSource({ title: '', author: '', type: 'book', url: '', description: '' })
+            fetchSources()
+        }
+    }
+
+    const handleUpdate = async (id: string, data: any) => {
+        const result = await updateSource(id, data)
+        if (result.error) {
+            toast.error(result.error)
+        } else {
+            toast.success('Source updated')
+            setEditingSource(null)
             fetchSources()
         }
     }
@@ -167,11 +181,18 @@ export default function SourcesPage() {
                                                 <LinkIcon className="h-5 w-5" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="font-semibold text-lg leading-none">{source.title}</h3>
-                                        <Badge variant="outline" className="text-[10px] h-5 capitalize">
-                                            {source.type}
-                                        </Badge>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-lg leading-none">{source.title}</h3>
+                                            <Badge variant="outline" className="text-[10px] h-5 capitalize">
+                                                {source.type}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button size="sm" variant="ghost" onClick={() => setEditingSource(source)}>
+                                                Edit
+                                            </Button>
+                                        </div>
                                     </div>
                                     <p className="text-muted-foreground text-sm mt-1">{source.author}</p>
                                     {source.description && (
@@ -191,6 +212,25 @@ export default function SourcesPage() {
                     ))}
                 </div>
             )}
+
+            {/* Edit Dialog */}
+            <Dialog open={!!editingSource} onOpenChange={(open) => !open && setEditingSource(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Source</DialogTitle>
+                    </DialogHeader>
+                    {editingSource && (
+                        <SourceForm
+                            defaultValues={editingSource}
+                            onSubmit={async (data) => {
+                                handleUpdate(editingSource.id, data)
+                            }}
+                            onCancel={() => setEditingSource(null)}
+                            submitLabel="Save Changes"
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

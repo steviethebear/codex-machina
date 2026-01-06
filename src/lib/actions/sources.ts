@@ -60,6 +60,50 @@ export async function createSource(data: {
 }
 
 /**
+ * Update a source.
+ */
+export async function updateSource(id: string, data: {
+    title: string,
+    author: string,
+    type: string,
+    url?: string,
+    description?: string
+}) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error("Unauthorized")
+
+    // Check if user is admin
+    const { data: dbUser } = await supabase
+        .from('users')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+
+    if (!dbUser?.is_admin) throw new Error("Unauthorized")
+
+    const { error } = await supabase
+        .from('texts')
+        .update({
+            title: data.title,
+            author: data.author,
+            type: data.type,
+            url: data.url || null,
+            description: data.description || null
+        })
+        .eq('id', id)
+
+    if (error) {
+        console.error("Error updating source:", error)
+        return { error: error.message }
+    }
+
+    revalidatePath('/admin/sources')
+    return { success: true }
+}
+
+/**
  * Searches for sources with similar titles to prevent duplicates.
  */
 export async function fuzzyMatchSources(query: string) {
