@@ -2,16 +2,46 @@
 
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Badge } from '@/components/ui/badge'
-import { ExternalLink, X } from 'lucide-react'
+import { ExternalLink, Quote, FileText, ArrowLeft, ArrowRight } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
+import { Database } from '@/types/database.types'
+
+type Note = Database['public']['Tables']['notes']['Row']
 
 interface SourceSlideOverProps {
     open: boolean
     source: any
     onClose: () => void
+    onNavigate?: (note: Note) => void
 }
 
-export function SourceSlideOver({ open, source, onClose }: SourceSlideOverProps) {
+export function SourceSlideOver({ open, source, onClose, onNavigate }: SourceSlideOverProps) {
+    const [backlinks, setBacklinks] = useState<Note[]>([])
+    const [loading, setLoading] = useState(false)
+    const supabase = createClient()
+
+    useEffect(() => {
+        if (!source || !open) return
+
+        const fetchBacklinks = async () => {
+            setLoading(true)
+            // Strategy: Find notes that mention this source title in content using ilike
+            // OR checks citation field if strictly stored there
+            // "[[Title]]" is standard
+            const { data } = await supabase
+                .from('notes')
+                .select('*')
+                .ilike('content', `%[[${source.title}]]%`)
+                .order('updated_at', { ascending: false })
+
+            if (data) setBacklinks(data)
+            setLoading(false)
+        }
+        fetchBacklinks()
+    }, [source, open, supabase])
+
     if (!source) return null
 
     return (
@@ -34,11 +64,10 @@ export function SourceSlideOver({ open, source, onClose }: SourceSlideOverProps)
                                 {source.author}
                             </p>
                         </div>
-                        {/* Close button is handled by Sheet default but we can add one if preferred or rely on the X */}
                     </div>
 
-                    <ScrollArea className="flex-1 p-6">
-                        <div className="space-y-6">
+                    <ScrollArea className="flex-1">
+                        <div className="p-6 space-y-8">
                             {/* Description */}
                             {source.description && (
                                 <div className="space-y-2">
@@ -70,6 +99,43 @@ export function SourceSlideOver({ open, source, onClose }: SourceSlideOverProps)
                                     </div>
                                 </div>
                             )}
+
+                            {/* Backlinks (Incoming Links) */}
+                            <div className="space-y-3 pt-4 border-t">
+                                <h3 className="text-sm font-medium text-muted-foreground uppercase opacity-70 tracking-wider flex items-center gap-2">
+                                    <Quote className="h-4 w-4" />
+                                    Referenced By ({backlinks.length})
+                                </h3>
+
+                                {loading ? (
+                                    <div className="text-sm text-muted-foreground animate-pulse">Searching connections...</div>
+                                ) : backlinks.length === 0 ? (
+                                    <div className="text-sm text-muted-foreground italic">
+                                        No notes currently reference this source.
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {backlinks.map(note => (
+                                            <button
+                                                key={note.id}
+                                                onClick={() => onNavigate && onNavigate(note)}
+                                                className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent/50 hover:border-accent text-left transition-colors group"
+                                            >
+                                                <FileText className="h-4 w-4 mt-1 text-muted-foreground group-hover:text-primary transition-colors" />
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                                                        {note.title || "Untitled Note"}
+                                                    </h4>
+                                                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                                                        {note.content?.replace(/\[\[.*?\]\]/g, '').slice(0, 100)}...
+                                                    </p>
+                                                </div>
+                                                {onNavigate && <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Meta Info */}
                             <div className="pt-6 border-t mt-8 grid grid-cols-2 gap-4 text-xs text-muted-foreground">
