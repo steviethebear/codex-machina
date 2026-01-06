@@ -57,10 +57,10 @@ export function ProfileSlideOver({ userId, open, onClose, onNoteClick }: Profile
                 .eq('is_public', true) // Only show public permanent notes
                 .order('updated_at', { ascending: false })
 
-            if (notesData && profileData) {
+            if (notesData) {
                 const enriched = notesData.map(n => ({
                     ...n,
-                    user: profileData
+                    user: profileData || { codex_name: 'Unknown Scholar', email: 'unknown' }
                 }))
                 setNotes(enriched as any as Note[])
             }
