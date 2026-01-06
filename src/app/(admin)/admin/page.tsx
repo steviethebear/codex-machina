@@ -555,8 +555,7 @@ function BulkUnlockDialog({ sections, teachers, currentSection, currentTeacher }
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </DialogContent>
-        </Dialog >
-    </>
-            )
+            </Dialog>
+        </>
+    )
 }
