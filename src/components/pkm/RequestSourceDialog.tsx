@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { createSource, fuzzyMatchSources } from '@/lib/actions/sources'
 import { toast } from 'sonner'
 import { AlertCircle } from 'lucide-react'
+import { SourceForm } from '@/components/admin/SourceForm'
 
 interface RequestSourceDialogProps {
     open: boolean
@@ -90,69 +91,38 @@ export function RequestSourceDialog({ open, onOpenChange, initialTitle = '', onS
                         </div>
                     )}
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="title">Source Title</Label>
-                        <Input
-                            id="title"
-                            value={title}
-                            onChange={e => handleTitleChange(e.target.value)}
-                            placeholder="e.g. The Gutenberg Galaxy"
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="author">Author</Label>
-                        <Input
-                            id="author"
-                            value={author}
-                            onChange={e => setAuthor(e.target.value)}
-                            placeholder="e.g. Marshall McLuhan"
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="url">URL (Optional)</Label>
-                        <Input
-                            id="url"
-                            value={url}
-                            onChange={e => setUrl(e.target.value)}
-                            placeholder="https://..."
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="type">Type</Label>
-                        <Select value={type} onValueChange={setType}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="article">Article</SelectItem>
-                                <SelectItem value="book">Book</SelectItem>
-                                <SelectItem value="video">Video</SelectItem>
-                                <SelectItem value="website">Website</SelectItem>
-                                <SelectItem value="paper">Paper</SelectItem>
-                                <SelectItem value="poem">Poem</SelectItem>
-                                <SelectItem value="song">Song</SelectItem>
-                                <SelectItem value="excerpt">Excerpt</SelectItem>
-                                <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    {/* Add Description Field */}
-                    <div className="grid gap-2">
-                        <Label htmlFor="description">Description (Optional)</Label>
-                        <Input
-                            id="description"
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            placeholder="Brief context..."
-                        />
-                    </div>
-                </div>
+                    <SourceForm
+                        defaultValues={{ title, author, type, url, description }}
+                        onSubmit={async (data) => {
+                            setIsSubmitting(true)
+                            // Keep title state synced for fuzzy match if user types in SourceForm? 
+                            // SourceForm handles its own state. 
+                            // If we want fuzzy match we must lift state or add callback.
+                            // For now, let's keep it simple. User wanted consistent forms. 
 
-                <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit} disabled={isSubmitting}>
-                        {isSubmitting ? "Submitting..." : "Submit Request"}
-                    </Button>
+                            if (!data.title || !data.author) {
+                                toast.error("Title and Author are required")
+                                setIsSubmitting(false)
+                                return
+                            }
+
+                            const result = await createSource(data)
+
+                            if (result.error) {
+                                toast.error(result.error)
+                            } else {
+                                toast.success("Source requested! You can use it immediately while it's pending review.")
+                                if (onSuccess) onSuccess(result.data)
+                                onOpenChange(false)
+                                // Reset handled by dialog close mainly
+                            }
+                            setIsSubmitting(false)
+                        }}
+                        isLoading={isSubmitting}
+                        submitLabel="Submit Request"
+                        onCancel={() => onOpenChange(false)}
+                        mode="student"
+                    />
                 </div>
             </DialogContent>
         </Dialog>

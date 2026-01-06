@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { createSource } from '@/lib/actions/sources'
+import { SourceForm } from '@/components/admin/SourceForm'
 
 export default function SourcesPage() {
     const [sources, setSources] = useState<any[]>([])
@@ -92,64 +93,25 @@ export default function SourcesPage() {
                             <DialogHeader>
                                 <DialogTitle>Add to Library</DialogTitle>
                             </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
-                                    <Label>Title</Label>
-                                    <Input
-                                        value={newSource.title}
-                                        onChange={e => setNewSource({ ...newSource, title: e.target.value })}
-                                        placeholder="e.g. The Myth of Sisyphus"
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Author</Label>
-                                    <Input
-                                        value={newSource.author}
-                                        onChange={e => setNewSource({ ...newSource, author: e.target.value })}
-                                        placeholder="e.g. Albert Camus"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="grid gap-2">
-                                        <Label>Type</Label>
-                                        <Select
-                                            value={newSource.type}
-                                            onValueChange={v => setNewSource({ ...newSource, type: v })}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="book">Book</SelectItem>
-                                                <SelectItem value="article">Article</SelectItem>
-                                                <SelectItem value="video">Video</SelectItem>
-                                                <SelectItem value="paper">Paper</SelectItem>
-                                                <SelectItem value="poem">Poem</SelectItem>
-                                                <SelectItem value="song">Song</SelectItem>
-                                                <SelectItem value="excerpt">Excerpt</SelectItem>
-                                                <SelectItem value="other">Other</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label>URL (Optional)</Label>
-                                        <Input
-                                            value={newSource.url}
-                                            onChange={e => setNewSource({ ...newSource, url: e.target.value })}
-                                            placeholder="https://..."
-                                        />
-                                    </div>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Description (Optional)</Label>
-                                    <Input
-                                        value={newSource.description}
-                                        onChange={e => setNewSource({ ...newSource, description: e.target.value })}
-                                        placeholder="Brief context..."
-                                    />
-                                </div>
-                            </div>
-                            <Button onClick={handleCreate}>Add Source</Button>
+                            <SourceForm
+                                onSubmit={async (data) => {
+                                    setNewSource(data) // Keep state sync if needed or just use passed data
+                                    if (!data.title || !data.author) {
+                                        toast.error('Title and Author are required')
+                                        return
+                                    }
+                                    const result = await createSource(data)
+                                    if (result.error) {
+                                        toast.error(result.error)
+                                    } else {
+                                        toast.success('Source added to library')
+                                        setShowAdd(false)
+                                        fetchSources()
+                                    }
+                                }}
+                                onCancel={() => setShowAdd(false)}
+                                submitLabel="Add Source"
+                            />
                         </DialogContent>
                     </Dialog>
                 </div>

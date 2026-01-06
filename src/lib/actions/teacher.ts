@@ -52,7 +52,7 @@ export async function getCodexCheck(daysBack: number = 14) {
     // Get all users (including admins)
     const { data: users } = await (supabase as any)
         .from('users')
-        .select('id, codex_name, email, section, teacher, is_admin')
+        .select('id, codex_name, email, class_section, teacher, is_admin')
 
     if (!users) return { data: [] }
 
@@ -121,11 +121,12 @@ export async function getCodexCheck(daysBack: number = 14) {
         // Inactive > 7 days OR Zero notes in window (if window > 3 days)
         const isAtRisk = daysInactive > 7 || (daysBack > 3 && noteCount === 0)
 
+        // Fix: Use class_section as section
         return {
             id: user.id,
             name: user.codex_name || user.email,
             email: user.email,
-            section: user.class_section, // user.section was null, using class_section
+            section: user.class_section,
             teacher: user.teacher,
             is_admin: user.is_admin,
             recentNotes: noteCount,

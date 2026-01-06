@@ -91,7 +91,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
             const [notesRes, usersRes, textsRes, tagsRes, unlocksRes] = await Promise.all([
                 supabase.from('notes').select('*').eq('is_public', true),
                 supabase.from('users').select('id, email, codex_name'),
-                supabase.from('texts').select('*'),
+                supabase.from('texts').select('*').in('status', ['approved']),
                 getUserTags(),
                 getUnlocks(note.user_id)
             ])
@@ -237,7 +237,10 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                     if (noteMatch) {
                         match = noteMatch
                     } else {
-                        match = sources.find(s => s.title.toLowerCase().includes(mentionQuery.toLowerCase()))
+                        match = sources.find(s =>
+                            s.title.toLowerCase().includes(mentionQuery.toLowerCase()) ||
+                            s.author?.toLowerCase().includes(mentionQuery.toLowerCase())
+                        )
                     }
                 } else {
                     match = users.find(u => u.email.toLowerCase().includes(mentionQuery.toLowerCase()) || (u.codex_name && u.codex_name.toLowerCase().includes(mentionQuery.toLowerCase())))
@@ -465,7 +468,10 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                                     let items: any[] = []
                                     if (mentionType === 'wiki') {
                                         const matchedNotes = publicNotes.filter(n => n.title.toLowerCase().includes(mentionQuery.toLowerCase()) && n.id !== note.id)
-                                        const matchedSources = sources.filter(s => s.title.toLowerCase().includes(mentionQuery.toLowerCase()))
+                                        const matchedSources = sources.filter(s =>
+                                            s.title?.toLowerCase().includes(mentionQuery.toLowerCase()) ||
+                                            s.author?.toLowerCase().includes(mentionQuery.toLowerCase())
+                                        )
                                         items = [...matchedSources, ...matchedNotes]
                                     } else {
                                         items = users.filter(u => u.email.toLowerCase().includes(mentionQuery.toLowerCase()) || (u.codex_name && u.codex_name.toLowerCase().includes(mentionQuery.toLowerCase())))
