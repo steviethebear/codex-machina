@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import ForceGraph from '@/components/graph/force-graph'
 import { useAuth } from '@/components/auth-provider'
-import { NoteSlideOver } from '@/components/NoteSlideOver'
+import { SourceSlideOver } from '@/components/SourceSlideOver'
 
 export default function GraphPage() {
     const searchParams = useSearchParams()
@@ -24,6 +24,7 @@ export default function GraphPage() {
     const [selectedTag, setSelectedTag] = useState('all')
     const [availableTags, setAvailableTags] = useState<string[]>([])
     const [slideOverNote, setSlideOverNote] = useState<any>(null)
+    const [slideOverSource, setSlideOverSource] = useState<any>(null)
 
     useEffect(() => {
         fetchData()
@@ -43,7 +44,10 @@ export default function GraphPage() {
                 const searchLower = searchText.toLowerCase()
                 const titleMatch = node.name?.toLowerCase().includes(searchLower)
                 const contentMatch = node.note?.content?.toLowerCase().includes(searchLower)
-                if (!titleMatch && !contentMatch) matches = false
+                // Also check source description/author
+                const sourceMatch = node.source?.author?.toLowerCase().includes(searchLower) || node.source?.description?.toLowerCase().includes(searchLower)
+
+                if (!titleMatch && !contentMatch && !sourceMatch) matches = false
             }
 
             if (showMyNotesOnly && user) {
@@ -67,6 +71,13 @@ export default function GraphPage() {
             .from('notes')
             .select('*')
             .returns<Database['public']['Tables']['notes']['Row'][]>()
+
+        // 1b. Fetch Sources
+        const { data: sources } = await supabase
+            .from('texts')
+            .select('*')
+            .eq('status', 'approved')
+            .returns<Database['public']['Tables']['texts']['Row'][]>()
 
         // 2. Fetch Connections
         const { data: connections } = await supabase
@@ -104,6 +115,23 @@ export default function GraphPage() {
                 connection_count: 0
             }))
 
+            if (sources) {
+                sources.forEach(source => {
+                    nodes.push({
+                        id: source.id,
+                        name: source.title,
+                        val: 1, // Sources can be bigger?
+                        type: 'source',
+                        source: source,
+                        tags: ['source', source.type], // Add source type as tag
+                        color: '#f59e0b', // Force amber for sources
+                        connection_count: 0
+                    })
+                    uniqueTags.add('source')
+                    uniqueTags.add(source.type)
+                })
+            }
+
             // Create Set of Node IDs
             const nodeIds = new Set(nodes.map(n => n.id))
 
@@ -134,7 +162,11 @@ export default function GraphPage() {
             <ForceGraph
                 data={data}
                 onNodeClick={(node) => {
-                    if (node.note) setSlideOverNote(node.note)
+                    if (node.note) {
+                        setSlideOverNote(node.note)
+                    } else if (node.source) {
+                        setSlideOverSource(node.source)
+                    }
                 }}
                 highlightNodes={highlightedNodeIds}
             />
@@ -188,6 +220,12 @@ export default function GraphPage() {
                 onClose={() => setSlideOverNote(null)}
                 // Refresh graph data if note changes (optional, but good for title updates)
                 onUpdate={() => fetchData()}
+            />
+
+            <SourceSlideOver
+                open={!!slideOverSource}
+                source={slideOverSource}
+                onClose={() => setSlideOverSource(null)}
             />
         </div>
     )
