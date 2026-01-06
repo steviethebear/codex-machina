@@ -7,6 +7,7 @@ import { Sparkles, Search, Filter, BookOpen, Users } from 'lucide-react'
 import { fetchClassFeed } from '@/lib/actions/notes'
 import { FeedCard } from '@/components/pkm/FeedCard'
 import { NoteSlideOver } from '@/components/NoteSlideOver'
+import { SourceSlideOver } from '@/components/SourceSlideOver'
 import { Database } from '@/types/database.types'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -18,6 +19,7 @@ export default function FeedPage() {
     const [filter, setFilter] = useState<'all' | 'teacher' | 'students'>('all')
     const [search, setSearch] = useState('')
     const [selectedNote, setSelectedNote] = useState<Note | null>(null)
+    const [slideOverSource, setSlideOverSource] = useState<any>(null)
 
     useEffect(() => {
         const load = async () => {
@@ -122,15 +124,37 @@ export default function FeedPage() {
                 )}
             </div>
 
-            {/* SlideOver */}
+            {/* Note SlideOver */}
             <NoteSlideOver
                 open={!!selectedNote}
                 note={selectedNote}
                 onClose={() => setSelectedNote(null)}
                 // Drilling down logic
-                onNavigate={(n) => setSelectedNote(n)}
+                onNavigate={(n) => {
+                    if ((n as any).type === 'source') {
+                        // Switch to Source SlideOver
+                        setSelectedNote(null)
+                        // The 'n' object now contains full source data due to NoteSlideOver update
+                        // We might want to cast it or just set it, assume it matches shape close enough
+                        // or just use it as 'any' for the state.
+                        setSlideOverSource(n)
+                    } else {
+                        setSelectedNote(n)
+                    }
+                }}
                 // Open in full notebook
                 onOpenNote={(n) => window.location.href = `/my-notes?noteId=${n.id}`}
+            />
+
+            {/* Source SlideOver */}
+            <SourceSlideOver
+                open={!!slideOverSource}
+                source={slideOverSource}
+                onClose={() => setSlideOverSource(null)}
+                onNavigate={(note) => {
+                    setSlideOverSource(null)
+                    setSelectedNote(note)
+                }}
             />
         </div>
     )

@@ -34,11 +34,13 @@ export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNav
             // Check Texts
             const { data: textData } = await supabase.from('texts').select('*').eq('title', title).single()
             if (textData) {
-                const mapped: Note = {
+                const mapped: any = {
+                    ...textData, // Include ALL source fields (author, year, url, etc.)
                     id: textData.id,
                     title: textData.title,
                     content: textData.description || `by ${textData.author}`,
-                    type: 'source',
+                    type: 'source', // Force type for detection
+                    textType: textData.type, // Preserve original type if needed
                     user_id: 'system',
                     created_at: textData.created_at,
                     updated_at: textData.created_at,
