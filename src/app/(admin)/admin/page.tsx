@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { getClassStats, getCodexCheck, getTeacherAnalytics } from '@/lib/actions/teacher'
 import { unlockFeatureForGroup } from '@/lib/actions/unlocks'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Users, FileText, Network, Activity, Database, AlertTriangle, ChevronRight, Calendar, ListChecks } from 'lucide-react'
+import { Users, FileText, Network, Activity, Database, AlertTriangle, ChevronRight, Calendar, ListChecks, Unlock } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -99,6 +99,12 @@ export default function TeacherDashboard() {
                         <p className="text-muted-foreground">Real-time class intelligence and intervention monitoring.</p>
                     </div>
                     <div className="flex gap-2">
+                        <BulkUnlockDialog
+                            sections={sections}
+                            teachers={teachers}
+                            currentSection={sectionFilter}
+                            currentTeacher={teacherFilter}
+                        />
                         <Button variant="outline" onClick={async () => {
                             toast.promise(generateAllEmbeddings(), {
                                 loading: 'Regenerating embeddings...',
@@ -109,12 +115,6 @@ export default function TeacherDashboard() {
                             <Database className="h-4 w-4 mr-2" />
                             Reindex
                         </Button>
-                        <BulkUnlockDialog
-                            sections={sections}
-                            teachers={teachers}
-                            currentSection={sectionFilter}
-                            currentTeacher={teacherFilter}
-                        />
                         <AddSourceDialog />
                         <InviteStudentDialog />
                     </div>
@@ -490,7 +490,7 @@ function BulkUnlockDialog({ sections, teachers, currentSection, currentTeacher }
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline">
-                    <ListChecks className="h-4 w-4 mr-2" />
+                    <Unlock className="h-4 w-4 mr-2" />
                     Bulk Unlock
                 </Button>
             </DialogTrigger>
