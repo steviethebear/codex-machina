@@ -10,6 +10,7 @@ import ForceGraph from '@/components/graph/force-graph'
 import { useAuth } from '@/components/auth-provider'
 import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { SourceSlideOver } from '@/components/SourceSlideOver'
+import { ProfileSlideOver } from '@/components/ProfileSlideOver'
 
 export default function GraphPage() {
     const searchParams = useSearchParams()
@@ -26,6 +27,7 @@ export default function GraphPage() {
     const [availableTags, setAvailableTags] = useState<string[]>([])
     const [slideOverNote, setSlideOverNote] = useState<any>(null)
     const [slideOverSource, setSlideOverSource] = useState<any>(null)
+    const [slideOverUserId, setSlideOverUserId] = useState<string | null>(null)
 
     useEffect(() => {
         fetchData()
@@ -242,6 +244,10 @@ export default function GraphPage() {
                 onClose={() => setSlideOverNote(null)}
                 // Refresh graph data if note changes (optional, but good for title updates)
                 onUpdate={() => fetchData()}
+                onUserClick={(userId) => {
+                    setSlideOverNote(null)
+                    setSlideOverUserId(userId)
+                }}
                 onNavigate={(n) => {
                     if ((n as any).type === 'source') {
                         // Find the real source object from our data if possible, or use the mapped one
@@ -261,6 +267,16 @@ export default function GraphPage() {
                 onClose={() => setSlideOverSource(null)}
                 onNavigate={(note) => {
                     setSlideOverSource(null)
+                    setSlideOverNote(note)
+                }}
+            />
+
+            <ProfileSlideOver
+                open={!!slideOverUserId}
+                userId={slideOverUserId || ''}
+                onClose={() => setSlideOverUserId(null)}
+                onNoteClick={(note) => {
+                    setSlideOverUserId(null)
                     setSlideOverNote(note)
                 }}
             />

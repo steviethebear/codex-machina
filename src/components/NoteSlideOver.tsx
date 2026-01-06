@@ -17,9 +17,10 @@ interface NoteSlideOverProps {
     onOpenNote?: (note: Note) => void
     onUpdate?: (note: Note) => void
     onNavigate?: (note: Note) => void // New prop for peeking/drilling down
+    onUserClick?: (userId: string) => void
 }
 
-export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNavigate }: NoteSlideOverProps) {
+export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNavigate, onUserClick }: NoteSlideOverProps) {
     const supabase = createClient()
 
     // Handler for clicking a wiki-link title in Editor
@@ -68,6 +69,7 @@ export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNav
                             onUpdate={onUpdate}
                             onDelete={onClose}
                             onLinkClick={handleLinkClick}
+                            onUserClick={onUserClick}
                             className="h-full"
                         />
                     </div>
