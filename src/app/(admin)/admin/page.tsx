@@ -73,8 +73,8 @@ export default function TeacherDashboard() {
     // Derived Data
     const students = codexReport.filter(u => !u.is_admin)
 
-    const sections = Array.from(new Set(students.map(s => s.section).filter(Boolean))).sort()
-    const teachers = Array.from(new Set(students.map(s => s.teacher).filter(Boolean))).sort()
+    const sections = Array.from(new Set(codexReport.map(s => s.section).filter(Boolean))).sort()
+    const teachers = Array.from(new Set(codexReport.map(s => s.teacher).filter(Boolean))).sort()
 
     const filteredReport = students.filter(s => {
         if (sectionFilter !== 'all' && s.section !== sectionFilter) return false
