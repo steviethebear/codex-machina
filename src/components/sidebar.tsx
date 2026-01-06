@@ -21,7 +21,7 @@ const studentNavigation = [
     { name: 'My Notes', href: '/my-notes', icon: BookOpen },
     { name: 'Threads', href: '/threads', icon: Layers, feature: 'threads' }, // Requires unlock
     { name: 'Reflections', href: '/reflections', icon: MessageSquare },
-    { name: 'Graph', href: '/graph', icon: Network, feature: 'graph' }, // Requires unlock
+    { name: 'Graph', href: '/graph', icon: Network, feature: 'graph_view' }, // Requires unlock
 ]
 
 const adminNavigation = [

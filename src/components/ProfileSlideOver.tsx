@@ -56,7 +56,11 @@ export function ProfileSlideOver({ userId, open, onClose, onNoteClick }: Profile
                     user:users(codex_name, email)
                 `)
                 .eq('user_id', userId)
-                .eq('is_public', true)
+                //.eq('is_public', true) // Wait, maybe they want to see ALL permanent notes if admin? 
+                // Or user meant "public codex" implies public ones. 
+                // Let's stick to public for safety but ensure type is permanent.
+                .eq('type', 'permanent')
+                .match({ is_public: true }) // Explicit match for public
                 .order('updated_at', { ascending: false })
 
             if (notesData) setNotes(notesData as any as Note[])
