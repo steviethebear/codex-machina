@@ -31,10 +31,11 @@ interface NoteEditorProps {
     onUpdate?: (note: Note) => void
     onDelete?: () => void
     onLinkClick?: (title: string) => void
+    onUserClick?: (userId: string) => void
     className?: string
 }
 
-export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }: NoteEditorProps) {
+export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, onUserClick, className }: NoteEditorProps) {
     const { user } = useAuth()
     const router = useRouter()
     const supabase = createClient()
@@ -570,7 +571,11 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, className }:
                                                             (u.codex_name?.replace(/\s+/g, '') || u.email.split('@')[0]) === name
                                                         )
                                                         if (targetUser) {
-                                                            router.push(`/user/${targetUser.id}`)
+                                                            if (onUserClick) {
+                                                                onUserClick(targetUser.id)
+                                                            } else {
+                                                                router.push(`/user/${targetUser.id}`)
+                                                            }
                                                         } else {
                                                             toast.error("User not found")
                                                         }

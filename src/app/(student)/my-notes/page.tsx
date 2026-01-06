@@ -19,6 +19,7 @@ import { NoteEditor } from '@/components/pkm/NoteEditor'
 import { ConnectionsPanel } from '@/components/pkm/ConnectionsPanel'
 import { AddSourceDialog } from '@/components/admin/AddSourceDialog'
 import { SmartSuggestions } from '@/components/SmartSuggestions'
+import { ProfileSlideOver } from '@/components/ProfileSlideOver'
 import { Database } from '@/types/database.types'
 
 const ForceGraph = dynamic(() => import('@/components/graph/force-graph'), {
@@ -51,6 +52,7 @@ export default function NotebookPage() {
     const [tagFilter, setTagFilter] = useState<string>('all')
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
     const [slideOverNote, setSlideOverNote] = useState<Note | null>(null)
+    const [slideOverUserId, setSlideOverUserId] = useState<string | null>(null)
     const [showPromotionDialog, setShowPromotionDialog] = useState(false)
     const [isAdmin, setIsAdmin] = useState(false)
 
@@ -429,6 +431,7 @@ export default function NotebookPage() {
                                     }
                                 }
                             }}
+                            onUserClick={(userId) => setSlideOverUserId(userId)}
                             className="flex-1 overflow-hidden"
                         />
 
@@ -477,6 +480,16 @@ export default function NotebookPage() {
                 onOpenNote={(n) => handleSelectNote(n as Note)}
                 // Drill Down
                 onNavigate={(n) => setSlideOverNote(n as Note)}
+            />
+
+            <ProfileSlideOver
+                userId={slideOverUserId}
+                open={!!slideOverUserId}
+                onClose={() => setSlideOverUserId(null)}
+                onNoteClick={(n) => {
+                    setSlideOverUserId(null)
+                    setSlideOverNote(n)
+                }}
             />
         </div>
     )
