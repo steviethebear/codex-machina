@@ -138,7 +138,7 @@ export async function inviteStudent(email: string) {
     if (error) throw error
 }
 
-export async function updateStudentProfile(userId: string, data: { codex_name?: string, section?: string, teacher?: string }) {
+export async function updateStudentProfile(userId: string, data: { codex_name?: string, class_section?: string, teacher?: string }) {
     const supabase = await createClient()
     const { error } = await supabase.from('users').update(data).eq('id', userId)
 

@@ -55,7 +55,7 @@ export default function LoginPage() {
                 data: {
                     codex_name: codexName,
                     teacher: teacher,
-                    section: section
+                    class_section: section
                 }
             },
         })

@@ -482,14 +482,14 @@ export default function StudentDetailPage() {
 
 function ActionForm({ profile, onSave }: { profile: any, onSave: (data: any) => Promise<void> }) {
     const [name, setName] = useState(profile.codex_name || '')
-    const [section, setSection] = useState(profile.section || '')
+    const [section, setSection] = useState(profile.class_section || '')
     const [teacher, setTeacher] = useState(profile.teacher || '')
     const [loading, setLoading] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
-        await onSave({ codex_name: name, section, teacher })
+        await onSave({ codex_name: name, class_section: section, teacher })
         setLoading(false)
     }
 
