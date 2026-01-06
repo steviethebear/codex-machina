@@ -49,18 +49,22 @@ export function ProfileSlideOver({ userId, open, onClose, onNoteClick }: Profile
             setProfile(profileData)
 
             // 2. Fetch Public Notes
-            const { data: notesData } = await supabase
+            const { data: notesData, error } = await supabase
                 .from('notes')
-                .select(`
-                    *,
-                    user:users(codex_name, email)
-                `)
+                .select('*')
                 .eq('user_id', userId)
                 .eq('type', 'permanent')
                 .eq('is_public', true) // Only show public permanent notes
                 .order('updated_at', { ascending: false })
 
-            if (notesData) setNotes(notesData as any as Note[])
+            if (notesData && profileData) {
+                const enriched = notesData.map(n => ({
+                    ...n,
+                    user: profileData
+                }))
+                setNotes(enriched as any as Note[])
+            }
+            if (error) console.error("Error fetching slideover notes:", error)
 
             // 3. Fetch Achievements
             const { data: allAchievements } = await supabase

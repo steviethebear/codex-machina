@@ -46,16 +46,20 @@ export default function UserProfilePage() {
             // 2. Fetch Notes (Public Codex)
             const { data, error } = await supabase
                 .from('notes')
-                .select(`
-                    *,
-                    user:users(codex_name, email)
-                `)
+                .select('*')
                 .eq('user_id', userId)
                 .eq('type', 'permanent')
                 .eq('is_public', true)
                 .order('updated_at', { ascending: false })
 
-            if (data) setNotes(data as any as Note[])
+            if (data && profileData) {
+                // Manually attach user data since FK relation to public.users doesn't exist
+                const enrichedNotes = data.map(n => ({
+                    ...n,
+                    user: profileData
+                }))
+                setNotes(enrichedNotes as any as Note[])
+            }
             if (error) {
                 console.error("Error fetching notes:", error)
                 toast.error("Failed to load notes")
