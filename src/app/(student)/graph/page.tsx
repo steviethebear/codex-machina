@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import ForceGraph from '@/components/graph/force-graph'
 import { useAuth } from '@/components/auth-provider'
+import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { SourceSlideOver } from '@/components/SourceSlideOver'
 
 export default function GraphPage() {

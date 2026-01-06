@@ -1,10 +1,9 @@
 'use client'
 
-import { Fragment } from 'react'
-import { Dialog, Transition } from '@headlessui/react'
-import { X, ExternalLink, Link as LinkIcon, BookOpen, Video, FileText } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Badge } from '@/components/ui/badge'
+import { ExternalLink, X } from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface SourceSlideOverProps {
     open: boolean
@@ -16,100 +15,79 @@ export function SourceSlideOver({ open, source, onClose }: SourceSlideOverProps)
     if (!source) return null
 
     return (
-        <Transition.Root show={open} as={Fragment}>
-            <Dialog as="div" className="relative z-50" onClose={onClose}>
-                <Transition.Child
-                    as={Fragment}
-                    enter="ease-in-out duration-500"
-                    enterFrom="opacity-0"
-                    enterTo="opacity-100"
-                    leave="ease-in-out duration-500"
-                    leaveFrom="opacity-100"
-                    leaveTo="opacity-0"
-                >
-                    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-                </Transition.Child>
+        <Sheet open={open} onOpenChange={(v: boolean) => !v && onClose()}>
+            <SheetContent className="w-[400px] sm:w-[600px] flex flex-col h-full data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-none p-0 bg-background border-l shadow-2xl">
+                {/* Accessibility: Hidden Title */}
+                <SheetTitle className="sr-only">Source Details</SheetTitle>
 
-                <div className="fixed inset-0 overflow-hidden">
-                    <div className="absolute inset-0 overflow-hidden">
-                        <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-                            <Transition.Child
-                                as={Fragment}
-                                enter="transform transition ease-in-out duration-500 sm:duration-700"
-                                enterFrom="translate-x-full"
-                                enterTo="translate-x-0"
-                                leave="transform transition ease-in-out duration-500 sm:duration-700"
-                                leaveFrom="translate-x-0"
-                                leaveTo="translate-x-full"
-                            >
-                                <Dialog.Panel className="pointer-events-auto w-screen max-w-md">
-                                    <div className="flex h-full flex-col overflow-y-scroll bg-background shadow-xl">
-                                        <div className="px-4 py-6 sm:px-6 border-b">
-                                            <div className="flex items-start justify-between">
-                                                <Dialog.Title className="text-lg font-semibold text-foreground">
-                                                    Source Details
-                                                </Dialog.Title>
-                                                <div className="ml-3 flex h-7 items-center">
-                                                    <button
-                                                        type="button"
-                                                        className="relative -m-2 p-2 text-gray-400 hover:text-gray-500"
-                                                        onClick={onClose}
-                                                    >
-                                                        <span className="absolute -inset-0.5" />
-                                                        <span className="sr-only">Close panel</span>
-                                                        <X className="h-6 w-6" aria-hidden="true" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="relative mt-6 flex-1 px-4 sm:px-6 space-y-6">
-                                            {/* Header */}
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant="outline" className="capitalize">
-                                                        {source.type}
-                                                    </Badge>
-                                                </div>
-                                                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                                                    {source.title}
-                                                </h1>
-                                                <p className="text-muted-foreground text-lg">
-                                                    by {source.author}
-                                                </p>
-                                            </div>
-
-                                            {/* Content/Description */}
-                                            {source.description && (
-                                                <div className="bg-muted/30 p-4 rounded-lg border">
-                                                    <h3 className="text-sm font-medium mb-2 text-muted-foreground">About this source</h3>
-                                                    <p className="text-base leading-relaxed">
-                                                        {source.description}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {/* URL */}
-                                            {source.url && (
-                                                <div className="flex items-center gap-2 p-4 bg-blue-50/5 rounded-lg border border-blue-100/10">
-                                                    <ExternalLink className="h-4 w-4 text-blue-400" />
-                                                    <a
-                                                        href={source.url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-blue-400 hover:underline truncate flex-1"
-                                                    >
-                                                        {source.url}
-                                                    </a>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Dialog.Panel>
-                            </Transition.Child>
+                <div className="flex-1 h-full overflow-hidden flex flex-col relative">
+                    {/* Header */}
+                    <div className="px-6 py-6 border-b flex items-start justify-between bg-card text-card-foreground">
+                        <div className="space-y-1 pr-8">
+                            <Badge variant="outline" className="capitalize mb-2">
+                                {source.type}
+                            </Badge>
+                            <h2 className="text-xl font-bold leading-tight">
+                                {source.title}
+                            </h2>
+                            <p className="text-muted-foreground font-medium">
+                                {source.author}
+                            </p>
                         </div>
+                        {/* Close button is handled by Sheet default but we can add one if preferred or rely on the X */}
                     </div>
+
+                    <ScrollArea className="flex-1 p-6">
+                        <div className="space-y-6">
+                            {/* Description */}
+                            {source.description && (
+                                <div className="space-y-2">
+                                    <h3 className="text-sm font-medium text-muted-foreground uppercase opacity-70 tracking-wider">
+                                        Description
+                                    </h3>
+                                    <div className="text-base leading-relaxed bg-muted/30 p-4 rounded-lg border">
+                                        {source.description}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* URL */}
+                            {source.url && (
+                                <div className="space-y-2">
+                                    <h3 className="text-sm font-medium text-muted-foreground uppercase opacity-70 tracking-wider">
+                                        Source Link
+                                    </h3>
+                                    <div className="flex items-center gap-2 p-3 bg-blue-50/5 rounded-lg border border-blue-100/10">
+                                        <ExternalLink className="h-4 w-4 text-blue-400 shrink-0" />
+                                        <a
+                                            href={source.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:underline truncate flex-1 text-sm break-all"
+                                        >
+                                            {source.url}
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Meta Info */}
+                            <div className="pt-6 border-t mt-8 grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                                <div>
+                                    <span className="block opacity-70">Format</span>
+                                    <span className="capitalize">{source.type}</span>
+                                </div>
+                                {source.created_at && (
+                                    <div>
+                                        <span className="block opacity-70">Added</span>
+                                        <span>{new Date(source.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </ScrollArea>
                 </div>
-            </Dialog>
-        </Transition.Root>
+            </SheetContent>
+        </Sheet>
     )
 }
