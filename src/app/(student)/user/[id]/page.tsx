@@ -63,12 +63,7 @@ export default function UserProfilePage() {
                 setLoading(false)
             }
 
-            if (notesError) {
-                console.error("Error fetching notes:", notesError)
-                toast.error("Failed to load notes")
-            } else {
-                setNotes(notesData)
-            }
+
 
             setLoading(false)
         }
