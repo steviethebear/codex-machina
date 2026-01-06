@@ -66,7 +66,7 @@ export function AddSourceDialog({ onSourceAdded }: { onSourceAdded?: (source: an
             </Button>
 
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="sm:max-w-[525px]">
+                <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Add New Source</DialogTitle>
                         <DialogDescription>

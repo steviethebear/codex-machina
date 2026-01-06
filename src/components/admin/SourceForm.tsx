@@ -77,6 +77,7 @@ export function SourceForm({ defaultValues, onSubmit, isLoading, submitLabel = "
                             <SelectItem value="poem">Poem</SelectItem>
                             <SelectItem value="song">Song</SelectItem>
                             <SelectItem value="short_story">Short Story</SelectItem>
+                            <SelectItem value="class_activity">Class Activity</SelectItem>
                             <SelectItem value="excerpt">Excerpt</SelectItem>
                             <SelectItem value="other">Other</SelectItem>
                         </SelectContent>

@@ -65,7 +65,7 @@ export function RequestSourceDialog({ open, onOpenChange, initialTitle = '', onS
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Request New Source</DialogTitle>
                     <DialogDescription>
