@@ -182,7 +182,6 @@ export default function TeacherDashboard() {
                     <TabsList>
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="students">Directory</TabsTrigger>
-                        <TabsTrigger value="sources">Sources</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="overview" className="space-y-6">
@@ -419,19 +418,7 @@ export default function TeacherDashboard() {
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="sources">
-                        {/* Placeholder for now as Sources are managed at /admin/sources, 
-                            but we can instruct user to go there or embed if desired. 
-                            For now, let's link to the dedicated page. */}
-                        <Card>
-                            <CardContent className="p-8 text-center">
-                                <p className="mb-4">Standardized Sources have moved to their own manager.</p>
-                                <Link href="/admin/sources">
-                                    <Button variant="default">Go to Source Manager</Button>
-                                </Link>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
+
                 </Tabs>
             </ScrollArea>
 
