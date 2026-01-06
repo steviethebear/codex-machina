@@ -137,129 +137,133 @@ export default function GraphPage() {
             const nodeIds = new Set(nodes.map(n => n.id))
 
             // Filter valid links
+            // Filter valid links from DB
             const validLinks = connections.map(c => ({
                 source: c.source_note_id,
                 target: c.target_note_id,
                 explanation: c.context
-                const regex = /\[\[(.*?)\]\]/g
+            })).filter(l => nodeIds.has(l.source) && nodeIds.has(l.target))
+
+            // Add implicit links based on citations/content
+            const regex = /\[\[(.*?)\]\]/g
+            notes.forEach(note => {
                 let match
-                while((match = regex.exec(note.content)) !== null) {
-                const title = match[1]
+                // Reset regex lastIndex just in case
+                regex.lastIndex = 0
+                while ((match = regex.exec(note.content)) !== null) {
+                    const title = match[1]
                     // Find node with this title (Note or Source)
                     const targetNode = nodes.find(n => n.name === title)
-                    if(targetNode && targetNode.id !== note.id) {
-                    validLinks.push({
-                        source: note.id,
-                        target: targetNode.id,
-                        explanation: 'Citation'
-                    })
-        }
-    }
-})
-
-// Filter valid links
-const finalLinks = validLinks.filter(l => nodeIds.has(l.source) && nodeIds.has(l.target))
-
-// Calculate connection counts for sizing
-validLinks.forEach(link => {
-    const source = nodes.find(n => n.id === link.source)
-    const target = nodes.find(n => n.id === link.target)
-    if (source) source.connection_count = (source.connection_count || 0) + 1
-    if (target) target.connection_count = (target.connection_count || 0) + 1
-})
-
-setData({ nodes: nodes, links: validLinks })
-        }
-setLoading(false)
-    }
-
-// ... (rest of code) ...
-
-return (
-    <div className="h-[calc(100vh-4rem)] w-full relative group bg-black">
-        <ForceGraph
-            data={data}
-            onNodeClick={(node) => {
-                if (node.note) {
-                    setSlideOverNote(node.note)
-                } else if (node.source) {
-                    setSlideOverSource(node.source)
+                    if (targetNode && targetNode.id !== note.id) {
+                        validLinks.push({
+                            source: note.id,
+                            target: targetNode.id,
+                            explanation: 'Citation'
+                        })
+                    }
                 }
-            }}
-            highlightNodes={highlightedNodeIds}
-        />
+            })
 
-        {/* Overlay Controls */}
-        <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 w-64">
-            <div className="flex gap-2">
-                <div className="relative flex-1">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            // Calculate connection counts for sizing
+            validLinks.forEach(link => {
+                const source = nodes.find(n => n.id === link.source)
+                const target = nodes.find(n => n.id === link.target)
+                if (source) source.connection_count = (source.connection_count || 0) + 1
+                if (target) target.connection_count = (target.connection_count || 0) + 1
+            })
+
+            setData({ nodes: nodes, links: validLinks })
+        }
+        setLoading(false)
+    }
+
+    // ... (rest of code) ...
+
+    return (
+        <div className="h-[calc(100vh-4rem)] w-full relative group bg-black">
+            <ForceGraph
+                data={data}
+                onNodeClick={(node) => {
+                    if (node.note) {
+                        setSlideOverNote(node.note)
+                    } else if (node.source) {
+                        setSlideOverSource(node.source)
+                    }
+                }}
+                highlightNodes={highlightedNodeIds}
+            />
+
+            {/* Overlay Controls */}
+            <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 w-64">
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Search notes..."
+                            className="w-full pl-8 pr-4 py-2 bg-background/80 backdrop-blur border rounded-md text-sm"
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* Tag Filter */}
+                {availableTags.length > 0 && (
+                    <select
+                        className="w-full p-2 bg-background/80 backdrop-blur border rounded-md text-sm cursor-pointer"
+                        value={selectedTag}
+                        onChange={(e) => setSelectedTag(e.target.value)}
+                    >
+                        <option value="all">All Tags</option>
+                        {availableTags.map(tag => (
+                            <option key={tag} value={tag}>#{tag}</option>
+                        ))}
+                    </select>
+                )}
+
+                <div className="flex items-center space-x-2 bg-background/80 p-2 rounded-md border">
                     <input
-                        type="text"
-                        placeholder="Search notes..."
-                        className="w-full pl-8 pr-4 py-2 bg-background/80 backdrop-blur border rounded-md text-sm"
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
+                        type="checkbox"
+                        id="my-notes"
+                        checked={showMyNotesOnly}
+                        onChange={e => setShowMyNotesOnly(e.target.checked)}
+                        className="rounded border-gray-300"
                     />
+                    <label htmlFor="my-notes" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        My Notes Only
+                    </label>
                 </div>
             </div>
 
-            {/* Tag Filter */}
-            {availableTags.length > 0 && (
-                <select
-                    className="w-full p-2 bg-background/80 backdrop-blur border rounded-md text-sm cursor-pointer"
-                    value={selectedTag}
-                    onChange={(e) => setSelectedTag(e.target.value)}
-                >
-                    <option value="all">All Tags</option>
-                    {availableTags.map(tag => (
-                        <option key={tag} value={tag}>#{tag}</option>
-                    ))}
-                </select>
-            )}
+            <NoteSlideOver
+                open={!!slideOverNote}
+                note={slideOverNote}
+                onClose={() => setSlideOverNote(null)}
+                // Refresh graph data if note changes (optional, but good for title updates)
+                onUpdate={() => fetchData()}
+                onNavigate={(n) => {
+                    if ((n as any).type === 'source') {
+                        // Find the real source object from our data if possible, or use the mapped one
+                        const source = data.nodes.find(node => node.id === n.id)?.source || n
+                        setSlideOverNote(null)
+                        setSlideOverSource(source)
+                    } else {
+                        // Normal note drill down
+                        setSlideOverNote(n)
+                    }
+                }}
+            />
 
-            <div className="flex items-center space-x-2 bg-background/80 p-2 rounded-md border">
-                <input
-                    type="checkbox"
-                    id="my-notes"
-                    checked={showMyNotesOnly}
-                    onChange={e => setShowMyNotesOnly(e.target.checked)}
-                    className="rounded border-gray-300"
-                />
-                <label htmlFor="my-notes" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    My Notes Only
-                </label>
-            </div>
+            <SourceSlideOver
+                open={!!slideOverSource}
+                source={slideOverSource}
+                onClose={() => setSlideOverSource(null)}
+                onNavigate={(note) => {
+                    setSlideOverSource(null)
+                    setSlideOverNote(note)
+                }}
+            />
         </div>
-
-        <NoteSlideOver
-            open={!!slideOverNote}
-            note={slideOverNote}
-            onClose={() => setSlideOverNote(null)}
-            // Refresh graph data if note changes (optional, but good for title updates)
-            onUpdate={() => fetchData()}
-            onNavigate={(n) => {
-                if ((n as any).type === 'source') {
-                    // Find the real source object from our data if possible, or use the mapped one
-                    const source = data.nodes.find(node => node.id === n.id)?.source || n
-                    setSlideOverNote(null)
-                    setSlideOverSource(source)
-                } else {
-                    // Normal note drill down
-                    setSlideOverNote(n)
-                }
-            }}
-        />
-
-        <SourceSlideOver
-            open={!!slideOverSource}
-            source={slideOverSource}
-            onClose={() => setSlideOverSource(null)}
-            onNavigate={(note) => {
-                setSlideOverSource(null)
-                setSlideOverNote(note)
-            }}
-        />
-    </div>
-)
+    )
 }
