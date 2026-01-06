@@ -487,74 +487,76 @@ function BulkUnlockDialog({ sections, teachers, currentSection, currentTeacher }
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger>
-                <Button variant="outline">
-                    <Unlock className="h-4 w-4 mr-2" />
-                    Bulk Unlock
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Bulk Feature Unlock</DialogTitle>
-                    <DialogDescription>
-                        Unlock a capability for an entire Section or Teacher group.
-                    </DialogDescription>
-                </DialogHeader>
+        <>
+            <Button variant="outline" onClick={() => setOpen(true)}>
+                <Unlock className="h-4 w-4 mr-2" />
+                Bulk Unlock
+            </Button>
 
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Bulk Feature Unlock</DialogTitle>
+                        <DialogDescription>
+                            Unlock a capability for an entire Section or Teacher group.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Target Group</Label>
+                                <Select value={targetType} onValueChange={(v: any) => setTargetType(v)}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="section">Section</SelectItem>
+                                        <SelectItem value="teacher">Teacher</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Value</Label>
+                                <Select value={targetValue} onValueChange={setTargetValue}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {targetType === 'section'
+                                            ? sections.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)
+                                            : teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)
+                                        }
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
-                            <Label>Target Group</Label>
-                            <Select value={targetType} onValueChange={(v: any) => setTargetType(v)}>
+                            <Label>Feature to Unlock</Label>
+                            <Select value={feature} onValueChange={setFeature}>
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="section">Section</SelectItem>
-                                    <SelectItem value="teacher">Teacher</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Value</Label>
-                            <Select value={targetValue} onValueChange={setTargetValue}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {targetType === 'section'
-                                        ? sections.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)
-                                        : teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)
-                                    }
+                                    <SelectItem value="smart_connections">Smart Connections</SelectItem>
+                                    <SelectItem value="graph_view">Graph View</SelectItem>
+                                    <SelectItem value="thinking_profile">Thinking Profile</SelectItem>
+                                    <SelectItem value="threads">Threads</SelectItem>
+                                    <SelectItem value="deep_breadcrumbs">Extended Breadcrumbs</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>Feature to Unlock</Label>
-                        <Select value={feature} onValueChange={setFeature}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="smart_connections">Smart Connections</SelectItem>
-                                <SelectItem value="graph_view">Graph View</SelectItem>
-                                <SelectItem value="thinking_profile">Thinking Profile</SelectItem>
-                                <SelectItem value="threads">Threads</SelectItem>
-                                <SelectItem value="deep_breadcrumbs">Extended Breadcrumbs</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-
-                <DialogFooter>
-                    <Button onClick={handleUnlock} disabled={loading}>
-                        {loading ? "Unlocking..." : "Unlock for Group"}
-                    </Button>
-                </DialogFooter>
+                    <DialogFooter>
+                        <Button onClick={handleUnlock} disabled={loading}>
+                            {loading ? "Unlocking..." : "Unlock for Group"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
             </DialogContent>
-        </Dialog>
-    )
+        </Dialog >
+    </>
+            )
 }

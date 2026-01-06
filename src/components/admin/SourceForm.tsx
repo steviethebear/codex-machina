@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -92,11 +93,12 @@ export function SourceForm({ defaultValues, onSubmit, isLoading, submitLabel = "
             </div>
             <div className="grid gap-2">
                 <Label htmlFor="description">Description (Optional)</Label>
-                <Input
+                <Textarea
                     id="description"
                     value={data.description}
                     onChange={e => setData({ ...data, description: e.target.value })}
                     placeholder="Brief context..."
+                    className="min-h-[100px]"
                 />
             </div>
             <div className="flex justify-end gap-2 mt-4">
