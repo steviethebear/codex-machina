@@ -27,7 +27,29 @@ export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNav
         if (!onNavigate) return
         // Fetch note by title
         const { data } = await supabase.from('notes').select('*').eq('title', title).single()
-        if (data) onNavigate(data as Note)
+        if (data) {
+            onNavigate(data as Note)
+        } else {
+            // Check Texts
+            const { data: textData } = await supabase.from('texts').select('*').eq('title', title).single()
+            if (textData) {
+                const mapped: Note = {
+                    id: textData.id,
+                    title: textData.title,
+                    content: textData.description || `by ${textData.author}`,
+                    type: 'source',
+                    user_id: 'system',
+                    created_at: textData.created_at,
+                    updated_at: textData.created_at,
+                    is_public: true,
+                    tags: ['system-source', textData.type],
+                    citation: textData.author,
+                    page_number: null,
+                    embedding: null
+                }
+                onNavigate(mapped)
+            }
+        }
     }
 
     if (!note) return null

@@ -137,7 +137,32 @@ export default function NotebookPage() {
                 .from('notes')
                 .select('*')
                 .eq('is_public', true)
-            if (pubData) setPublicNotes(pubData as Note[])
+
+            // Fetch System Sources (from texts table)
+            const { data: systemSources } = await supabase
+                .from('texts')
+                .select('*')
+                .in('status', ['approved']) // Only approved sources
+
+            // Merge System Sources into Public Notes (map to similar structure)
+            const mappedSources = (systemSources || []).map((s: any) => ({
+                id: s.id,
+                title: s.title,
+                content: s.description || (s.author ? `by ${s.author}` : ''),
+                type: 'source' as const,
+                user_id: 'system',
+                created_at: s.created_at,
+                updated_at: s.created_at, // Use created_at as updated_at for sorting
+                is_public: true,
+                tags: ['system-source', s.type],
+                citation: s.author, // Use citation field for author hack
+                page_number: null,
+                embedding: null
+            })) as Note[]
+
+            // Combine ensuring no duplicates if a note already exists for a source (unlikely collision by ID, but good to be safe)
+            // Actually IDs are UUIDs so collision is impossible unless we misuse IDs.
+            if (pubData) setPublicNotes([...(pubData as Note[]), ...mappedSources])
 
             // Fetch User Tags
             const _tags = await getUserTags()
@@ -362,13 +387,46 @@ export default function NotebookPage() {
                                 setPublicNotes(prev => prev.filter(n => n.id !== selectedNote.id))
                             }}
                             onLinkClick={async (title) => {
-                                // Find Note and Open SlideOver
+                                // Find Note or Source
+                                // NoteEditor might pass "Title (Author)" if it came from autocomplete, strictly speaking wikilinks are just Title usually.
+                                // But our autocomplete inserts [[Title]].
+
                                 const n = notes.find(n => n.title === title) || publicNotes.find(p => p.title === title)
-                                if (n) setSlideOverNote(n)
-                                else {
-                                    // Fetch if not in list (though publicNotes usually has all)
+
+                                if (n) {
+                                    setSlideOverNote(n)
+                                } else {
+                                    // Not found in local state? Fetch note.
                                     const { data } = await supabase.from('notes').select('*').eq('title', title).single()
-                                    if (data) setSlideOverNote(data as Note)
+                                    if (data) {
+                                        setSlideOverNote(data as Note)
+                                    } else {
+                                        // Final fallback: Check references to 'texts' by title?
+                                        // Since we merged texts into publicNotes, if it's not found there, it might genuinely not exist.
+                                        // HOWEVER, what if the user typed [[Some Book]] manually?
+                                        // We should check texts table.
+                                        const { data: textData } = await supabase.from('texts').select('*').eq('title', title).single()
+                                        if (textData) {
+                                            // Map to Note for SlideOver
+                                            const mapped: Note = {
+                                                id: textData.id,
+                                                title: textData.title,
+                                                content: textData.description || `by ${textData.author}`,
+                                                type: 'source',
+                                                user_id: 'system',
+                                                created_at: textData.created_at,
+                                                updated_at: textData.created_at,
+                                                is_public: true,
+                                                tags: ['system-source', textData.type],
+                                                citation: textData.author,
+                                                page_number: null,
+                                                embedding: null
+                                            }
+                                            setSlideOverNote(mapped)
+                                        } else {
+                                            toast.error(`Note or Source "${title}" not found.`)
+                                        }
+                                    }
                                 }
                             }}
                             className="flex-1 overflow-hidden"
