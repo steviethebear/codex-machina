@@ -62,11 +62,48 @@ export async function syncConnections(noteId: string, content: string, userId: s
     // 2. Identify Targets from Content
     for (const link of links) {
         // Find target note by title
-        const { data: targetNote } = await (supabase as any)
+        let { data: targetNote } = await (supabase as any)
             .from('notes')
             .select('id, user_id, is_public, title')
             .eq('title', link.title)
             .maybeSingle() // Use maybeSingle to avoid error if not found
+
+        // LAZY CREATION: If note not found, check if it's a known System Source (Text)
+        if (!targetNote) {
+            const { data: textData } = await (supabase as any)
+                .from('texts')
+                .select('*')
+                .eq('title', link.title)
+                .eq('status', 'approved')
+                .maybeSingle()
+
+            if (textData) {
+                // Create the Source Note on the fly!
+                const { data: newSource, error: createError } = await (supabase as any)
+                    .from('notes')
+                    .insert({
+                        title: textData.title,
+                        content: textData.description || `by ${textData.author}`,
+                        type: 'source',
+                        user_id: 'system', // System owned
+                        is_public: true,
+                        created_at: textData.created_at, // Preserve original date or now? 
+                        // actually created_at defaults to now, which is fine for "Note creation", 
+                        // but let's stick to defaults.
+                    })
+                    .select('id, user_id, is_public, title') // Select matching fields
+                    .single()
+
+                if (newSource && !createError) {
+                    targetNote = newSource
+                    // Also add tags?
+                    await (supabase as any).from('note_tags').insert([
+                        { note_id: newSource.id, user_id: 'system', tag: 'system-source' },
+                        { note_id: newSource.id, user_id: 'system', tag: textData.type }
+                    ])
+                }
+            }
+        }
 
         if (targetNote && targetNote.id !== noteId) {
             // Check permissions: Own note OR Public note

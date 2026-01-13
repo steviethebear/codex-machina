@@ -482,9 +482,10 @@ export async function fetchPeers() {
     const supabase: any = await createClient()
 
     // 1. Fetch all public notes to identify users AND count notes
+    // We now include 'content' to parse links manually for "Credit"
     const { data: notes } = await supabase
         .from('notes')
-        .select('user_id')
+        .select('user_id, content')
         .eq('is_public', true)
 
     const uniqueUserIds = [...new Set(notes?.map((n: any) => n.user_id))]
@@ -497,23 +498,22 @@ export async function fetchPeers() {
         .select('id, codex_name, email')
         .in('id', uniqueUserIds)
 
-    // 3. Fetch Connection Counts (Aggregated)
-    // We want to know how many connections each user has made.
-    // Grouping in Supabase/SQL via RPC is efficient, but for MVP standard query:
-    const { data: connections } = await supabase
-        .from('connections')
-        .select('user_id')
-        .in('user_id', uniqueUserIds)
-
-    // 4. Aggregate Stats
+    // 3. Aggregate Stats (Client-side parsing for accurate "Credit")
+    // We count [[Wiki Links]] and @Mentions as "Connections" made by the user.
     const notesCountMap = new Map<string, number>()
-    notes?.forEach((n: any) => {
-        notesCountMap.set(n.user_id, (notesCountMap.get(n.user_id) || 0) + 1)
-    })
-
     const connectionsCountMap = new Map<string, number>()
-    connections?.forEach((c: any) => {
-        connectionsCountMap.set(c.user_id, (connectionsCountMap.get(c.user_id) || 0) + 1)
+
+    notes?.forEach((n: any) => {
+        // Count Note
+        notesCountMap.set(n.user_id, (notesCountMap.get(n.user_id) || 0) + 1)
+
+        // Count Connections (Links + Mentions)
+        const content = n.content || ''
+        const links = (content.match(/\[\[(.*?)\]\]/g) || []).length
+        const mentions = (content.match(/@(\w+)/g) || []).length
+        const total = links + mentions
+
+        connectionsCountMap.set(n.user_id, (connectionsCountMap.get(n.user_id) || 0) + total)
     })
 
     const enrichedUsers = users?.map((u: any) => ({
@@ -526,6 +526,7 @@ export async function fetchPeers() {
 
     return { success: true, data: enrichedUsers }
 }
+
 
 export async function fetchSources() {
     const supabase: any = await createClient()
