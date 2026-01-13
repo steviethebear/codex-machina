@@ -19,6 +19,7 @@ import { createClient } from '@/lib/supabase/client'
 import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { useRouter } from 'next/navigation'
 import { generateAllEmbeddings } from '@/lib/actions/admin-ai'
+import { rebuildGlobalConnections } from '@/lib/actions/admin'
 import { toast } from 'sonner'
 import { getAdminTagTrends } from '@/lib/actions/tags'
 import { Tag } from 'lucide-react'
@@ -106,6 +107,17 @@ export default function TeacherDashboard() {
                             currentTeacher={teacherFilter}
                         />
                         <Button variant="outline" onClick={async () => {
+                            if (!confirm("Re-scan all notes to rebuild connection graph? This may take a while.")) return
+                            toast.promise(rebuildGlobalConnections(), {
+                                loading: 'Rebuilding connections...',
+                                success: (data) => `Scanned ${data.count} notes, indexed ${data.links} connections`,
+                                error: 'Failed to rebuild connections'
+                            })
+                        }}>
+                            <Network className="h-4 w-4 mr-2" />
+                            Rebuild Graph
+                        </Button>
+                        <Button variant="outline" onClick={async () => {
                             toast.promise(generateAllEmbeddings(), {
                                 loading: 'Regenerating embeddings...',
                                 success: (data) => `Generated ${data.count} embeddings (${data.failed} failed)`,
@@ -113,7 +125,7 @@ export default function TeacherDashboard() {
                             })
                         }}>
                             <Database className="h-4 w-4 mr-2" />
-                            Reindex
+                            Regen Embeddings
                         </Button>
                         <AddSourceDialog />
                         <InviteStudentDialog />

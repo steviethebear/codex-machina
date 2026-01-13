@@ -147,3 +147,56 @@ export async function updateStudentProfile(userId: string, data: { codex_name?: 
     // Attempt to update metadata if codex_name changed (optional but good for sync)
     // We can't easily update auth metadata from here without admin client, but public 'users' table is the source of truth for display now.
 }
+
+import { syncConnections } from './links'
+
+export async function reindexAllConnections(studentId: string) {
+    const supabase = await createClient()
+
+    // 1. Fetch all notes for the student
+    const { data: notes } = await supabase
+        .from('notes')
+        .select('id, content, user_id, title')
+        .eq('user_id', studentId)
+
+    if (!notes) return { count: 0, links: 0 }
+
+    let totalLinks = 0
+    let processedNotes = 0
+
+    // 2. Process each note
+    for (const note of notes) {
+        if (note.content) {
+            const linksCount = await syncConnections(note.id, note.content, note.user_id)
+            totalLinks += linksCount
+            processedNotes++
+        }
+    }
+
+    return { count: processedNotes, links: totalLinks }
+}
+
+export async function rebuildGlobalConnections() {
+    const supabase = await createClient()
+
+    // 1. Fetch ALL notes
+    const { data: notes } = await supabase
+        .from('notes')
+        .select('id, content, user_id, title')
+
+    if (!notes) return { count: 0, links: 0 }
+
+    let totalLinks = 0
+    let processedNotes = 0
+
+    // 2. Process each note
+    for (const note of notes) {
+        if (note.content) {
+            const linksCount = await syncConnections(note.id, note.content, note.user_id)
+            totalLinks += linksCount
+            processedNotes++
+        }
+    }
+
+    return { count: processedNotes, links: totalLinks }
+}

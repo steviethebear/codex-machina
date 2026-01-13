@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { getStudentProfile, awardXP, forceDeleteNote, forcePromoteNote, deleteStudent, sendPasswordReset, updateStudentPassword, updateStudentProfile } from '@/lib/actions/admin'
+import { getStudentProfile, awardXP, forceDeleteNote, forcePromoteNote, deleteStudent, sendPasswordReset, updateStudentPassword, updateStudentProfile, reindexAllConnections } from '@/lib/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, Trash2, Award, FileText, Activity, AlertTriangle, Key, Mail, ShieldAlert, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Trash2, Award, FileText, Activity, AlertTriangle, Key, Mail, ShieldAlert, MessageSquare, Network } from 'lucide-react'
 import { toast } from 'sonner'
 import {
     Dialog,
@@ -172,6 +172,16 @@ export default function StudentDetailPage() {
                     ))}
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="outline" onClick={async () => {
+                        if (!confirm("Re-index all note connections for this student? This may take a moment.")) return
+                        const result = await reindexAllConnections(id)
+                        toast.success(`Indexed ${result.count} notes, found ${result.links} connections.`)
+                        loadData()
+                    }}>
+                        <Network className="h-4 w-4 mr-2" />
+                        Re-index
+                    </Button>
+
                     <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline">Edit Profile</Button>

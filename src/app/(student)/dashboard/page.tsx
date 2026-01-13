@@ -69,7 +69,7 @@ export default function DashboardPage() {
             // We need created_at to build the rhythm map
             const { data: notes } = await supabase
                 .from('notes')
-                .select('id, title, type, created_at')
+                .select('id, title, type, created_at, content')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
 
@@ -80,19 +80,32 @@ export default function DashboardPage() {
 
                 // Build Activity Map (Production Rhythm)
                 const activityMap = new Map<string, number>()
+                let totalParsedConnections = 0
+
                 notes.forEach(note => {
+                    // Activity Map
                     const date = new Date(note.created_at).toISOString().split('T')[0]
                     activityMap.set(date, (activityMap.get(date) || 0) + 1)
+
+                    // Parse Content for connections (Links + Mentions)
+                    const content = note.content || ''
+                    // Match [[Wiki Links]]
+                    const links = content.match(/\[\[(.*?)\]\]/g) || []
+                    // Match @Mentions (simple word match for now)
+                    const mentions = content.match(/@(\w+)/g) || []
+
+                    totalParsedConnections += links.length + mentions.length
                 })
 
-                // 3. Fetch Connections (for Density & Revisitation)
+                // 3. Fetch Connections (only used for Revisitation analysis now)
                 const { data: connections } = await supabase
                     .from('connections')
                     .select('source_note_id, target_note_id, created_at')
                     .eq('user_id', user.id)
 
                 const validConnections = connections || []
-                const connectionCount = validConnections.length
+                // Use parsed count for the metric
+                const connectionCount = totalParsedConnections
                 const connectionDensity = totalNotes > 0 ? (connectionCount / totalNotes) : 0
 
                 // 4. Calculate Revisitation (Self-citations > 7 days old)
