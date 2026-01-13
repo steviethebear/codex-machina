@@ -287,7 +287,7 @@ export default function NotebookPage() {
                         </h2>
                         <div className="flex items-center gap-2">
                             {activeTab !== 'source' && (
-                                <Button onClick={handleCreateNew} size="sm" variant="default">
+                                <Button onClick={() => handleCreateNew()} size="sm" variant="default">
                                     <PlusCircle className="h-4 w-4 mr-1" />
                                     New
                                 </Button>
