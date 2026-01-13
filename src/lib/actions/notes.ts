@@ -481,17 +481,7 @@ export async function fetchClassFeed(filter: 'all' | 'teacher' | 'students' = 'a
 export async function fetchPeers() {
     const supabase: any = await createClient()
 
-    // Fetch users who have at least one public note
-    // We can do this by fetching distinct user_ids from public notes
-    const { data: activeUserIds } = await supabase
-        .from('notes')
-        .select('user_id')
-        .eq('is_public', true)
-    // .distinct('user_id') // Postgrest doesn't support distinct in select string easily, use .csv or just client side unique?
-    // Actually, let's just fetch users and then count their public notes
-
-    // Better approach: specific RPC or distinct join.
-    // For MVP: Fetch all public notes (lightweight: id, user_id) and aggregate.
+    // 1. Fetch all public notes to identify users AND count notes
     const { data: notes } = await supabase
         .from('notes')
         .select('user_id')
@@ -501,27 +491,80 @@ export async function fetchPeers() {
 
     if (uniqueUserIds.length === 0) return { success: true, data: [] }
 
+    // 2. Fetch Users
     const { data: users } = await supabase
         .from('users')
-        .select('id, codex_name, email') // Add avatar if avail
+        .select('id, codex_name, email')
         .in('id', uniqueUserIds)
 
-    return { success: true, data: users }
+    // 3. Fetch Connection Counts (Aggregated)
+    // We want to know how many connections each user has made.
+    // Grouping in Supabase/SQL via RPC is efficient, but for MVP standard query:
+    const { data: connections } = await supabase
+        .from('connections')
+        .select('user_id')
+        .in('user_id', uniqueUserIds)
+
+    // 4. Aggregate Stats
+    const notesCountMap = new Map<string, number>()
+    notes?.forEach((n: any) => {
+        notesCountMap.set(n.user_id, (notesCountMap.get(n.user_id) || 0) + 1)
+    })
+
+    const connectionsCountMap = new Map<string, number>()
+    connections?.forEach((c: any) => {
+        connectionsCountMap.set(c.user_id, (connectionsCountMap.get(c.user_id) || 0) + 1)
+    })
+
+    const enrichedUsers = users?.map((u: any) => ({
+        ...u,
+        stats: {
+            notes: notesCountMap.get(u.id) || 0,
+            connections: connectionsCountMap.get(u.id) || 0
+        }
+    }))
+
+    return { success: true, data: enrichedUsers }
 }
 
 export async function fetchSources() {
     const supabase: any = await createClient()
 
+    // 1. Fetch User-created Sources
     const { data: sources } = await supabase
         .from('notes')
         .select('*')
         .eq('type', 'source')
+        .eq('is_public', true) // Re-enforce? Sources should be public usually.
         .order('title', { ascending: true })
 
+    // 2. Fetch System Sources (Texts)
+    const { data: texts } = await supabase
+        .from('texts')
+        .select('*')
+        .in('status', ['approved'])
 
-    // We also want to know how many times they've been cited?
-    // That's expensive to calculate on the fly for a list.
-    // Let's just return the sources for now.
+    // 3. Map Texts to Note structure
+    const mappedTexts = (texts || []).map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        content: s.description || (s.author ? `by ${s.author}` : ''),
+        type: 'source',
+        user_id: 'system',
+        created_at: s.created_at,
+        updated_at: s.created_at,
+        is_public: true,
+        tags: ['system-source', s.type],
+        citation: s.author,
+        page_number: null,
+        embedding: null,
+        user: { codex_name: 'Library', email: 'system' }
+    }))
 
-    return { success: true, data: sources }
+    // 4. Merge and Sort
+    const allSources = [...(sources || []), ...mappedTexts].sort((a, b) =>
+        a.title.localeCompare(b.title)
+    )
+
+    return { success: true, data: allSources }
 }

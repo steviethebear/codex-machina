@@ -129,6 +129,10 @@ export default function FeedPage() {
                                 </div>
                                 <h3 className="font-semibold text-lg">{peer.codex_name}</h3>
                                 <p className="text-sm text-muted-foreground">{peer.email}</p>
+                                <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                                    <span title="Public Notes">Notes: {peer.stats?.notes || 0}</span>
+                                    <span title="Connections">Links: {peer.stats?.connections || 0}</span>
+                                </div>
                                 <Button variant="ghost" className="mt-4 w-full text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
                                     View Profile
                                 </Button>

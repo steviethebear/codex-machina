@@ -167,7 +167,7 @@ export async function fetchNodeConnections(noteId: string) {
             id,
             context,
             source_note:source_note_id (
-                id, title, type, is_public, user_id
+                id, title, type, is_public, user_id, content, created_at, updated_at, citation
             )
         `)
         .eq('target_note_id', noteId)
@@ -181,7 +181,7 @@ export async function fetchNodeConnections(noteId: string) {
             id,
             context,
             target_note:target_note_id (
-                id, title, type, is_public, user_id
+                id, title, type, is_public, user_id, content, created_at, updated_at, citation
             )
         `)
         .eq('source_note_id', noteId)
