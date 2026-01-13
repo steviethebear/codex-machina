@@ -209,7 +209,7 @@ export default function NotebookPage() {
         }
     }
 
-    const handleCreateNew = async () => {
+    const handleCreateNew = async (initialContent: string = '') => {
         if (!user) return
 
         // Always force to Fleeting/Inbox
@@ -225,7 +225,7 @@ export default function NotebookPage() {
         const result = await createNote({
             user_id: user.id,
             title: initialTitle,
-            content: '',
+            content: initialContent,
             type: newNoteType,
             is_public: isPublic
         })
@@ -243,6 +243,7 @@ export default function NotebookPage() {
         const action = searchParams.get('action')
         const noteId = searchParams.get('noteId')
         const tagParam = searchParams.get('tag')
+        const linkTo = searchParams.get('linkTo')
 
         const run = async () => {
             // Handle Tag Filter
@@ -253,7 +254,8 @@ export default function NotebookPage() {
             // Handle "New Note"
             if (action === 'new' && !hasHandledNewRef.current) {
                 hasHandledNewRef.current = true
-                await handleCreateNew()
+                const content = linkTo ? `Based on [[${linkTo}]]\n\n` : ''
+                await handleCreateNew(content)
                 // Clear query param to prevent duplicate creation on refresh
                 router.replace('/my-notes')
             }

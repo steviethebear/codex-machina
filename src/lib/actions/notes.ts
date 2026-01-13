@@ -477,3 +477,51 @@ export async function fetchClassFeed(filter: 'all' | 'teacher' | 'students' = 'a
 
     return { success: true, data: enrichedNotes }
 }
+
+export async function fetchPeers() {
+    const supabase: any = await createClient()
+
+    // Fetch users who have at least one public note
+    // We can do this by fetching distinct user_ids from public notes
+    const { data: activeUserIds } = await supabase
+        .from('notes')
+        .select('user_id')
+        .eq('is_public', true)
+    // .distinct('user_id') // Postgrest doesn't support distinct in select string easily, use .csv or just client side unique?
+    // Actually, let's just fetch users and then count their public notes
+
+    // Better approach: specific RPC or distinct join.
+    // For MVP: Fetch all public notes (lightweight: id, user_id) and aggregate.
+    const { data: notes } = await supabase
+        .from('notes')
+        .select('user_id')
+        .eq('is_public', true)
+
+    const uniqueUserIds = [...new Set(notes?.map((n: any) => n.user_id))]
+
+    if (uniqueUserIds.length === 0) return { success: true, data: [] }
+
+    const { data: users } = await supabase
+        .from('users')
+        .select('id, codex_name, email') // Add avatar if avail
+        .in('id', uniqueUserIds)
+
+    return { success: true, data: users }
+}
+
+export async function fetchSources() {
+    const supabase: any = await createClient()
+
+    const { data: sources } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('type', 'source')
+        .order('title', { ascending: true })
+
+
+    // We also want to know how many times they've been cited?
+    // That's expensive to calculate on the fly for a list.
+    // Let's just return the sources for now.
+
+    return { success: true, data: sources }
+}

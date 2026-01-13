@@ -153,3 +153,53 @@ export async function syncConnections(noteId: string, content: string, userId: s
 
     return validLinksCount
 }
+
+export async function fetchNodeConnections(noteId: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // 1. Fetch Incoming (Backlinks)
+    // We want connections where target_note_id === noteId
+    // AND source_note is (Public OR Mine)
+    const { data: incoming } = await (supabase as any)
+        .from('connections')
+        .select(`
+            id,
+            context,
+            source_note:source_note_id (
+                id, title, type, is_public, user_id
+            )
+        `)
+        .eq('target_note_id', noteId)
+
+    // 2. Fetch Outgoing
+    // We want connections where source_note_id === noteId
+    // AND target_note is (Public OR Mine)
+    const { data: outgoing } = await (supabase as any)
+        .from('connections')
+        .select(`
+            id,
+            context,
+            target_note:target_note_id (
+                id, title, type, is_public, user_id
+            )
+        `)
+        .eq('source_note_id', noteId)
+
+    // 3. Filter Visibility
+    const userId = user?.id
+
+    const validIncoming = incoming?.filter((c: any) => {
+        const note = c.source_note
+        if (!note) return false
+        return note.is_public || note.user_id === userId
+    }) || []
+
+    const validOutgoing = outgoing?.filter((c: any) => {
+        const note = c.target_note
+        if (!note) return false
+        return note.is_public || note.user_id === userId
+    }) || []
+
+    return { incoming: validIncoming, outgoing: validOutgoing }
+}

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Sparkles, Search, Filter, BookOpen, Users } from 'lucide-react'
-import { fetchClassFeed } from '@/lib/actions/notes'
+import { fetchClassFeed, fetchPeers, fetchSources } from '@/lib/actions/notes'
 import { FeedCard } from '@/components/pkm/FeedCard'
 import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { SourceSlideOver } from '@/components/SourceSlideOver'
@@ -15,6 +15,8 @@ type Note = Database['public']['Tables']['notes']['Row']
 
 export default function FeedPage() {
     const [notes, setNotes] = useState<Note[]>([])
+    const [peers, setPeers] = useState<any[]>([])
+    const [sources, setSources] = useState<Note[]>([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<'all' | 'teacher' | 'students'>('all')
     const [search, setSearch] = useState('')
@@ -24,9 +26,15 @@ export default function FeedPage() {
     useEffect(() => {
         const load = async () => {
             setLoading(true)
-            const res = await fetchClassFeed(filter)
-            if (res.success && res.data) {
-                setNotes(res.data as Note[])
+            if (filter === 'students') {
+                const res = await fetchPeers()
+                if (res.success && res.data) setPeers(res.data)
+            } else if (filter === 'teacher') {
+                const res = await fetchSources()
+                if (res.success && res.data) setSources(res.data as Note[])
+            } else {
+                const res = await fetchClassFeed('all')
+                if (res.success && res.data) setNotes(res.data as Note[])
             }
             setLoading(false)
         }
@@ -107,20 +115,55 @@ export default function FeedPage() {
                             </div>
                         ))}
                     </div>
-                ) : filteredNotes.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                        <p>No notes found.</p>
+                ) : filter === 'students' ? (
+                    // PEERS VIEW
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto">
+                        {peers.map((peer: any) => (
+                            <div
+                                key={peer.id}
+                                className="group relative flex flex-col items-center p-6 bg-card rounded-lg border hover:shadow-md transition-all cursor-pointer"
+                                onClick={() => window.location.href = `/user/${peer.id}`}
+                            >
+                                <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center text-2xl font-bold text-secondary-foreground mb-4 group-hover:scale-110 transition-transform">
+                                    {peer.codex_name?.[0]?.toUpperCase() || '?'}
+                                </div>
+                                <h3 className="font-semibold text-lg">{peer.codex_name}</h3>
+                                <p className="text-sm text-muted-foreground">{peer.email}</p>
+                                <Button variant="ghost" className="mt-4 w-full text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
+                                    View Profile
+                                </Button>
+                            </div>
+                        ))}
                     </div>
-                ) : (
+                ) : filter === 'teacher' ? (
+                    // SOURCES VIEW
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-                        {filteredNotes.map(note => (
+                        {sources.map((source: any) => (
                             <FeedCard
-                                key={note.id}
-                                note={note}
-                                onClick={() => setSelectedNote(note)}
+                                key={source.id}
+                                note={source}
+                                onClick={() => setSlideOverSource(source)}
+                            // highlight source styling? FeedCard handles it via type check usually
                             />
                         ))}
                     </div>
+                ) : (
+                    // ALL NOTES VIEW
+                    filteredNotes.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                            <p>No notes found.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+                            {filteredNotes.map(note => (
+                                <FeedCard
+                                    key={note.id}
+                                    note={note}
+                                    onClick={() => setSelectedNote(note)}
+                                />
+                            ))}
+                        </div>
+                    )
                 )}
             </div>
 

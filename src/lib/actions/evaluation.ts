@@ -41,8 +41,10 @@ export async function evaluateNote(noteId: string): Promise<DiagnosticResult | {
     3. Content: Must NOT appear to be junk text (e.g. keyboard mashing).
 
     Criteria for Observations (Descriptive only, non-judgmental):
-    1. If the text does NOT appear to refer to other notes or concepts (e.g. no "similar to", "related to", "[[...]]"), add observation: "No explicit connections detected within this note."
-    2. If the text covers multiple distinct topics or claims rather than a single focused idea, add observation: "This note appears to contain multiple distinct claims."
+    1. Check for connections: The user uses "[[Link Name]]" syntax for internal links. If you see this syntax, the note IS connected. If NO such links exist, users usually appreciate a nudge to "Consider linking to other notes."
+    2. Check for Focus: If the note seems to wander between unrelated topics, gently suggest splitting it.
+    
+    Do NOT return generic placeholder observations like "No explicit connections" if valid [[WikiLinks]] are present.
     
     Do NOT check for:
     - Questions
@@ -59,7 +61,7 @@ export async function evaluateNote(noteId: string): Promise<DiagnosticResult | {
     {
         "isValid": boolean,
         "violations": string[], // List of failure reasons if isValid is false (e.g. "Too short")
-        "observations": string[] // List of factual observations
+        "observations": string[] // List of factual observations. Keep it empty if the note looks good.
     }
     `
 

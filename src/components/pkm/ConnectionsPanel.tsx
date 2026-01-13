@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Network, ArrowRight } from 'lucide-react'
 import { Database } from '@/types/database.types'
 
@@ -11,26 +10,23 @@ interface ConnectionsPanelProps {
     className?: string
 }
 
+import { fetchNodeConnections } from '@/lib/actions/links'
+
 export function ConnectionsPanel({ noteId, onNoteClick, className }: ConnectionsPanelProps) {
-    const supabase = createClient()
     const [backlinks, setBacklinks] = useState<any[]>([])
     const [outgoingLinks, setOutgoingLinks] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        const fetchConnections = async () => {
+        const load = async () => {
             setLoading(true)
-            const [outRes, inRes] = await Promise.all([
-                supabase.from('connections').select('*, target_note:target_note_id(*)').eq('source_note_id', noteId),
-                supabase.from('connections').select('*, source_note:source_note_id(*)').eq('target_note_id', noteId)
-            ])
-
-            setOutgoingLinks(outRes.data || [])
-            setBacklinks(inRes.data || [])
+            const { incoming, outgoing } = await fetchNodeConnections(noteId)
+            setBacklinks(incoming || [])
+            setOutgoingLinks(outgoing || [])
             setLoading(false)
         }
-        fetchConnections()
-    }, [noteId, supabase])
+        load()
+    }, [noteId])
 
     if (loading) return <div className="text-xs text-muted-foreground animate-pulse p-4">Loading connections...</div>
 

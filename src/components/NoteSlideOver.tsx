@@ -89,7 +89,14 @@ export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNav
                         </ScrollArea>
 
                         {onOpenNote && (
-                            <div className="p-2 border-t bg-background flex justify-end">
+                            <div className="p-2 border-t bg-background flex justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={() => {
+                                    // Navigate to my-notes with pre-fill
+                                    window.location.href = `/my-notes?action=new&linkTo=${encodeURIComponent(note.title || '')}`
+                                }}>
+                                    <ExternalLink className="h-4 w-4 mr-2" />
+                                    Write about this
+                                </Button>
                                 <Button variant="ghost" size="sm" onClick={() => { onOpenNote(note); onClose(); }}>
                                     <ExternalLink className="h-4 w-4 mr-2" />
                                     Open Full Page
