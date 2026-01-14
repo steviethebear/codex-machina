@@ -89,9 +89,23 @@ export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNav
                         </ScrollArea>
 
                         <div className="p-2 border-t bg-background flex justify-end gap-2">
-                            <Button variant="outline" size="sm" onClick={() => {
-                                // Navigate to my-notes with pre-fill
-                                window.location.href = `/my-notes?action=new&linkTo=${encodeURIComponent(note.title || '')}`
+                            <Button variant="outline" size="sm" onClick={async () => {
+                                // IN-PLACE BRANCHING
+                                if (onNavigate) {
+                                    // 1. Create the note
+                                    const { createNote } = await import('@/lib/actions/notes')
+                                    const res = await createNote(
+                                        `Based on [[${note.title}]]\n\n`,
+                                        'fleeting'
+                                    )
+                                    // 2. Switch to it immediately
+                                    if (res.success && res.data) {
+                                        onNavigate(res.data)
+                                    }
+                                } else {
+                                    // Fallback for views without onNavigate (should be none now)
+                                    window.location.href = `/my-notes?action=new&linkTo=${encodeURIComponent(note.title || '')}`
+                                }
                             }}>
                                 <ExternalLink className="h-4 w-4 mr-2" />
                                 Write about this
