@@ -92,14 +92,21 @@ export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNav
                             <Button variant="outline" size="sm" onClick={async () => {
                                 // IN-PLACE BRANCHING
                                 if (onNavigate) {
-                                    // 1. Create the note
+                                    // 1. Get User
+                                    const { data: { user } } = await supabase.auth.getUser()
+                                    if (!user) return
+
+                                    // 2. Create the note
                                     const { createNote } = await import('@/lib/actions/notes')
-                                    const res = await createNote(
-                                        `Based on [[${note.title}]]\n\n`,
-                                        'fleeting'
-                                    )
-                                    // 2. Switch to it immediately
-                                    if (res.success && res.data) {
+                                    const res = await createNote({
+                                        title: 'New Note',
+                                        content: `Based on [[${note.title}]]\n\n`,
+                                        type: 'fleeting',
+                                        user_id: user.id
+                                    })
+
+                                    // 3. Switch to it
+                                    if (res && res.data) {
                                         onNavigate(res.data)
                                     }
                                 } else {
