@@ -140,6 +140,17 @@ export async function syncConnections(noteId: string, content: string, userId: s
 
         if (!error) {
             // Trigger Notifications for NEW connections
+            // ONLY if the source note is public (or if we trust the caller to have handled it? No, check DB/Context)
+            // We need to fetch source note's public status if we don't pass it.
+            const { data: sourceNote } = await (supabase as any)
+                .from('notes')
+                .select('is_public, user_id') // we already have user_id passed in but good to confirm ? No, rely on args.
+                .eq('id', noteId)
+                .single()
+
+            // If note is private, DO NOT notify target. (They will be notified when promoted)
+            if (!sourceNote?.is_public) return validLinksCount
+
             // We need the author's name for the notification
             const { data: author } = await (supabase as any)
                 .from('users')

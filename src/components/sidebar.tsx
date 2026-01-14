@@ -91,7 +91,7 @@ export function Sidebar() {
     const navigation = isInAdminView ? adminNavigation : studentNavigation
 
     return (
-        <div className="flex h-full w-64 flex-col border-r bg-card text-card-foreground">
+        <div className="flex h-full w-64 flex-col border-r bg-card text-card-foreground relative z-50">
             <div className="flex h-16 items-center justify-between px-6 border-b">
                 <h1 className="text-lg font-bold tracking-tight text-primary">Codex Machina</h1>
                 {!isInAdminView && <NotificationBell />}

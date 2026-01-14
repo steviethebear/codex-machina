@@ -98,7 +98,12 @@ export async function updateNote(id: string, updates: NoteUpdate & { tags?: stri
     }
 
     if (currentNote.type === 'permanent') {
-        return { error: 'Permanent notes cannot be edited.' }
+        const { data: { user } } = await supabase.auth.getUser()
+        // Check if admin
+        const { data: userData } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+        if (!userData?.is_admin) {
+            return { error: 'Permanent notes cannot be edited.' }
+        }
     }
 
     // Strip tags from updates to prevent legacy column write
@@ -307,35 +312,58 @@ export async function promoteNote(id: string) {
     }
 
     // 5. Sync Connections & Gather Telemetry Data
-    // syncConnections returns validLinksCount (total outbound).
-    // We want detailed telemetry: Self vs Peer links.
     await syncConnections(note.id, note.content, note.user_id)
 
     // Telemetry Calculation (Internal Logging)
     const { count: selfLinks } = await supabase.from('connections')
         .select('*', { count: 'exact', head: true })
         .eq('source_note_id', id)
-        .eq('user_id', note.user_id) // Links I made...
-    // Wait, connections table has user_id = creator of link. 
-    // To find "Self Link" (Target is MINE) vs "Peer Link" (Target is THEIRS), we need to check target note's owner.
+        .eq('user_id', note.user_id)
 
-    // Let's query connections with target note details
+    // RE-TRIGGER NOTIFICATIONS for Connections (Citations)
+    // Since note is now public, all OUTGOING links are valid citations.
+    // We should notify targets who haven't been notified yet (or just notify all targets since it's "New" to the public).
+    // Let's notify unique targets that are not me.
+
+    // Fetch author name for notifications
+    const { data: author } = await supabase
+        .from('users')
+        .select('codex_name')
+        .eq('id', note.user_id)
+        .single()
+
     const { data: outConnections } = await supabase
         .from('connections')
         .select(`
             target_note_id,
-            notes!connections_target_note_id_fkey ( user_id )
+            target_note:notes!connections_target_note_id_fkey ( user_id, title )
         `)
         .eq('source_note_id', id)
 
     let telemetrySelfLinks = 0
     let telemetryPeerLinks = 0
+    const notifiedUsers = new Set<string>()
 
     if (outConnections) {
-        outConnections.forEach((c: any) => {
-            if (c.notes?.user_id === note.user_id) telemetrySelfLinks++
-            else telemetryPeerLinks++
-        })
+        for (const c of outConnections) {
+            const target = c.target_note
+            if (target?.user_id === note.user_id) {
+                telemetrySelfLinks++
+            } else if (target) {
+                telemetryPeerLinks++
+                // Notify Peer (Citation)
+                if (!notifiedUsers.has(target.user_id)) {
+                    await createNotification({
+                        user_id: target.user_id,
+                        type: 'citation',
+                        title: 'New Citation',
+                        message: `${author?.codex_name || 'Someone'} linked to your note "${target.title}".`,
+                        link: `/my-notes?noteId=${id}`
+                    })
+                    notifiedUsers.add(target.user_id)
+                }
+            }
+        }
     }
 
     // Inbound Links (How many people link TO this note? - likely 0 for a new note, but maybe fleeting had links?)
@@ -349,9 +377,8 @@ export async function promoteNote(id: string) {
 
     console.log(`[Telemetry] Promotion: NoteID=${id}, SelfLinks=${telemetrySelfLinks}, PeerLinks=${telemetryPeerLinks}, Inbound=${inboundLinks || 0}, AgeMinutes=${ageMinutes}`)
 
-    // 6. Award Points (Deterministic Only)
-    // Removed Quality Points.
 
+    // 6. Award Points (Deterministic Only)
     // Link Points (2pts per valid link)
     const totalLinks = telemetrySelfLinks + telemetryPeerLinks
     if (totalLinks > 0) {
@@ -370,13 +397,6 @@ export async function promoteNote(id: string) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
-
-    // Fetch author details for notification
-    const { data: author } = await supabase
-        .from('users')
-        .select('codex_name')
-        .eq('id', note.user_id)
-        .single()
 
     for (const handle of uniqueMentions) {
         // Find user by handle (email prefix OR name prefix)
