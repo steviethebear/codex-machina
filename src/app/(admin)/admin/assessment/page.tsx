@@ -35,17 +35,18 @@ export default function AssessmentPage() {
     const [loading, setLoading] = useState(true)
     const [sectionFilter, setSectionFilter] = useState('all')
     const [teacherFilter, setTeacherFilter] = useState('all')
+    const [dateRange, setDateRange] = useState<'7d' | '14d' | '30d' | 'all'>('7d')
     const [search, setSearch] = useState('')
 
     useEffect(() => {
         loadData()
-    }, [sectionFilter, teacherFilter])
+    }, [sectionFilter, teacherFilter, dateRange])
 
     const loadData = async () => {
         setLoading(true)
         const sFilter = sectionFilter === 'all' ? undefined : sectionFilter
         const tFilter = teacherFilter === 'all' ? undefined : teacherFilter
-        const data = await getClassAssessment(sFilter, tFilter)
+        const data = await getClassAssessment(sFilter, tFilter, dateRange)
         setStudents(data)
         setLoading(false)
     }
@@ -86,19 +87,19 @@ export default function AssessmentPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm bg-muted/30 p-4 rounded-lg border">
                 <div className="flex items-center gap-2">
                     <Badge className="bg-emerald-500 hover:bg-emerald-600">4 Points</Badge>
-                    <span className="text-muted-foreground">&gt; 80% Connectedness (Links/Total) + Consistent Activity</span>
+                    <span className="text-muted-foreground">&gt; 50% Active Days (e.g. 4/7)</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <Badge variant="default">3 Points</Badge>
-                    <span className="text-muted-foreground">&gt; 50% Connectedness</span>
+                    <span className="text-muted-foreground">&gt; 25% Active Days (e.g. 2/7)</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <Badge variant="secondary">2 Points</Badge>
-                    <span className="text-muted-foreground">&gt; 20% Connectedness</span>
+                    <span className="text-muted-foreground">Low Frequency</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <Badge variant="outline">1 Point</Badge>
-                    <span className="text-muted-foreground">Sparse Data or Disconnected</span>
+                    <span className="text-muted-foreground">Inactive (0 Days)</span>
                 </div>
             </div>
 
@@ -107,6 +108,18 @@ export default function AssessmentPage() {
                     <div className="flex items-center justify-between">
                         <CardTitle>Gradebook</CardTitle>
                         <div className="flex gap-2">
+                            <Select value={dateRange} onValueChange={(v: any) => setDateRange(v)}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Date Range" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="7d">Last 7 Days</SelectItem>
+                                    <SelectItem value="14d">Last 14 Days</SelectItem>
+                                    <SelectItem value="30d">Last 30 Days</SelectItem>
+                                    <SelectItem value="all">All Time</SelectItem>
+                                </SelectContent>
+                            </Select>
+
                             <Select value={teacherFilter} onValueChange={setTeacherFilter}>
                                 <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="Filter Teacher" />
@@ -140,7 +153,7 @@ export default function AssessmentPage() {
                                 <tr className="border-b transition-colors hover:bg-muted/50 bg-muted/20">
                                     <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Student</th>
                                     <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Stats</th>
-                                    <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Consistency (14d)</th>
+                                    <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Consistency ({dateRange})</th>
                                     <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Connectivity</th>
                                     <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Rubric Score</th>
                                     <th className="h-12 px-4 align-middle font-medium text-muted-foreground text-right">Action</th>
@@ -181,7 +194,12 @@ export default function AssessmentPage() {
                                                     </div>
                                                 </td>
                                                 <td className="p-4 align-middle">
-                                                    <Sparkline data={student.stats.activity} />
+                                                    <div className="flex flex-col gap-1">
+                                                        <Sparkline data={student.stats.activity} />
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            Active: <strong>{student.stats.activeDaysCount}</strong> / {student.stats.periodDays} days
+                                                        </span>
+                                                    </div>
                                                 </td>
                                                 <td className="p-4 align-middle">
                                                     <div className="flex items-center gap-2">

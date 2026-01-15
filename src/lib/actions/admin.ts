@@ -201,7 +201,7 @@ export async function rebuildGlobalConnections() {
     return { count: processedNotes, links: totalLinks }
 }
 
-export async function getClassAssessment(section?: string, teacher?: string) {
+export async function getClassAssessment(section?: string, teacher?: string, dateRange: '7d' | '14d' | '30d' | 'all' = '14d') {
     const supabase = await createClient()
 
     // 1. Fetch Students
@@ -216,16 +216,38 @@ export async function getClassAssessment(section?: string, teacher?: string) {
 
     if (!students) return []
 
-    // 2. Fetch All Notes (Optimized: only fields needed)
-    // We fetch ALL notes to calculate total stats, but we'll also filter for recent activity
-    const { data: notes } = await supabase
+    // 2. Calculate Date Filter
+    let startDate: Date | null = new Date()
+    let daysInPeriod = 14
+    if (dateRange === '7d') {
+        startDate.setDate(startDate.getDate() - 7)
+        daysInPeriod = 7
+    } else if (dateRange === '14d') {
+        startDate.setDate(startDate.getDate() - 14)
+        daysInPeriod = 14
+    } else if (dateRange === '30d') {
+        startDate.setDate(startDate.getDate() - 30)
+        daysInPeriod = 30
+    } else {
+        startDate = null // All time
+        daysInPeriod = 365 // Just for ratio calc if needed, though all-time usually implies "Total"
+    }
+
+    // 3. Fetch Notes (Filtered)
+    let noteQuery = supabase
         .from('notes')
         .select('id, user_id, content, created_at, type')
-        .not('content', 'is', null) // unexpected null check
+        .not('content', 'is', null)
+
+    if (startDate) {
+        noteQuery = noteQuery.gte('created_at', startDate.toISOString())
+    }
+
+    const { data: notes } = await noteQuery
 
     if (!notes) return []
 
-    // 3. Process Per Student
+    // 4. Process Per Student
     const studentMap = new Map<string, any>()
 
     // Init Map
@@ -236,15 +258,19 @@ export async function getClassAssessment(section?: string, teacher?: string) {
                 totalNotes: 0,
                 notesWithLinks: 0,
                 connectivityScore: 0,
+                activeDaysCount: 0,
                 activity: [] // array of { date, count }
             }
         })
     })
 
-    // Init Activity (last 14 days)
+    // Init Activity Arrays (for sparkline)
     const today = new Date()
     const dates: string[] = []
-    for (let i = 13; i >= 0; i--) {
+    // Always show last 14d for sparkline visual, regardless of filter? 
+    // Or match filter? Let's match filter for visual consistency, default 14.
+    const visDays = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 14
+    for (let i = visDays - 1; i >= 0; i--) {
         const d = new Date()
         d.setDate(today.getDate() - i)
         dates.push(d.toLocaleDateString())
@@ -268,26 +294,44 @@ export async function getClassAssessment(section?: string, teacher?: string) {
             student.stats.notesWithLinks++
         }
 
-        // 2. Activity (if recent)
+        // 2. Activity Tracking
         const noteDate = new Date(note.created_at).toLocaleDateString()
-        // We are processing raw counts here; we'll format to sparkline data later
         if (!student.tempActivity) student.tempActivity = {}
         student.tempActivity[noteDate] = (student.tempActivity[noteDate] || 0) + 1
     })
 
     // Finalize
     const results = Array.from(studentMap.values()).map(s => {
-        // Calculate Score (Simple heuristic for now)
-        // 4.0 = >80% connectivity AND >5 total notes
-        const ratio = s.stats.totalNotes > 0 ? (s.stats.notesWithLinks / s.stats.totalNotes) : 0
-        let score = 0
-        if (s.stats.totalNotes >= 5) {
-            if (ratio > 0.8) score = 4
-            else if (ratio > 0.5) score = 3
-            else if (ratio > 0.2) score = 2
-            else score = 1
-        } else if (s.stats.totalNotes > 0) {
-            score = 1 // Sparse
+        // Calculate Active Days
+        const activeDays = s.tempActivity ? Object.keys(s.tempActivity).length : 0
+        s.stats.activeDaysCount = activeDays
+
+        // Calculate Score (New Logic: Consistency + Frequency + Quality)
+        // 1. Consistency Gate
+        let score = 1
+        // If they have at least 1 active day, they are eligible for more
+        if (activeDays >= 1) {
+            const activeRatio = dateRange === 'all' ? 0 : (activeDays / daysInPeriod)
+            // Frequency Base
+            if (activeRatio >= 0.5) score = 4      // > 50% days active (e.g. 4/7)
+            else if (activeRatio >= 0.25) score = 3 // > 25% days active (e.g. 2/7)
+            else score = 2                         // < 25% (e.g. 1/7)
+
+            // Quality Modifier (Link Ratio)
+            const linkRatio = s.stats.totalNotes > 0 ? (s.stats.notesWithLinks / s.stats.totalNotes) : 0
+            if (linkRatio < 0.2) {
+                score = Math.max(1, score - 1) // Deduct 1 point for low connectivity, min 1
+            }
+        }
+
+        // Override for 'All Time' (fallback to old logic slightly modified)
+        if (dateRange === 'all') {
+            const total = s.stats.totalNotes
+            const linkRatio = total > 0 ? (s.stats.notesWithLinks / total) : 0
+            if (total < 5) score = 1
+            else if (linkRatio > 0.8) score = 4
+            else if (linkRatio > 0.5) score = 3
+            else score = 2
         }
 
         // Format Activity Array
@@ -301,10 +345,36 @@ export async function getClassAssessment(section?: string, teacher?: string) {
             stats: {
                 ...s.stats,
                 connectivityScore: score,
-                activity: activity
+                activity: activity,
+                periodDays: daysInPeriod
             }
         }
     })
 
     return results
+}
+            else if (ratio > 0.5) score = 3
+else if (ratio > 0.2) score = 2
+else score = 1
+        } else if (s.stats.totalNotes > 0) {
+    score = 1 // Sparse
+}
+
+// Format Activity Array
+const activity = dates.map(date => ({
+    date: date,
+    count: s.tempActivity ? (s.tempActivity[date] || 0) : 0
+}))
+
+return {
+    ...s,
+    stats: {
+        ...s.stats,
+        connectivityScore: score,
+        activity: activity
+    }
+}
+    })
+
+return results
 }
