@@ -1,15 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { getStudentProfile, awardXP, forceDeleteNote, forcePromoteNote, deleteStudent, sendPasswordReset, updateStudentPassword, updateStudentProfile, reindexAllConnections } from '@/lib/actions/admin'
+import { useEffect, useState, useMemo } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { getStudentProfile, awardXP, forceDeleteNote, forcePromoteNote, deleteStudent, sendPasswordReset, updateStudentPassword, updateStudentProfile, reindexAllConnections, getClassAssessment } from '@/lib/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, Trash2, Award, FileText, Activity, AlertTriangle, Key, Mail, ShieldAlert, MessageSquare, Network } from 'lucide-react'
+import { ArrowLeft, Trash2, Award, Network, ChevronDown, Calendar, Link as LinkIcon, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import {
     Dialog,
@@ -20,14 +20,65 @@ import {
     DialogTrigger,
     DialogFooter
 } from "@/components/ui/dialog"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { NoteSlideOver } from '@/components/NoteSlideOver'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import { toggleUnlock } from '@/lib/actions/unlocks'
 import { Switch } from '@/components/ui/switch'
 
+// Helper for Activity Heatmap (Simple Grid)
+const ActivityCalendar = ({ notes }: { notes: any[] }) => {
+    // Generate last 4 weeks
+    const today = new Date()
+    const days: Date[] = []
+    for (let i = 27; i >= 0; i--) {
+        const d = new Date()
+        d.setDate(today.getDate() - i)
+        days.push(d)
+    }
+
+    const activityMap = new Map<string, number>()
+    notes.forEach(n => {
+        const date = new Date(n.created_at).toLocaleDateString()
+        activityMap.set(date, (activityMap.get(date) || 0) + 1)
+    })
+
+    return (
+        <div className="flex gap-1 justify-between">
+            {days.map((d, i) => {
+                const dateStr = d.toLocaleDateString()
+                const count = activityMap.get(dateStr) || 0
+                return (
+                    <div key={i} className="flex flex-col items-center gap-1">
+                        <div
+                            className={`w-6 h-6 rounded-sm ${count === 0 ? 'bg-muted/50' :
+                                count === 1 ? 'bg-emerald-200' :
+                                    count === 2 ? 'bg-emerald-300' :
+                                        count === 3 ? 'bg-emerald-400' :
+                                            'bg-emerald-500'
+                                }`}
+                            title={`${dateStr}: ${count} notes`}
+                        />
+                        <span className="text-[10px] text-muted-foreground w-6 text-center">
+                            {d.getDate()}
+                        </span>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
 export default function StudentDetailPage() {
     const params = useParams()
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const initialTab = searchParams.get('view') || 'notes'
     const id = params.id as string
 
     const [profile, setProfile] = useState<any>(null)
@@ -35,6 +86,7 @@ export default function StudentDetailPage() {
     const [history, setHistory] = useState<any[]>([])
     const [reflections, setReflections] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [classmates, setClassmates] = useState<any[]>([])
 
     // Action States
     const [xpAmount, setXpAmount] = useState('50')
@@ -56,6 +108,7 @@ export default function StudentDetailPage() {
     }, [id])
 
     const loadData = async () => {
+        setLoading(true)
         const data = await getStudentProfile(id)
         if (data) {
             setProfile(data.profile)
@@ -63,7 +116,7 @@ export default function StudentDetailPage() {
             setHistory(data.points)
             setReflections(data.reflections)
 
-            // Process XP for Chart: Accumulate over time
+            // Setup XP Chart
             const sortedHistory = [...data.points].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
             let cumulative = 0
             const chartData = sortedHistory.map(h => {
@@ -71,14 +124,51 @@ export default function StudentDetailPage() {
                 return {
                     date: new Date(h.created_at).toLocaleDateString(),
                     xp: cumulative,
-                    amount: h.amount,
-                    reason: h.reason
                 }
             })
             setXpChartData(chartData)
+
+            // Fetch neighbors if section exists
+            if (data.profile.class_section) {
+                const peers = await getClassAssessment(data.profile.class_section)
+                setClassmates(peers)
+            }
         }
         setLoading(false)
     }
+
+    // Computed Assessment Stats
+    const assessmentStats = useMemo(() => {
+        const totalNotes = notes.length
+        let notesWithLinks = 0
+        let notesWithMentions = 0
+        const orphans: any[] = []
+
+        notes.forEach(note => {
+            const hasLinks = (note.content?.match(/\[\[(.*?)\]\]/g) || []).length > 0
+            const hasMentions = (note.content?.match(/@(\w+)/g) || []).length > 0
+            if (hasLinks) notesWithLinks++
+            if (hasMentions) notesWithMentions++
+            if (!hasLinks && !hasMentions) orphans.push(note)
+        })
+
+        const ratio = totalNotes > 0 ? (notesWithLinks + notesWithMentions) / totalNotes : 0
+        // Simple Rubric Logic
+        let score = 0
+        if (totalNotes >= 5) {
+            // We adjust ratio logic slightly to be permissive
+            const connRatio = (notesWithLinks / totalNotes)
+            if (connRatio > 0.8 && notesWithMentions > 0) score = 4
+            else if (connRatio > 0.5) score = 3
+            else if (connRatio > 0.2) score = 2
+            else score = 1
+        } else if (totalNotes > 0) {
+            score = 1
+        }
+
+        return { totalNotes, notesWithLinks, notesWithMentions, orphans, score }
+    }, [notes])
+
 
     const handleAwardXP = async () => {
         setIsAwarding(true)
@@ -109,14 +199,8 @@ export default function StudentDetailPage() {
     const handleDeleteStudent = async () => {
         const confirmText = prompt("Type 'DELETE' to confirm wiping this user and all data.")
         if (confirmText === 'DELETE') {
-            try {
-                await deleteStudent(id)
-                toast.success("User deleted")
-                router.push('/admin')
-            } catch (e) {
-                toast.error("Failed to delete user")
-                console.error(e)
-            }
+            await deleteStudent(id)
+            router.push('/admin')
         }
     }
 
@@ -134,7 +218,7 @@ export default function StudentDetailPage() {
 
     const handleUpdatePassword = async () => {
         if (newPassword.length < 6) return toast.error("Password must be at least 6 characters")
-        if (!confirm("Manually override student password? They will need this new password to login.")) return
+        if (!confirm("Manually override student password?")) return
 
         setIsUpdatingAuth(true)
         try {
@@ -159,7 +243,30 @@ export default function StudentDetailPage() {
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight">{profile.codex_name}</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-3xl font-bold tracking-tight">{profile.codex_name}</h2>
+                            {/* QUICK NAV DROPDOWN */}
+                            {classmates.length > 0 && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                            <ChevronDown className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
+                                        {classmates.map(p => (
+                                            <DropdownMenuItem
+                                                key={p.id}
+                                                onClick={() => router.push(`/admin/student/${p.id}?view=${initialTab}`)}
+                                                className={p.id === id ? "bg-muted font-bold" : ""}
+                                            >
+                                                {p.codex_name}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </div>
                         <p className="text-muted-foreground">{profile.email}</p>
                     </div>
                 </div>
@@ -236,14 +343,107 @@ export default function StudentDetailPage() {
             </div>
 
             {/* Content Tabs */}
-            <Tabs defaultValue="notes" className="space-y-6">
+            <Tabs defaultValue={initialTab} className="space-y-6">
                 <TabsList>
+                    <TabsTrigger value="assessment">Assessment</TabsTrigger>
                     <TabsTrigger value="notes">Notes Management</TabsTrigger>
                     <TabsTrigger value="reflections">Reflections</TabsTrigger>
                     <TabsTrigger value="capabilities">Capabilities</TabsTrigger>
                     <TabsTrigger value="history">XP History</TabsTrigger>
                     <TabsTrigger value="security" className="text-orange-600 data-[state=active]:text-orange-700">Account Security</TabsTrigger>
                 </TabsList>
+
+                {/* --- ASSESSMENT TAB --- */}
+                <TabsContent value="assessment" className="space-y-6">
+                    <div className="grid gap-6 md:grid-cols-2">
+                        {/* 1. Consistency Card */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Calendar className="h-5 w-5" />
+                                    Consistency Pattern
+                                </CardTitle>
+                                <CardDescription>Last 30 days of activity. Look for "Bunching" vs "Regular".</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ActivityCalendar notes={notes} />
+                                <div className="mt-4 text-xs text-muted-foreground">
+                                    <p>Rubric Guide:</p>
+                                    <ul className="list-disc pl-4 mt-1 space-y-1">
+                                        <li><strong>4 Pt</strong>: Regular work, >3 active days/week.</li>
+                                        <li><strong>3 Pt</strong>: Regular work, occasional gaps.</li>
+                                        <li><strong>2 Pt</strong>: Sparse or Bunched (all notes in 1-2 days).</li>
+                                    </ul>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* 2. Connections Card */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <LinkIcon className="h-5 w-5" />
+                                    Connection Depth
+                                </CardTitle>
+                                <CardDescription>Link density and isolation metrics.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="flex gap-4">
+                                    <div className="text-center p-3 border rounded-lg flex-1">
+                                        <div className="text-2xl font-bold">{assessmentStats.totalNotes}</div>
+                                        <div className="text-xs text-muted-foreground">Total Notes</div>
+                                    </div>
+                                    <div className="text-center p-3 border rounded-lg flex-1">
+                                        <div className="text-2xl font-bold">{assessmentStats.notesWithLinks}</div>
+                                        <div className="text-xs text-muted-foreground">With Links</div>
+                                    </div>
+                                    <div className="text-center p-3 border rounded-lg flex-1">
+                                        <div className="text-2xl font-bold">{assessmentStats.notesWithMentions}</div>
+                                        <div className="text-xs text-muted-foreground">With Mentions</div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span>Orphan Notes (No links):</span>
+                                        <span className={assessmentStats.orphans.length > 3 ? "text-red-500 font-bold" : ""}>
+                                            {assessmentStats.orphans.length}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between border-t pt-2 mt-2 font-semibold">
+                                        <span>Suggested Score:</span>
+                                        <Badge variant={assessmentStats.score >= 3 ? 'default' : 'secondary'}>
+                                            {assessmentStats.score} / 4 Points
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Orphan List */}
+                    {assessmentStats.orphans.length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-amber-600">
+                                    <AlertCircle className="h-5 w-5" />
+                                    Orphan Notes
+                                </CardTitle>
+                                <CardDescription>These notes have no outgoing connections. Consider verifying or commenting.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-2">
+                                    {assessmentStats.orphans.map(n => (
+                                        <div key={n.id} className="p-3 border rounded-md flex justify-between items-center group hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedNote(n)}>
+                                            <span>{n.title}</span>
+                                            <span className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </TabsContent>
 
                 <TabsContent value="notes">
                     <Card>

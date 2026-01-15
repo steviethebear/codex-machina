@@ -200,3 +200,108 @@ export async function rebuildGlobalConnections() {
 
     return { count: processedNotes, links: totalLinks }
 }
+
+export async function getClassAssessment(section?: string) {
+    const supabase = await createClient()
+
+    // 1. Fetch Students
+    let query = supabase.from('users').select('*').order('codex_name')
+    if (section && section !== 'all') {
+        query = query.eq('class_section', section)
+    }
+    const { data: students } = await query
+
+    if (!students) return []
+
+    // 2. Fetch All Notes (Optimized: only fields needed)
+    // We fetch ALL notes to calculate total stats, but we'll also filter for recent activity
+    const { data: notes } = await supabase
+        .from('notes')
+        .select('id, user_id, content, created_at, type')
+        .neq('content', null) // unexpected null check
+
+    if (!notes) return []
+
+    // 3. Process Per Student
+    const studentMap = new Map<string, any>()
+
+    // Init Map
+    students.forEach(s => {
+        studentMap.set(s.id, {
+            ...s,
+            stats: {
+                totalNotes: 0,
+                notesWithLinks: 0,
+                connectivityScore: 0,
+                activity: [] // array of { date, count }
+            }
+        })
+    })
+
+    // Init Activity (last 14 days)
+    const today = new Date()
+    const dates: string[] = []
+    for (let i = 13; i >= 0; i--) {
+        const d = new Date()
+        d.setDate(today.getDate() - i)
+        dates.push(d.toLocaleDateString())
+    }
+
+    // Helper: Count links
+    const countLinks = (content: string) => {
+        const links = (content.match(/\[\[(.*?)\]\]/g) || []).length
+        const mentions = (content.match(/@(\w+)/g) || []).length
+        return links + mentions
+    }
+
+    // Iterate Notes
+    notes.forEach(note => {
+        const student = studentMap.get(note.user_id)
+        if (!student) return
+
+        // 1. Total Stats
+        student.stats.totalNotes++
+        if (countLinks(note.content || '') > 0) {
+            student.stats.notesWithLinks++
+        }
+
+        // 2. Activity (if recent)
+        const noteDate = new Date(note.created_at).toLocaleDateString()
+        // We are processing raw counts here; we'll format to sparkline data later
+        if (!student.tempActivity) student.tempActivity = {}
+        student.tempActivity[noteDate] = (student.tempActivity[noteDate] || 0) + 1
+    })
+
+    // Finalize
+    const results = Array.from(studentMap.values()).map(s => {
+        // Calculate Score (Simple heuristic for now)
+        // 4.0 = >80% connectivity AND >5 total notes
+        const ratio = s.stats.totalNotes > 0 ? (s.stats.notesWithLinks / s.stats.totalNotes) : 0
+        let score = 0
+        if (s.stats.totalNotes >= 5) {
+            if (ratio > 0.8) score = 4
+            else if (ratio > 0.5) score = 3
+            else if (ratio > 0.2) score = 2
+            else score = 1
+        } else if (s.stats.totalNotes > 0) {
+            score = 1 // Sparse
+        }
+
+        // Format Activity Array
+        const activity = dates.map(date => ({
+            date: date,
+            count: s.tempActivity ? (s.tempActivity[date] || 0) : 0
+        }))
+
+        return {
+            ...s,
+            stats: {
+                ...s.stats,
+                connectivityScore: score,
+                activity: activity
+            }
+        }
+    })
+
+    return results
+}
