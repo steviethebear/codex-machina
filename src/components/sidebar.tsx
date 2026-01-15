@@ -4,28 +4,12 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Network, ShieldAlert, LogOut, PlusCircle, BookOpen, Sparkles, Library, Users, Layers, MessageSquare } from 'lucide-react'
-import { useAuth } from '@/components/auth-provider'
-import { Button } from '@/components/ui/button'
-import { ViewSwitcher } from '@/components/view-switcher'
-import { createClient } from '@/lib/supabase/client'
-import { NotificationBell } from '@/components/notifications/NotificationBell'
-
-import { getPendingSourceCount } from '@/lib/actions/sources' // Import action
-
+import { LayoutDashboard, Network, ShieldAlert, LogOut, PlusCircle, BookOpen, Sparkles, Library, Users, Layers, MessageSquare, BookOpenCheck } from 'lucide-react'
 // ... imports
-
-const studentNavigation = [
-    { name: 'Thinking Profile', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Class Feed', href: '/feed', icon: Sparkles },
-    { name: 'My Notes', href: '/my-notes', icon: BookOpen },
-    { name: 'Threads', href: '/threads', icon: Layers, feature: 'threads' }, // Requires unlock
-    { name: 'Reflections', href: '/reflections', icon: MessageSquare },
-    { name: 'Graph', href: '/graph', icon: Network, feature: 'graph_view' }, // Requires unlock
-]
 
 const adminNavigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Rubric Grid', href: '/admin/assessment', icon: BookOpenCheck },
     { name: 'Sources', href: '/admin/sources', icon: Library },
     { name: 'Reflections', href: '/admin/reflections', icon: MessageSquare },
 ]

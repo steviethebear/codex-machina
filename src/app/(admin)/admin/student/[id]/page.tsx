@@ -49,7 +49,7 @@ const ActivityCalendar = ({ notes }: { notes: any[] }) => {
     })
 
     return (
-        <div className="flex gap-1 justify-between">
+        <div className="flex flex-wrap gap-1 justify-between max-w-[200px]">
             {days.map((d, i) => {
                 const dateStr = d.toLocaleDateString()
                 const count = activityMap.get(dateStr) || 0
