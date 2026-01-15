@@ -5,7 +5,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LayoutDashboard, Network, ShieldAlert, LogOut, PlusCircle, BookOpen, Sparkles, Library, Users, Layers, MessageSquare, BookOpenCheck } from 'lucide-react'
-// ... imports
+import { useAuth } from '@/components/auth-provider'
+import { Button } from '@/components/ui/button'
+import { ViewSwitcher } from '@/components/view-switcher'
+import { createClient } from '@/lib/supabase/client'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
+
+import { getPendingSourceCount } from '@/lib/actions/sources' // Import action
 
 const adminNavigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
