@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, Trash2, Award, Network, ChevronDown, Calendar, Link as LinkIcon, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Trash2, Award, Network, ChevronDown, Calendar, Link as LinkIcon, AlertCircle, MessageSquare, Mail, ShieldAlert, Key } from 'lucide-react'
 import { toast } from 'sonner'
 import {
     Dialog,
