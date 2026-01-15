@@ -156,6 +156,7 @@ export default function AssessmentPage() {
                                     <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Consistency ({dateRange})</th>
                                     <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Connectivity</th>
                                     <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Rubric Score</th>
+                                    <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Rationale</th>
                                     <th className="h-12 px-4 align-middle font-medium text-muted-foreground text-right">Action</th>
                                 </tr>
                             </thead>
@@ -163,12 +164,12 @@ export default function AssessmentPage() {
                                 {loading ? (
                                     [1, 2, 3].map(i => (
                                         <tr key={i} className="border-b">
-                                            <td colSpan={6} className="p-4"><Skeleton className="h-8 w-full" /></td>
+                                            <td colSpan={7} className="p-4"><Skeleton className="h-8 w-full" /></td>
                                         </tr>
                                     ))
                                 ) : filteredStudents.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="p-8 text-center text-muted-foreground">No students found.</td>
+                                        <td colSpan={7} className="p-8 text-center text-muted-foreground">No students found.</td>
                                     </tr>
                                 ) : (
                                     filteredStudents.map(student => {
@@ -220,6 +221,9 @@ export default function AssessmentPage() {
                                                     }>
                                                         {score} / 4 Points
                                                     </Badge>
+                                                </td>
+                                                <td className="p-4 align-middle text-xs text-muted-foreground">
+                                                    {student.stats.rationale}
                                                 </td>
                                                 <td className="p-4 align-middle text-right">
                                                     <Button variant="ghost" size="sm">

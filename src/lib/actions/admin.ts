@@ -307,32 +307,55 @@ export async function getClassAssessment(section?: string, teacher?: string, dat
         s.stats.activeDaysCount = activeDays
 
         // Calculate Score (New Logic: Consistency + Frequency + Quality)
-        // 1. Consistency Gate
         let score = 1
-        // If they have at least 1 active day, they are eligible for more
-        if (activeDays >= 1) {
-            const activeRatio = dateRange === 'all' ? 0 : (activeDays / daysInPeriod)
-            // Frequency Base
-            if (activeRatio >= 0.5) score = 4      // > 50% days active (e.g. 4/7)
-            else if (activeRatio >= 0.25) score = 3 // > 25% days active (e.g. 2/7)
-            else score = 2                         // < 25% (e.g. 1/7)
+        let rationale: string[] = []
 
-            // Quality Modifier (Link Ratio)
-            const linkRatio = s.stats.totalNotes > 0 ? (s.stats.notesWithLinks / s.stats.totalNotes) : 0
-            if (linkRatio < 0.2) {
-                score = Math.max(1, score - 1) // Deduct 1 point for low connectivity, min 1
+        // Frequency Targets (Based on 2x/week min)
+        let minDaysTarget = 0
+        if (dateRange === '7d') minDaysTarget = 2
+        else if (dateRange === '14d') minDaysTarget = 4
+        else if (dateRange === '30d') minDaysTarget = 8
+        else minDaysTarget = 5 // All time default
+
+        // 1. Frequency Logic
+        if (dateRange !== 'all') {
+            if (activeDays >= minDaysTarget + 1) { // Exceeds target
+                score = 4
+                rationale.push(`Exceeds 2x/wk target (${activeDays}/${daysInPeriod} active)`)
+            } else if (activeDays >= minDaysTarget) { // Meets target
+                score = 3
+                rationale.push(`Meets 2x/wk target (${activeDays}/${daysInPeriod} active)`)
+            } else if (activeDays >= 1) { // Below target
+                score = 2
+                rationale.push(`Below target (${activeDays} active)`)
+            } else { // Inactive
+                score = 1
+                rationale.push(`Inactive (0 days)`)
+            }
+        } else {
+            // All Time Logic
+            const total = s.stats.totalNotes
+            if (total < 5) {
+                score = 1
+                rationale.push(`Sparse history (<5 notes)`)
+            } else {
+                rationale.push(`Healthy note volume (${total} notes)`)
+                score = 3 // Base baseline for active students
             }
         }
 
-        // Override for 'All Time' (fallback to old logic slightly modified)
-        if (dateRange === 'all') {
-            const total = s.stats.totalNotes
-            const linkRatio = total > 0 ? (s.stats.notesWithLinks / total) : 0
-            if (total < 5) score = 1
-            else if (linkRatio > 0.8) score = 4
-            else if (linkRatio > 0.5) score = 3
-            else score = 2
+        // 2. Connectivity Quality Modifier
+        const linkRatio = s.stats.totalNotes > 0 ? (s.stats.notesWithLinks / s.stats.totalNotes) : 0
+        if (linkRatio < 0.2 && score > 1) {
+            score = Math.max(1, score - 1) // Deduct 1 point
+            rationale.push(`Low connectivity (${Math.round(linkRatio * 100)}%)`)
+        } else if (linkRatio > 0.8 && score < 4 && dateRange === 'all') {
+            score = 4 // Boost for "Active" all-time students with high quality
+            rationale.push(`High connectivity (${Math.round(linkRatio * 100)}%)`)
         }
+
+        // Final score cap
+        if (score > 4) score = 4
 
         // Format Activity Array
         const activity = dates.map(date => ({
@@ -345,6 +368,7 @@ export async function getClassAssessment(section?: string, teacher?: string, dat
             stats: {
                 ...s.stats,
                 connectivityScore: score,
+                rationale: rationale.join('. '),
                 activity: activity,
                 periodDays: daysInPeriod
             }
