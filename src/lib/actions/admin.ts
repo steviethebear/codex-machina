@@ -353,28 +353,4 @@ export async function getClassAssessment(section?: string, teacher?: string, dat
 
     return results
 }
-            else if (ratio > 0.5) score = 3
-else if (ratio > 0.2) score = 2
-else score = 1
-        } else if (s.stats.totalNotes > 0) {
-    score = 1 // Sparse
-}
 
-// Format Activity Array
-const activity = dates.map(date => ({
-    date: date,
-    count: s.tempActivity ? (s.tempActivity[date] || 0) : 0
-}))
-
-return {
-    ...s,
-    stats: {
-        ...s.stats,
-        connectivityScore: score,
-        activity: activity
-    }
-}
-    })
-
-return results
-}
