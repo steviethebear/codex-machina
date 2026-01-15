@@ -218,7 +218,7 @@ export async function getClassAssessment(section?: string) {
     const { data: notes } = await supabase
         .from('notes')
         .select('id, user_id, content, created_at, type')
-        .neq('content', null) // unexpected null check
+        .not('content', 'is', null) // unexpected null check
 
     if (!notes) return []
 
