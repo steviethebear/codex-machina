@@ -13,6 +13,15 @@ import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 import { getPendingSourceCount } from '@/lib/actions/sources' // Import action
 
+const studentNavigation = [
+    { name: 'Thinking Profile', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Class Feed', href: '/feed', icon: Sparkles },
+    { name: 'My Notes', href: '/my-notes', icon: BookOpen },
+    { name: 'Threads', href: '/threads', icon: Layers, feature: 'threads' }, // Requires unlock
+    { name: 'Reflections', href: '/reflections', icon: MessageSquare },
+    { name: 'Graph', href: '/graph', icon: Network, feature: 'graph_view' }, // Requires unlock
+]
+
 const adminNavigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Rubric Grid', href: '/admin/assessment', icon: BookOpenCheck },
