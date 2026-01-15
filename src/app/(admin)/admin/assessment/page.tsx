@@ -34,15 +34,18 @@ export default function AssessmentPage() {
     const [students, setStudents] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [sectionFilter, setSectionFilter] = useState('all')
+    const [teacherFilter, setTeacherFilter] = useState('all')
     const [search, setSearch] = useState('')
 
     useEffect(() => {
         loadData()
-    }, [sectionFilter])
+    }, [sectionFilter, teacherFilter])
 
     const loadData = async () => {
         setLoading(true)
-        const data = await getClassAssessment(sectionFilter === 'all' ? undefined : sectionFilter)
+        const sFilter = sectionFilter === 'all' ? undefined : sectionFilter
+        const tFilter = teacherFilter === 'all' ? undefined : teacherFilter
+        const data = await getClassAssessment(sFilter, tFilter)
         setStudents(data)
         setLoading(false)
     }
@@ -52,8 +55,11 @@ export default function AssessmentPage() {
         s.email?.toLowerCase().includes(search.toLowerCase())
     )
 
-    // Extract unique sections for filter
+    // Extract unique options
+    // Note: This only shows options from the *current result set*.
+    // Ideally we'd fetch all unique values cleanly, but for now this works with "All" reset.
     const sections = Array.from(new Set(students.map(s => s.class_section).filter(Boolean)))
+    const teachers = Array.from(new Set(students.map(s => s.teacher).filter(Boolean)))
 
     return (
         <div className="flex flex-col h-full bg-background p-6 space-y-6">
@@ -76,21 +82,55 @@ export default function AssessmentPage() {
                 </div>
             </div>
 
+            {/* Rubric Legend */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm bg-muted/30 p-4 rounded-lg border">
+                <div className="flex items-center gap-2">
+                    <Badge className="bg-emerald-500 hover:bg-emerald-600">4 Points</Badge>
+                    <span className="text-muted-foreground">&gt; 80% Connectedness (Links/Total) + Consistent Activity</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge variant="default">3 Points</Badge>
+                    <span className="text-muted-foreground">&gt; 50% Connectedness</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge variant="secondary">2 Points</Badge>
+                    <span className="text-muted-foreground">&gt; 20% Connectedness</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge variant="outline">1 Point</Badge>
+                    <span className="text-muted-foreground">Sparse Data or Disconnected</span>
+                </div>
+            </div>
+
             <Card>
                 <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
                         <CardTitle>Gradebook</CardTitle>
-                        <Select value={sectionFilter} onValueChange={setSectionFilter}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Filter Section" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Sections</SelectItem>
-                                {sections.map((s: any) => (
-                                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex gap-2">
+                            <Select value={teacherFilter} onValueChange={setTeacherFilter}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Filter Teacher" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Teachers</SelectItem>
+                                    {teachers.map((t: any) => (
+                                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select value={sectionFilter} onValueChange={setSectionFilter}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Filter Section" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Sections</SelectItem>
+                                    {sections.map((s: any) => (
+                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -129,7 +169,9 @@ export default function AssessmentPage() {
                                                 <td className="p-4 align-middle font-medium">
                                                     <div className="flex flex-col">
                                                         <span className="text-base">{student.codex_name}</span>
-                                                        <span className="text-xs text-muted-foreground">{student.class_section}</span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {student.class_section} • {student.teacher}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td className="p-4 align-middle">

@@ -201,13 +201,16 @@ export async function rebuildGlobalConnections() {
     return { count: processedNotes, links: totalLinks }
 }
 
-export async function getClassAssessment(section?: string) {
+export async function getClassAssessment(section?: string, teacher?: string) {
     const supabase = await createClient()
 
     // 1. Fetch Students
     let query = supabase.from('users').select('*').order('codex_name')
     if (section && section !== 'all') {
         query = query.eq('class_section', section)
+    }
+    if (teacher && teacher !== 'all') {
+        query = query.eq('teacher', teacher)
     }
     const { data: students } = await query
 
