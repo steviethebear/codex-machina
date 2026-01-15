@@ -370,7 +370,7 @@ export default function StudentDetailPage() {
                                 <div className="mt-4 text-xs text-muted-foreground">
                                     <p>Rubric Guide:</p>
                                     <ul className="list-disc pl-4 mt-1 space-y-1">
-                                        <li><strong>4 Pt</strong>: Regular work, >3 active days/week.</li>
+                                        <li><strong>4 Pt</strong>: Regular work, &gt;3 active days/week.</li>
                                         <li><strong>3 Pt</strong>: Regular work, occasional gaps.</li>
                                         <li><strong>2 Pt</strong>: Sparse or Bunched (all notes in 1-2 days).</li>
                                     </ul>
