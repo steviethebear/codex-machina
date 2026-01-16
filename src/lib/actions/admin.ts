@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database.types'
 
@@ -237,6 +238,7 @@ export async function getClassAssessment(section?: string, teacher?: string, dat
     let noteQuery = supabase
         .from('notes')
         .select('id, user_id, content, created_at, type')
+        .eq('type', 'permanent') // Strict filtering for Rubric
         .not('content', 'is', null)
 
     if (startDate) {
@@ -377,4 +379,78 @@ export async function getClassAssessment(section?: string, teacher?: string, dat
 
     return results
 }
+// ... (existing code)
 
+// --- EVALUATIONS (AI RUBRIC) ---
+
+export async function getStudentEvaluations(studentId: string) {
+    const supabase = await createClient()
+    const { data } = await supabase
+        .from('evaluations')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+
+    return data || []
+}
+
+export async function saveEvaluation(studentId: string, content: string, score: number, dateRange: string) {
+    const supabase = await createClient()
+    // Identify teacher? For now just use current admin user
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const { error } = await supabase.from('evaluations').insert({
+        student_id: studentId,
+        teacher_id: user?.id,
+        content,
+        score,
+        date_range: dateRange
+    })
+
+    if (error) throw error
+    revalidatePath(`/admin/student/${studentId}`)
+}
+
+export async function deleteEvaluation(evaluationId: string) {
+    const supabase = await createClient()
+    await supabase.from('evaluations').delete().eq('id', evaluationId)
+    // We don't have the studentId here easily to revalidate path 
+    // unless we fetch. Client can refresh.
+}
+
+export async function runAiEvaluation(studentId: string, dateRange: '7d' | '14d' | '30d' | 'all') {
+    const supabase = await createClient()
+
+    // 1. Fetch Permanent Notes filtered by date
+    let startDate: Date | null = new Date()
+    if (dateRange === '7d') startDate.setDate(startDate.getDate() - 7)
+    else if (dateRange === '14d') startDate.setDate(startDate.getDate() - 14)
+    else if (dateRange === '30d') startDate.setDate(startDate.getDate() - 30)
+    else startDate = null
+
+    let query = supabase.from('notes')
+        .select('title, content, created_at')
+        .eq('user_id', studentId)
+        .eq('type', 'permanent') // Strict
+        .not('content', 'is', null)
+        .order('created_at', { ascending: false })
+
+    if (startDate) {
+        query = query.gte('created_at', startDate.toISOString())
+    }
+
+    const { data: notes } = await query
+    if (!notes) return { score: 0, narrative: "Error fetching notes" }
+
+    // 2. Run AI
+    const { generateRubricEvaluation } = await import('./evaluation')
+    const result = await generateRubricEvaluation(notes)
+
+    // 3. Save automatically? User said "should remain available".
+    // Yes, let's auto-save upon generation to build history.
+    if (result.score > 0) {
+        await saveEvaluation(studentId, result.narrative, result.score, dateRange)
+    }
+
+    return result
+}

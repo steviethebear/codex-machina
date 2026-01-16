@@ -230,6 +230,51 @@ export type Database = {
           },
         ]
       }
+      evaluations: {
+        Row: {
+          content: string
+          created_at: string
+          date_range: string | null
+          id: string
+          score: number | null
+          student_id: string
+          teacher_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          date_range?: string | null
+          id?: string
+          score?: number | null
+          student_id: string
+          teacher_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          date_range?: string | null
+          id?: string
+          score?: number | null
+          student_id?: string
+          teacher_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluations_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       note_tags: {
         Row: {
           created_at: string

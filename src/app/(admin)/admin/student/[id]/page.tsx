@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { getStudentProfile, awardXP, forceDeleteNote, forcePromoteNote, deleteStudent, sendPasswordReset, updateStudentPassword, updateStudentProfile, reindexAllConnections, getClassAssessment } from '@/lib/actions/admin'
+import { getStudentProfile, awardXP, forceDeleteNote, forcePromoteNote, deleteStudent, sendPasswordReset, updateStudentPassword, updateStudentProfile, reindexAllConnections, getClassAssessment, runAiEvaluation, getStudentEvaluations, deleteEvaluation } from '@/lib/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -11,6 +11,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ArrowLeft, Trash2, Award, Network, ChevronDown, Calendar, Link as LinkIcon, AlertCircle, MessageSquare, Mail, ShieldAlert, Key } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { Loader2, Sparkles } from 'lucide-react'
 import {
     Dialog,
     DialogContent,
@@ -95,6 +103,11 @@ export default function StudentDetailPage() {
     const [awardDialogOpen, setAwardDialogOpen] = useState(false)
     const [editProfileOpen, setEditProfileOpen] = useState(false)
 
+    // Evaluation State
+    const [evalDateRange, setEvalDateRange] = useState<'7d' | '14d' | '30d' | 'all'>('30d')
+    const [isEvaluating, setIsEvaluating] = useState(false)
+    const [evaluations, setEvaluations] = useState<any[]>([])
+
     // Password States
     const [newPassword, setNewPassword] = useState('')
     const [isUpdatingAuth, setIsUpdatingAuth] = useState(false)
@@ -115,6 +128,10 @@ export default function StudentDetailPage() {
             setNotes(data.notes)
             setHistory(data.points)
             setReflections(data.reflections)
+
+            // Load Evaluations
+            const evs = await getStudentEvaluations(id)
+            setEvaluations(evs)
 
             // Setup XP Chart
             const sortedHistory = [...data.points].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
@@ -144,7 +161,7 @@ export default function StudentDetailPage() {
         let notesWithMentions = 0
         const orphans: any[] = []
 
-        notes.forEach(note => {
+        notes.filter(n => n.type === 'permanent').forEach(note => {
             const hasLinks = (note.content?.match(/\[\[(.*?)\]\]/g) || []).length > 0
             const hasMentions = (note.content?.match(/@(\w+)/g) || []).length > 0
             if (hasLinks) notesWithLinks++
@@ -445,6 +462,119 @@ export default function StudentDetailPage() {
                     )}
                 </TabsContent>
 
+                {/* --- EVALUATION CARD --- */}
+                <Card className="mt-6 border-indigo-100 bg-indigo-50/20">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-indigo-700">
+                            <Award className="h-5 w-5" />
+                            AI Rubric Evaluation
+                        </CardTitle>
+                        <CardDescription>
+                            Generate a qualitative analysis of the student's permanent notes based on the rubric.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {/* Control Panel */}
+                        <div className="flex items-end gap-4">
+                            <div className="space-y-2 w-[200px]">
+                                <Label>Time Period</Label>
+                                <Select value={evalDateRange} onValueChange={(v: any) => setEvalDateRange(v)}>
+                                    <SelectTrigger className="bg-background">
+                                        <SelectValue placeholder="Select range" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="7d">Last 7 Days</SelectItem>
+                                        <SelectItem value="14d">Last 14 Days</SelectItem>
+                                        <SelectItem value="30d">Last 30 Days</SelectItem>
+                                        <SelectItem value="all">All Time</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button 
+                                onClick={handleRunEvaluation} 
+                                disabled={isEvaluating}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            >
+                                {isEvaluating ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Analyzing Notes...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles className="mr-2 h-4 w-4" />
+                                        Run Evaluation
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+
+                        {/* Recent Evaluation Display (If just run or exists) */}
+                        {evaluations.length > 0 && (
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Evaluation History</h3>
+                                <div className="space-y-4">
+                                    {evaluations.map((ev) => (
+                                        <div key={ev.id} className="border rounded-lg bg-background p-4 shadow-sm relative group">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                                                            {ev.score} / 4 Points
+                                                        </Badge>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {ev.date_range?.toUpperCase()} • {new Date(ev.created_at).toLocaleDateString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-6 w-6 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={() => handleDeleteEvaluation(ev.id)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                            <div className="text-sm leading-relaxed text-indigo-950/80 prose prose-sm max-w-none">
+                                                {ev.content}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+                
+                {assessmentStats.orphans.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-amber-600">
+                                <AlertCircle className="h-5 w-5" />
+                                Orphan Notes
+                            </CardTitle>
+                            <CardDescription>These notes have no outgoing connections.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                {assessmentStats.orphans.slice(0, 10).map(n => (
+                                    <div key={n.id} className="p-3 border rounded-md flex justify-between items-center group hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedNote(n)}>
+                                        <span className="truncate max-w-[300px]">{n.title}</span>
+                                        <span className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                ))}
+                                {assessmentStats.orphans.length > 10 && (
+                                    <div className="text-center text-xs text-muted-foreground pt-2">
+                                        + {assessmentStats.orphans.length - 10} more orphans
+                                    </div>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </TabsContent>
+
                 <TabsContent value="notes">
                     <Card>
                         <CardHeader>
@@ -686,7 +816,7 @@ export default function StudentDetailPage() {
             // But we can enable it if we assume all notes are viewable.
             // For now, let's keep it simple.
             />
-        </div>
+        </div >
     )
 }
 
