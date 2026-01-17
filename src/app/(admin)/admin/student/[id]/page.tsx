@@ -495,11 +495,26 @@ export default function StudentDetailPage() {
                     )}
 
                     {/* --- EVALUATION CARD --- */}
-                    <Card className="mt-6 border-indigo-100 bg-indigo-50/20">
+                    <Card className="mt-6">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-indigo-700">
+                            <CardTitle className="flex items-center gap-2">
                                 <Award className="h-5 w-5" />
                                 AI Rubric Evaluation
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-[300px]">
+                                            <p>Evaluates notes based on the Codex Rubric:</p>
+                                            <ul className="list-disc pl-4 mt-1 text-xs space-y-1">
+                                                <li><b>Consistency</b>: Frequency of writing</li>
+                                                <li><b>Connection</b>: Use of [[WikiLinks]]</li>
+                                                <li><b>Depth</b>: Molecular bonding of ideas</li>
+                                            </ul>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </CardTitle>
                             <CardDescription>
                                 Generate a qualitative analysis of the student's permanent notes based on the rubric.
@@ -525,7 +540,6 @@ export default function StudentDetailPage() {
                                 <Button
                                     onClick={handleRunEvaluation}
                                     disabled={isEvaluating}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
                                 >
                                     {isEvaluating ? (
                                         <>
@@ -551,7 +565,7 @@ export default function StudentDetailPage() {
                                                 <div className="flex justify-between items-start mb-2">
                                                     <div className="flex flex-col">
                                                         <div className="flex items-center gap-2">
-                                                            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                                                            <Badge variant="outline">
                                                                 {ev.score} / 4 Points
                                                             </Badge>
                                                             <span className="text-xs text-muted-foreground">
@@ -568,7 +582,7 @@ export default function StudentDetailPage() {
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </div>
-                                                <div className="text-sm leading-relaxed text-indigo-950/80 prose prose-sm max-w-none">
+                                                <div className="text-sm leading-relaxed text-foreground/90 prose prose-sm max-w-none">
                                                     {ev.content}
                                                 </div>
                                             </div>
