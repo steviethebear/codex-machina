@@ -18,7 +18,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Loader2, Sparkles } from 'lucide-react'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Loader2, Sparkles, Info } from 'lucide-react'
 import {
     Dialog,
     DialogContent,
@@ -185,6 +191,33 @@ export default function StudentDetailPage() {
 
         return { totalNotes, notesWithLinks, notesWithMentions, orphans, score }
     }, [notes])
+
+    const handleRunEvaluation = async () => {
+        setIsEvaluating(true)
+        try {
+            const result = await runAiEvaluation(id, evalDateRange)
+            if (result.score > 0) {
+                toast.success(`Evaluation complete. Score: ${result.score}/4`)
+                // Refresh data to show new evaluation
+                const evs = await getStudentEvaluations(id)
+                setEvaluations(evs)
+            } else {
+                toast.warning(result.narrative)
+            }
+        } catch (e) {
+            toast.error("Evaluation failed")
+            console.error(e)
+        }
+        setIsEvaluating(false)
+    }
+
+    const handleDeleteEvaluation = async (evalId: string) => {
+        if (!confirm("Are you sure you want to delete this evaluation?")) return
+        await deleteEvaluation(evalId)
+        toast.success("Evaluation deleted")
+        const evs = await getStudentEvaluations(id)
+        setEvaluations(evs)
+    }
 
 
     const handleAwardXP = async () => {
@@ -460,120 +493,93 @@ export default function StudentDetailPage() {
                             </CardContent>
                         </Card>
                     )}
-                </TabsContent>
 
-                {/* --- EVALUATION CARD --- */}
-                <Card className="mt-6 border-indigo-100 bg-indigo-50/20">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-indigo-700">
-                            <Award className="h-5 w-5" />
-                            AI Rubric Evaluation
-                        </CardTitle>
-                        <CardDescription>
-                            Generate a qualitative analysis of the student's permanent notes based on the rubric.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {/* Control Panel */}
-                        <div className="flex items-end gap-4">
-                            <div className="space-y-2 w-[200px]">
-                                <Label>Time Period</Label>
-                                <Select value={evalDateRange} onValueChange={(v: any) => setEvalDateRange(v)}>
-                                    <SelectTrigger className="bg-background">
-                                        <SelectValue placeholder="Select range" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="7d">Last 7 Days</SelectItem>
-                                        <SelectItem value="14d">Last 14 Days</SelectItem>
-                                        <SelectItem value="30d">Last 30 Days</SelectItem>
-                                        <SelectItem value="all">All Time</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Button 
-                                onClick={handleRunEvaluation} 
-                                disabled={isEvaluating}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                            >
-                                {isEvaluating ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Analyzing Notes...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles className="mr-2 h-4 w-4" />
-                                        Run Evaluation
-                                    </>
-                                )}
-                            </Button>
-                        </div>
-
-                        {/* Recent Evaluation Display (If just run or exists) */}
-                        {evaluations.length > 0 && (
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Evaluation History</h3>
-                                <div className="space-y-4">
-                                    {evaluations.map((ev) => (
-                                        <div key={ev.id} className="border rounded-lg bg-background p-4 shadow-sm relative group">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex flex-col">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-                                                            {ev.score} / 4 Points
-                                                        </Badge>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {ev.date_range?.toUpperCase()} • {new Date(ev.created_at).toLocaleDateString()}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-6 w-6 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    onClick={() => handleDeleteEvaluation(ev.id)}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                            <div className="text-sm leading-relaxed text-indigo-950/80 prose prose-sm max-w-none">
-                                                {ev.content}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-                
-                {assessmentStats.orphans.length > 0 && (
-                    <Card>
+                    {/* --- EVALUATION CARD --- */}
+                    <Card className="mt-6 border-indigo-100 bg-indigo-50/20">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-amber-600">
-                                <AlertCircle className="h-5 w-5" />
-                                Orphan Notes
+                            <CardTitle className="flex items-center gap-2 text-indigo-700">
+                                <Award className="h-5 w-5" />
+                                AI Rubric Evaluation
                             </CardTitle>
-                            <CardDescription>These notes have no outgoing connections.</CardDescription>
+                            <CardDescription>
+                                Generate a qualitative analysis of the student's permanent notes based on the rubric.
+                            </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                {assessmentStats.orphans.slice(0, 10).map(n => (
-                                    <div key={n.id} className="p-3 border rounded-md flex justify-between items-center group hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedNote(n)}>
-                                        <span className="truncate max-w-[300px]">{n.title}</span>
-                                        <span className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                ))}
-                                {assessmentStats.orphans.length > 10 && (
-                                    <div className="text-center text-xs text-muted-foreground pt-2">
-                                        + {assessmentStats.orphans.length - 10} more orphans
-                                    </div>
-                                )}
+                        <CardContent className="space-y-6">
+                            {/* Control Panel */}
+                            <div className="flex items-end gap-4">
+                                <div className="space-y-2 w-[200px]">
+                                    <Label>Time Period</Label>
+                                    <Select value={evalDateRange} onValueChange={(v: any) => setEvalDateRange(v)}>
+                                        <SelectTrigger className="bg-background">
+                                            <SelectValue placeholder="Select range" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="7d">Last 7 Days</SelectItem>
+                                            <SelectItem value="14d">Last 14 Days</SelectItem>
+                                            <SelectItem value="30d">Last 30 Days</SelectItem>
+                                            <SelectItem value="all">All Time</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button
+                                    onClick={handleRunEvaluation}
+                                    disabled={isEvaluating}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                >
+                                    {isEvaluating ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Analyzing Notes...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles className="mr-2 h-4 w-4" />
+                                            Run Evaluation
+                                        </>
+                                    )}
+                                </Button>
                             </div>
+
+                            {/* Recent Evaluation Display (If just run or exists) */}
+                            {evaluations.length > 0 && (
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Evaluation History</h3>
+                                    <div className="space-y-4">
+                                        {evaluations.map((ev) => (
+                                            <div key={ev.id} className="border rounded-lg bg-background p-4 shadow-sm relative group">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                                                                {ev.score} / 4 Points
+                                                            </Badge>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {ev.date_range?.toUpperCase()} • {new Date(ev.created_at).toLocaleDateString()}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        onClick={() => handleDeleteEvaluation(ev.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                                <div className="text-sm leading-relaxed text-indigo-950/80 prose prose-sm max-w-none">
+                                                    {ev.content}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
-                )}
-            </TabsContent>
+
+                </TabsContent>
 
                 <TabsContent value="notes">
                     <Card>
