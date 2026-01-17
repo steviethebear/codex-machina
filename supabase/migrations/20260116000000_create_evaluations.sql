@@ -15,17 +15,17 @@ alter table evaluations enable row level security;
 -- Policies
 create policy "Admins can view all evaluations"
     on evaluations for select
-    using ( exists (select 1 from profiles where id = auth.uid() and role = 'admin') );
+    using ( exists (select 1 from users where id = auth.uid() and is_admin = true) );
 
 create policy "Admins can insert evaluations"
     on evaluations for insert
-    with check ( exists (select 1 from profiles where id = auth.uid() and role = 'admin') );
+    with check ( exists (select 1 from users where id = auth.uid() and is_admin = true) );
 
 create policy "Admins can delete evaluations"
     on evaluations for delete
-    using ( exists (select 1 from profiles where id = auth.uid() and role = 'admin') );
+    using ( exists (select 1 from users where id = auth.uid() and is_admin = true) );
 
--- Students can view their own evaluations (Future proofing, maybe?)
+-- Students can view their own evaluations
 create policy "Students can view own evaluations"
     on evaluations for select
     using ( auth.uid() = student_id );
