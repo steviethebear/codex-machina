@@ -86,20 +86,20 @@ export default function AssessmentPage() {
             {/* Rubric Legend */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm bg-muted/30 p-4 rounded-lg border">
                 <div className="flex items-center gap-2">
-                    <Badge className="bg-emerald-500 hover:bg-emerald-600">4 Points</Badge>
-                    <span className="text-muted-foreground">&gt; 50% Active Days (e.g. 4/7)</span>
+                    <Badge className="bg-emerald-500 hover:bg-emerald-600">4</Badge>
+                    <span className="text-muted-foreground">&gt; 50% Active Days</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Badge variant="default">3 Points</Badge>
-                    <span className="text-muted-foreground">&gt; 25% Active Days (e.g. 2/7)</span>
+                    <Badge variant="default">3</Badge>
+                    <span className="text-muted-foreground">&gt; 25% Active Days</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Badge variant="secondary">2 Points</Badge>
+                    <Badge variant="secondary">2</Badge>
                     <span className="text-muted-foreground">Low Frequency</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Badge variant="outline">1 Point</Badge>
-                    <span className="text-muted-foreground">Inactive (0 Days)</span>
+                    <Badge variant="outline">1</Badge>
+                    <span className="text-muted-foreground">Inactive</span>
                 </div>
             </div>
 
@@ -219,7 +219,7 @@ export default function AssessmentPage() {
                                                     <Badge variant={score >= 3 ? 'default' : score === 2 ? 'secondary' : 'outline'} className={
                                                         score === 4 ? "bg-emerald-500 hover:bg-emerald-600" : ""
                                                     }>
-                                                        {score} / 4 Points
+                                                        {score}
                                                     </Badge>
                                                 </td>
                                                 <td className="p-4 align-middle text-xs text-muted-foreground">
