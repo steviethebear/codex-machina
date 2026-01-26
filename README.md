@@ -1,183 +1,72 @@
-# Supabase CLI
+# Codex Machina
 
-[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
-](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![Supabase](https://img.shields.io/badge/Supabase-Database-green)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS-4.0-38bdf8)
 
-[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
+**Codex Machina** is a collaborative Academic RPG and knowledge management system designed to gamify the learning and note-taking experience. It combines Zettelkasten-style knowledge management with role-playing elements like XP, levels, and achievements to drive student engagement.
 
-This repository contains all the functionality for Supabase CLI.
+## 🚀 Features
 
-- [x] Running Supabase locally
-- [x] Managing database migrations
-- [x] Creating and deploying Supabase Functions
-- [x] Generating types directly from your database schema
-- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
+- **🎓 Academic RPG**: Earn XP and unlock achievements for contributing notes, making connections, and engaging with course material.
+- **🧠 Knowledge Graph**: Visual Zettelkasten-style graph of connected thoughts and notes.
+- **🤖 AI-Enhanced**: Integrated with Google Gemini for content evaluation, connections, and feedback.
+- **🛡️ Admin Dashboard**: Comprehensive tools for instructors to manage students, content, and moderation.
+- **⚡ Real-time Collaboration**: Built on Supabase for real-time data sync and multiplayer features.
 
-## Getting started
+## 🛠️ Tech Stack
 
-### Install the CLI
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
+- **Database & Auth**: [Supabase](https://supabase.com/)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
+- **UI Components**: Radix UI
+- **Animations**: Framer Motion
+- **AI**: Google Generative AI (Gemini)
 
-Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
+## 📦 Getting Started
 
-```bash
-npm i supabase --save-dev
-```
+### Prerequisites
 
-To install the beta release channel:
+- Node.js 20+
+- A Supabase project
+- Google AI API Key
 
-```bash
-npm i supabase@beta --save-dev
-```
+### Installation
 
-When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/stephenhebert/codex-machina.git
+    cd codex-machina
+    ```
 
-```
-NODE_OPTIONS=--no-experimental-fetch yarn add supabase
-```
+2.  **Install dependencies**
+    ```bash
+    npm install
+    ```
 
-> **Note**
-For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
+3.  **Environment Setup**
+    Copy the example environment file:
+    ```bash
+    cp .env.local.example .env.local
+    ```
+    Fill in your keys in `.env.local`:
+    ```env
+    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+    SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+    GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_key
+    ```
 
-<details>
-  <summary><b>macOS</b></summary>
+4.  **Run the Development Server**
+    ```bash
+    npm run dev
+    ```
 
-  Available via [Homebrew](https://brew.sh). To install:
+    Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-  ```sh
-  brew install supabase/tap/supabase
-  ```
+## 📄 License
 
-  To install the beta release channel:
-  
-  ```sh
-  brew install supabase/tap/supabase-beta
-  brew link --overwrite supabase-beta
-  ```
-  
-  To upgrade:
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-  ```sh
-  brew upgrade supabase
-  ```
-</details>
-
-<details>
-  <summary><b>Windows</b></summary>
-
-  Available via [Scoop](https://scoop.sh). To install:
-
-  ```powershell
-  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
-  scoop install supabase
-  ```
-
-  To upgrade:
-
-  ```powershell
-  scoop update supabase
-  ```
-</details>
-
-<details>
-  <summary><b>Linux</b></summary>
-
-  Available via [Homebrew](https://brew.sh) and Linux packages.
-
-  #### via Homebrew
-
-  To install:
-
-  ```sh
-  brew install supabase/tap/supabase
-  ```
-
-  To upgrade:
-
-  ```sh
-  brew upgrade supabase
-  ```
-
-  #### via Linux packages
-
-  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
-
-  ```sh
-  sudo apk add --allow-untrusted <...>.apk
-  ```
-
-  ```sh
-  sudo dpkg -i <...>.deb
-  ```
-
-  ```sh
-  sudo rpm -i <...>.rpm
-  ```
-
-  ```sh
-  sudo pacman -U <...>.pkg.tar.zst
-  ```
-</details>
-
-<details>
-  <summary><b>Other Platforms</b></summary>
-
-  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
-
-  ```sh
-  go install github.com/supabase/cli@latest
-  ```
-
-  Add a symlink to the binary in `$PATH` for easier access:
-
-  ```sh
-  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
-  ```
-
-  This works on other non-standard Linux distros.
-</details>
-
-<details>
-  <summary><b>Community Maintained Packages</b></summary>
-
-  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
-  To install in your working directory:
-
-  ```bash
-  pkgx install supabase
-  ```
-
-  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
-</details>
-
-### Run the CLI
-
-```bash
-supabase bootstrap
-```
-
-Or using npx:
-
-```bash
-npx supabase bootstrap
-```
-
-The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
-
-## Docs
-
-Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
-
-## Breaking changes
-
-We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
-
-However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
-
-## Developing
-
-To run from source:
-
-```sh
-# Go >= 1.22
-go run . help
-```
+Copyright (c) 2026 Stephen Hebert
