@@ -13,19 +13,38 @@ create table if not exists evaluations (
 alter table evaluations enable row level security;
 
 -- Policies
-create policy "Admins can view all evaluations"
-    on evaluations for select
-    using ( exists (select 1 from users where id = auth.uid() and is_admin = true) );
+-- Policies
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'evaluations' AND policyname = 'Admins can view all evaluations'
+    ) THEN
+        create policy "Admins can view all evaluations"
+            on evaluations for select
+            using ( exists (select 1 from users where id = auth.uid() and is_admin = true) );
+    END IF;
 
-create policy "Admins can insert evaluations"
-    on evaluations for insert
-    with check ( exists (select 1 from users where id = auth.uid() and is_admin = true) );
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'evaluations' AND policyname = 'Admins can insert evaluations'
+    ) THEN
+        create policy "Admins can insert evaluations"
+            on evaluations for insert
+            with check ( exists (select 1 from users where id = auth.uid() and is_admin = true) );
+    END IF;
 
-create policy "Admins can delete evaluations"
-    on evaluations for delete
-    using ( exists (select 1 from users where id = auth.uid() and is_admin = true) );
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'evaluations' AND policyname = 'Admins can delete evaluations'
+    ) THEN
+        create policy "Admins can delete evaluations"
+            on evaluations for delete
+            using ( exists (select 1 from users where id = auth.uid() and is_admin = true) );
+    END IF;
 
--- Students can view their own evaluations
-create policy "Students can view own evaluations"
-    on evaluations for select
-    using ( auth.uid() = student_id );
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'evaluations' AND policyname = 'Students can view own evaluations'
+    ) THEN
+        create policy "Students can view own evaluations"
+            on evaluations for select
+            using ( auth.uid() = student_id );
+    END IF;
+END $$;

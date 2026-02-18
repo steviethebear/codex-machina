@@ -549,6 +549,8 @@ export type Database = {
           note_id: string
           position: number
           thread_id: string
+          x: number
+          y: number
         }
         Insert: {
           created_at?: string | null
@@ -557,6 +559,8 @@ export type Database = {
           note_id: string
           position: number
           thread_id: string
+          x?: number
+          y?: number
         }
         Update: {
           created_at?: string | null
@@ -565,6 +569,8 @@ export type Database = {
           note_id?: string
           position?: number
           thread_id?: string
+          x?: number
+          y?: number
         }
         Relationships: [
           {
@@ -579,6 +585,55 @@ export type Database = {
             columns: ["thread_id"]
             isOneToOne: false
             referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      thread_connections: {
+        Row: {
+          id: string
+          thread_id: string
+          source_note_id: string
+          target_note_id: string
+          label: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          thread_id: string
+          source_note_id: string
+          target_note_id: string
+          label?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          thread_id?: string
+          source_note_id?: string
+          target_note_id?: string
+          label?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_connections_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_connections_source_note_id_fkey"
+            columns: ["source_note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_connections_target_note_id_fkey"
+            columns: ["target_note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
             referencedColumns: ["id"]
           },
         ]

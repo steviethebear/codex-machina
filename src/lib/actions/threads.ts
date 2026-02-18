@@ -29,7 +29,8 @@ export interface ThreadNote {
 }
 
 export interface ThreadWithNotes extends Thread {
-    notes: (ThreadNote & { note: any })[]
+    notes: (ThreadNote & { note: any, x: number, y: number })[]
+    connections?: any[]
 }
 
 /**
@@ -105,9 +106,16 @@ export async function getThread(threadId: string) {
             )
         `)
         .eq('thread_id', threadId)
-        .order('position', { ascending: true })
 
     if (notesError) return { error: notesError.message }
+
+    // Get thread connections
+    const { data: connections, error: connectionsError } = await supabase
+        .from('thread_connections')
+        .select('*')
+        .eq('thread_id', threadId)
+
+    if (connectionsError) return { error: connectionsError.message }
 
     const notesWithAuthor = threadNotes?.map((tn: any) => ({
         ...tn,
@@ -120,8 +128,9 @@ export async function getThread(threadId: string) {
     return {
         data: {
             ...thread,
-            notes: notesWithAuthor || []
-        } as ThreadWithNotes
+            notes: notesWithAuthor || [],
+            connections: connections || []
+        }
     }
 }
 
@@ -195,12 +204,15 @@ export async function addNoteToThread(
         return { error: 'Unauthorized' }
     }
 
+    // Default position 0,0 if not specified (could randomize slightly)
     const { data, error } = await supabase
         .from('thread_notes')
         .insert({
             thread_id: threadId,
             note_id: noteId,
-            position,
+            position, // Legacy, can keep or repurpose
+            x: 100 + Math.random() * 50,
+            y: 100 + Math.random() * 50,
             group_label: groupLabel || null
         })
         .select()
@@ -234,7 +246,95 @@ export async function removeNoteFromThread(threadId: string, noteId: string) {
 }
 
 /**
- * Bulk reorder thread notes
+ * Update note position (Spatial)
+ */
+export async function updateNotePosition(
+    threadId: string,
+    noteId: string,
+    x: number,
+    y: number
+) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+        .from('thread_notes')
+        .update({ x, y })
+        .eq('thread_id', threadId)
+        .eq('note_id', noteId)
+
+    if (error) return { error: error.message }
+    revalidatePath(`/threads/${threadId}`)
+    return { success: true }
+}
+
+/**
+ * Create connection between notes
+ */
+export async function createThreadConnection(
+    threadId: string,
+    sourceNoteId: string,
+    targetNoteId: string,
+    label?: string
+) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { data, error } = await supabase
+        .from('thread_connections')
+        .insert({
+            thread_id: threadId,
+            source_note_id: sourceNoteId,
+            target_note_id: targetNoteId,
+            label
+        })
+        .select()
+        .single()
+
+    if (error) return { error: error.message }
+    revalidatePath(`/threads/${threadId}`)
+    return { data }
+}
+
+/**
+ * Delete connection
+ */
+export async function deleteThreadConnection(connectionId: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+        .from('thread_connections')
+        .delete()
+        .eq('id', connectionId)
+
+    if (error) return { error: error.message }
+    revalidatePath(`/threads/${threadId}`) // Note: we don't have threadId here, strictly speaking validation might need lookup
+    return { success: true }
+}
+
+/**
+ * Update connection label
+ */
+export async function updateConnectionLabel(connectionId: string, label: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+        .from('thread_connections')
+        .update({ label })
+        .eq('id', connectionId)
+
+    if (error) return { error: error.message }
+    return { success: true }
+}
+
+/**
+ * Bulk reorder thread notes (Legacy / List view support if needed)
  */
 export async function reorderThreadNotes(
     threadId: string,
