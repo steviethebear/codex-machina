@@ -1,19 +1,21 @@
 import { memo } from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Handle, Position, NodeProps, Node } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Edit2 } from 'lucide-react';
 
-interface NoteNodeData extends Record<string, unknown> {
+type NoteNodeData = {
     title: string;
     content: string;
     author: string;
     groupLabel?: string;
     onLabelClick?: () => void;
-}
+};
 
-const NoteNode = ({ data, selected }: NodeProps<any>) => {
-    const { title, content, author, groupLabel, onLabelClick } = data as NoteNodeData;
+type CustomNoteNode = Node<NoteNodeData, 'note'>;
+
+const NoteNode = ({ data, selected }: NodeProps<CustomNoteNode>) => {
+    const { title, content, author, groupLabel, onLabelClick } = data;
 
     return (
         <Card

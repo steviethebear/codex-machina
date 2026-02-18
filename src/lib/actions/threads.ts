@@ -15,8 +15,8 @@ export interface Thread {
     user_id: string
     title: string
     description: string | null
-    created_at: string
-    updated_at: string
+    created_at: string | null
+    updated_at: string | null
 }
 
 export interface ThreadNote {
@@ -306,13 +306,23 @@ export async function deleteThreadConnection(connectionId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
 
+    // Get thread_id before deleting for revalidation
+    const { data: connection } = await supabase
+        .from('thread_connections')
+        .select('thread_id')
+        .eq('id', connectionId)
+        .single()
+
     const { error } = await supabase
         .from('thread_connections')
         .delete()
         .eq('id', connectionId)
 
     if (error) return { error: error.message }
-    revalidatePath(`/threads/${threadId}`) // Note: we don't have threadId here, strictly speaking validation might need lookup
+
+    if (connection) {
+        revalidatePath(`/threads/${connection.thread_id}`)
+    }
     return { success: true }
 }
 

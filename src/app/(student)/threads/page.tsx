@@ -110,7 +110,7 @@ export default function ThreadsPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-sm text-muted-foreground">
-                                    Updated {new Date(thread.updated_at).toLocaleDateString()}
+                                    Updated {new Date(thread.updated_at || thread.created_at || new Date()).toLocaleDateString()}
                                 </div>
                             </CardContent>
                         </Card>

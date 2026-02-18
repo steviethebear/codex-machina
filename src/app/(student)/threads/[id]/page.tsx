@@ -53,8 +53,8 @@ export default function ThreadWorkspacePage() {
     const supabase = createClient()
 
     // React Flow State
-    const [nodes, setNodes] = useNodesState([])
-    const [edges, setEdges] = useEdgesState([])
+    const [nodes, setNodes] = useNodesState<Node>([])
+    const [edges, setEdges] = useEdgesState<Edge>([])
     const nodeTypes = useMemo(() => ({ note: NoteNode }), [])
 
     // Application State
@@ -159,14 +159,15 @@ export default function ThreadWorkspacePage() {
 
             // Persist
             const result = await createThreadConnection(threadId, params.source, params.target)
-            if (result.error) {
+            if (result.error || !result.data) {
                 toast.error('Failed to create connection')
                 // Revert would go here
             } else {
+                const newId = result.data.id
                 // Update edge ID with real one
                 setEdges(eds => eds.map(e => {
                     if (e.source === params.source && e.target === params.target && !e.id.includes('-')) {
-                        return { ...e, id: result.data.id }
+                        return { ...e, id: newId }
                     }
                     return e
                 }))
