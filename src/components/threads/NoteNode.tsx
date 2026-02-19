@@ -45,16 +45,16 @@ const NoteNode = ({ data, selected }: NodeProps<CustomNoteNode>) => {
                 )}
 
                 <CardTitle className="text-base font-semibold leading-tight line-clamp-2">
-                    {title}
+                    {title || 'Untitled Note'}
                 </CardTitle>
                 <div className="text-xs text-muted-foreground">
-                    by {author}
+                    by {author || 'Unknown'}
                 </div>
             </CardHeader>
 
             <CardContent className="p-4 pt-2">
                 <p className="text-sm text-muted-foreground line-clamp-4 font-serif leading-relaxed">
-                    {content}
+                    {content || '(No content)'}
                 </p>
             </CardContent>
 

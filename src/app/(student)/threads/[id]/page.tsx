@@ -109,16 +109,17 @@ export default function ThreadWorkspacePage() {
 
             // Map ThreadNotes to React Flow Nodes
             const flowNodes: Node[] = t.notes.map((tn) => ({
-                id: tn.note_id, // Use note_id as node id for simpler finding
+                id: tn.note_id,
                 type: 'note',
                 position: { x: tn.x || 0, y: tn.y || 0 },
                 data: {
                     ...tn.note,
                     author: tn.note.author_name,
                     groupLabel: tn.group_label,
-                    onLabelClick: () => console.log('Label clicked', tn.id) // Placeholder
+                    onLabelClick: () => console.log('Label clicked', tn.id)
                 }
             }))
+            console.log('Loaded nodes:', flowNodes)
             setNodes(flowNodes)
 
             // Map Connections to React Flow Edges
@@ -135,6 +136,8 @@ export default function ThreadWorkspacePage() {
                 }))
                 setEdges(flowEdges)
             }
+        } else if (result.error) {
+            toast.error(`Failed to load thread: ${result.error}`)
         }
         setLoading(false)
     }
