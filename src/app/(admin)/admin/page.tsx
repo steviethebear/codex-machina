@@ -120,9 +120,17 @@ export default function TeacherDashboard() {
                         <Button variant="outline" onClick={async () => {
                             toast.promise(generateAllEmbeddings(), {
                                 loading: 'Batching missing embeddings...',
-                                success: (data) => data.hasMore 
-                                    ? `Processed ${data.count} notes. Click again to process the next batch!` 
-                                    : `All caught up! Generated ${data.count}.`,
+                                success: (data) => {
+                                    if (!data.success) {
+                                        return `Query failed: ${data.error}`
+                                    }
+                                    if (data.failed && data.failed > 0) {
+                                        return `Failed on ${data.failed} notes. Please check the server logs (likely a vector dimension error).`
+                                    }
+                                    return data.hasMore 
+                                        ? `Processed ${data.count} notes. Click again to process the next batch!` 
+                                        : `All caught up! Generated ${data.count}.`
+                                },
                                 error: 'Failed to generate embeddings'
                             })
                         }}>

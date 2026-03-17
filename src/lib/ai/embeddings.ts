@@ -53,6 +53,7 @@ export async function updateNoteEmbedding(noteId: string, asAdmin: boolean = fal
 
     if (updateError) {
         console.error("Error updating note embedding:", updateError)
+        throw new Error(updateError.message)
     } else {
         console.log(`Successfully updated embedding for note ${noteId}`)
     }
