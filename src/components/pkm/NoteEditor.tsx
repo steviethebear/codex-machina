@@ -485,7 +485,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, onUserClick,
                                                 onClick={() => setShowRequestSourceDialog(true)}
                                             >
                                                 <Plus className="h-3 w-3 mr-2" />
-                                                Request New Source: "{mentionQuery}"
+                                                Add New Source: "{mentionQuery}"
                                             </button>
                                         )
                                     }
@@ -524,7 +524,7 @@ export function NoteEditor({ note, onUpdate, onDelete, onLinkClick, onUserClick,
                                                     onClick={() => setShowRequestSourceDialog(true)}
                                                 >
                                                     <Plus className="h-3 w-3 mr-2" />
-                                                    Can't find it? Request a source...
+                                                    Can't find it? Add a source...
                                                 </button>
                                             )}
                                         </>

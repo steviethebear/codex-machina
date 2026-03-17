@@ -54,7 +54,7 @@ export default function UserProfilePage() {
 
             if (data && profileData) {
                 // Manually attach user data since FK relation to public.users doesn't exist
-                const enrichedNotes = data.map(n => ({
+                const enrichedNotes = (data as any[]).map(n => ({
                     ...n,
                     user: profileData
                 }))

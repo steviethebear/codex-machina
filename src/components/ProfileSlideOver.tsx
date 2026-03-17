@@ -58,7 +58,7 @@ export function ProfileSlideOver({ userId, open, onClose, onNoteClick }: Profile
                 .order('updated_at', { ascending: false })
 
             if (notesData) {
-                const enriched = notesData.map(n => ({
+                const enriched = (notesData as any[]).map(n => ({
                     ...n,
                     user: profileData || { codex_name: 'Unknown Scholar', email: 'unknown' }
                 }))

@@ -64,7 +64,7 @@ export default function SourcesPage() {
             url: newSource.url || null,
             type: newSource.type,
             status: 'approved' // Admins create approved sources directly
-        })
+        } as any)
 
         if (error) {
             toast.error("Failed to create source: " + error.message)

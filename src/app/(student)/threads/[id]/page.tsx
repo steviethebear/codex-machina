@@ -37,14 +37,19 @@ import {
     removeNoteFromThread,
     updateNotePosition,
     createThreadConnection,
+    updateConnectionLabel,
     deleteThreadConnection,
     deleteThread,
     exportThreadAsMarkdown,
-    type ThreadWithNotes
+    type ThreadWithNotes,
+    type ThreadConnection
 } from '@/lib/actions/threads'
 
 import NoteNode from '@/components/threads/NoteNode'
-import { NoteDetailSheet } from '@/components/threads/NoteDetailSheet'
+import { NoteSlideOver } from '@/components/NoteSlideOver'
+import { Database } from '@/types/database.types'
+
+type Note = Database['public']['Tables']['notes']['Row']
 
 export default function ThreadWorkspacePage() {
     const router = useRouter()
@@ -60,8 +65,13 @@ export default function ThreadWorkspacePage() {
     // Application State
     const [thread, setThread] = useState<ThreadWithNotes | null>(null)
     const [loading, setLoading] = useState(true)
-    const [selectedNote, setSelectedNote] = useState<any | null>(null)
+    const [selectedNote, setSelectedNote] = useState<Note | null>(null)
     const [isSheetOpen, setIsSheetOpen] = useState(false)
+
+    // Edge Editing State
+    const [editingEdge, setEditingEdge] = useState<Edge | null>(null)
+    const [edgeLabel, setEdgeLabel] = useState('')
+    const [isEdgeDialogOpen, setIsEdgeDialogOpen] = useState(false)
 
     // Add Note Dialog State
     const [showAddNotes, setShowAddNotes] = useState(false)
@@ -108,7 +118,8 @@ export default function ThreadWorkspacePage() {
             setThread(t)
 
             // Map ThreadNotes to React Flow Nodes
-            const flowNodes: Node[] = t.notes.map((tn) => ({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const flowNodes: Node[] = t.notes.map((tn: any) => ({
                 id: tn.note_id,
                 type: 'note',
                 position: { x: tn.x || 0, y: tn.y || 0 },
@@ -124,7 +135,7 @@ export default function ThreadWorkspacePage() {
 
             // Map Connections to React Flow Edges
             if (t.connections) {
-                const flowEdges: Edge[] = t.connections.map(c => ({
+                const flowEdges: Edge[] = t.connections.map((c: ThreadConnection) => ({
                     id: c.id,
                     source: c.source_note_id,
                     target: c.target_note_id,
@@ -188,19 +199,65 @@ export default function ThreadWorkspacePage() {
     )
 
     const onEdgeClick = useCallback(
-        async (_: any, edge: Edge) => {
-            // Simple delete on click for now (could be context menu)
-            if (confirm('Delete this connection?')) {
-                setEdges((es) => es.filter((e) => e.id !== edge.id))
-                await deleteThreadConnection(edge.id)
-            }
+        (_: any, edge: Edge) => {
+            setEditingEdge(edge)
+            setEdgeLabel((edge.label as string) || '')
+            setIsEdgeDialogOpen(true)
         },
-        [setEdges]
+        []
     )
+
+    const handleSaveEdge = async () => {
+        if (!editingEdge) return
+
+        // Optimistic update
+        setEdges((eds) => eds.map((e) => {
+            if (e.id === editingEdge.id) {
+                return { ...e, label: edgeLabel }
+            }
+            return e
+        }))
+
+        setIsEdgeDialogOpen(false)
+
+        await updateConnectionLabel(editingEdge.id, edgeLabel)
+        toast.success('Connection updated')
+    }
+
+    const handleDeleteEdge = async () => {
+        if (!editingEdge) return
+
+        setEdges((es) => es.filter((e) => e.id !== editingEdge.id))
+        setIsEdgeDialogOpen(false)
+        await deleteThreadConnection(editingEdge.id)
+        toast.success('Connection deleted')
+    }
 
     const onNodeClick = useCallback(
         (_: any, node: Node) => {
-            setSelectedNote(node.data)
+            // node.data contains the note object + extra fields
+            // We need to strip extra fields or ensure NoteSlideOver handles them (it expects Note)
+            // Ideally we fetch the fresh note or use the data we have.
+            // The data in node.data is from 'getThread' which joins 'notes'.
+            // It should be compatible with Note interface, but might have extra properties.
+            const noteData = node.data as any
+            const note: Note = {
+                id: noteData.id,
+                user_id: noteData.user_id,
+                title: noteData.title,
+                content: noteData.content,
+                type: noteData.type,
+                created_at: noteData.created_at,
+                updated_at: noteData.updated_at,
+                is_public: noteData.is_public ?? false,
+                // Optional fields need coalescing or checking if they exist on the type
+                // Based on DB types, these are valid:
+                citation: noteData.citation || null,
+                embedding: noteData.embedding || null,
+                page_number: noteData.page_number || null,
+                tags: noteData.tags || []
+            }
+            setSelectedNote(note)
             setIsSheetOpen(true)
         },
         []
@@ -288,8 +345,15 @@ export default function ThreadWorkspacePage() {
                     className="bg-neutral-50 dark:bg-neutral-900"
                 >
                     <Background color="#999" gap={16} />
-                    <Controls />
-                    <MiniMap zoomable pannable />
+                    <Controls className="bg-background/50 border-border/50 text-foreground fill-foreground" />
+                    <MiniMap
+                        className="bg-background/50 border-border/50"
+                        nodeColor={(n) => {
+                            if (n.type === 'note') return 'hsl(var(--primary))';
+                            return '#eee';
+                        }}
+                        maskColor="hsl(var(--background)/0.7)"
+                    />
                     <Panel position="top-right">
                         <Button onClick={() => setShowAddNotes(true)} className="shadow-lg">
                             <Plus className="h-4 w-4 mr-2" />
@@ -299,12 +363,64 @@ export default function ThreadWorkspacePage() {
                 </ReactFlow>
             </div>
 
-            {/* Slide-out Sheet */}
-            <NoteDetailSheet
-                isOpen={isSheetOpen}
-                onOpenChange={setIsSheetOpen}
+            {/* Slide-out Sheet (Standardized) */}
+            <NoteSlideOver
+                open={isSheetOpen}
                 note={selectedNote}
+                onClose={() => setIsSheetOpen(false)}
+                onUpdate={(updatedNote) => {
+                    // Update internal state if needed, or reload thread
+                    // Simple approach: update selected note locally
+                    setSelectedNote(updatedNote)
+                    // Also might want to refresh thread to show new title/content on node?
+                    // But React Flow nodes store data in 'data' prop.
+                    setNodes(nds => nds.map(n => {
+                        if (n.id === updatedNote.id) {
+                            return {
+                                ...n,
+                                data: {
+                                    ...n.data,
+                                    title: updatedNote.title,
+                                    content: updatedNote.content,
+                                    type: updatedNote.type
+                                }
+                            }
+                        }
+                        return n
+                    }))
+                }}
+                onNavigate={(n) => {
+                    // Drill down: Switch selected note
+                    setSelectedNote(n)
+                    // If this note isn't in the thread, we just view it.
+                    // If it IS in the thread, maybe center on it? (Optional polish)
+                }}
             />
+
+            {/* Edge Editing Dialog */}
+            <Dialog open={isEdgeDialogOpen} onOpenChange={setIsEdgeDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Connection</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <label className="text-sm font-medium mb-2 block">Label</label>
+                        <Input
+                            value={edgeLabel}
+                            onChange={(e) => setEdgeLabel(e.target.value)}
+                            placeholder="e.g. extends, supports, contradicts"
+                        />
+                    </div>
+                    <div className="flex justify-between">
+                        <Button variant="destructive" onClick={handleDeleteEdge}>
+                            Disconnect
+                        </Button>
+                        <Button onClick={handleSaveEdge}>
+                            Save
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Add Notes Dialog (Reused logic) */}
             <Dialog open={showAddNotes} onOpenChange={setShowAddNotes}>

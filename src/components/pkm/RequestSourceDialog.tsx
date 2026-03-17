@@ -49,7 +49,7 @@ export function RequestSourceDialog({ open, onOpenChange, initialTitle = '', onS
         if (result.error) {
             toast.error(result.error)
         } else {
-            toast.success("Source requested! You can use it immediately while it's pending review.")
+            toast.success("Source added! You can use it immediately while it's pending review.")
             if (onSuccess) onSuccess(result.data)
             onOpenChange(false)
             // Reset form
@@ -67,7 +67,7 @@ export function RequestSourceDialog({ open, onOpenChange, initialTitle = '', onS
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Request New Source</DialogTitle>
+                    <DialogTitle>Add New Source</DialogTitle>
                     <DialogDescription>
                         Can't find a source in the class list? Add it here. It will be usable immediately but reviewed by a teacher.
                     </DialogDescription>
@@ -111,7 +111,7 @@ export function RequestSourceDialog({ open, onOpenChange, initialTitle = '', onS
                             if (result.error) {
                                 toast.error(result.error)
                             } else {
-                                toast.success("Source requested! You can use it immediately while it's pending review.")
+                                toast.success("Source added! You can use it immediately while it's pending review.")
                                 if (onSuccess) onSuccess(result.data)
                                 onOpenChange(false)
                                 // Reset handled by dialog close mainly
@@ -119,7 +119,7 @@ export function RequestSourceDialog({ open, onOpenChange, initialTitle = '', onS
                             setIsSubmitting(false)
                         }}
                         isLoading={isSubmitting}
-                        submitLabel="Submit Request"
+                        submitLabel="Add Source"
                         onCancel={() => onOpenChange(false)}
                         mode="student"
                     />

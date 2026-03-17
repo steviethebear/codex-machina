@@ -59,13 +59,12 @@ export async function createNote(note: NoteInsert & { tags?: string[] }) {
     }
 
     // Sync connections if initial content is provided
-    if (note.content) {
-        await syncConnections(data.id, note.content, data.user_id)
-        // Generate Embedding
-        await updateNoteEmbedding(data.id)
+    if (note.content !== undefined) {
+        await syncConnections(data.id, data.content || '', data.user_id)
     }
-
-    // ... (after updateNoteEmbedding)
+    
+    // Always generate an embedding (it uses title + content)
+    await updateNoteEmbedding(data.id)
 
     // Fetch tags to return complete object
     const { data: noteTags } = await supabase
@@ -122,10 +121,12 @@ export async function updateNote(id: string, updates: NoteUpdate & { tags?: stri
         return { error: error.message }
     }
 
-    // Sync connections if content changed, regardless of note type (fleeting, permanent, source)
-    if (updates.content) {
-        await syncConnections(data.id, data.content, data.user_id)
-        // Update Embedding
+    // Sync connections and embeddings if content or title changed
+    if (updates.content !== undefined || updates.title !== undefined) {
+        if (updates.content !== undefined) {
+            await syncConnections(data.id, data.content || '', data.user_id)
+        }
+        // Always update embedding on save to catch title or content changes
         await updateNoteEmbedding(data.id)
     }
 
@@ -200,7 +201,8 @@ export async function getUserTags(userId?: string) {
     if (!targetId) return []
 
     // Use RPC function
-    const { data, error } = await supabase.rpc('get_user_tags', { p_user_id: targetId })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)('get_user_tags', { p_user_id: targetId })
 
     if (error) {
         console.error('Error fetching user tags:', error)
@@ -311,8 +313,9 @@ export async function promoteNote(id: string) {
         return { error: updateError.message }
     }
 
-    // 5. Sync Connections & Gather Telemetry Data
+    // 5. Sync Connections, Update Embeddings & Gather Telemetry Data
     await syncConnections(note.id, note.content, note.user_id)
+    await updateNoteEmbedding(note.id)
 
     // Telemetry Calculation (Internal Logging)
     const { count: selfLinks } = await supabase.from('connections')

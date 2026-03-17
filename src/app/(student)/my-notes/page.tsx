@@ -21,6 +21,7 @@ import { AddSourceDialog } from '@/components/admin/AddSourceDialog'
 import { SmartSuggestions } from '@/components/SmartSuggestions'
 import { ProfileSlideOver } from '@/components/ProfileSlideOver'
 import { Database } from '@/types/database.types'
+import { RequestSourceDialog } from '@/components/pkm/RequestSourceDialog'
 
 const ForceGraph = dynamic(() => import('@/components/graph/force-graph'), {
     ssr: false,
@@ -54,6 +55,7 @@ export default function NotebookPage() {
     const [slideOverNote, setSlideOverNote] = useState<Note | null>(null)
     const [slideOverUserId, setSlideOverUserId] = useState<string | null>(null)
     const [showPromotionDialog, setShowPromotionDialog] = useState(false)
+    const [showRequestSourceDialog, setShowRequestSourceDialog] = useState(false)
     const [isAdmin, setIsAdmin] = useState(false)
 
     // Graph Data
@@ -140,11 +142,11 @@ export default function NotebookPage() {
                 .select('*')
                 .eq('is_public', true)
 
-            // Fetch System Sources (from texts table)
             const { data: systemSources } = await supabase
                 .from('texts')
                 .select('*')
                 .in('status', ['approved']) // Only approved sources
+                .returns<any[]>()
 
             // Merge System Sources into Public Notes (map to similar structure)
             const mappedSources = (systemSources || []).map((s: any) => ({
@@ -298,6 +300,12 @@ export default function NotebookPage() {
                                     handleSelectNote(newSource)
                                 }} />
                             )}
+                            {activeTab === 'source' && !isAdmin && (
+                                <Button onClick={() => setShowRequestSourceDialog(true)} size="sm" variant="default">
+                                    <PlusCircle className="h-4 w-4 mr-1" />
+                                    Add Source
+                                </Button>
+                            )}
                         </div>
                     </div>
 
@@ -409,7 +417,13 @@ export default function NotebookPage() {
                                         // Since we merged texts into publicNotes, if it's not found there, it might genuinely not exist.
                                         // HOWEVER, what if the user typed [[Some Book]] manually?
                                         // We should check texts table.
-                                        const { data: textData } = await supabase.from('texts').select('*').eq('title', title).single()
+                                        const { data: textDataResult } = await supabase
+                                            .from('texts')
+                                            .select('*')
+                                            .eq('title', title)
+                                            .single()
+
+                                        const textData = textDataResult as any
                                         if (textData) {
                                             // Map to Note for SlideOver
                                             const mapped: Note = {
@@ -491,6 +505,32 @@ export default function NotebookPage() {
                 onNoteClick={(n) => {
                     setSlideOverUserId(null)
                     setSlideOverNote(n)
+                }}
+            />
+
+            <RequestSourceDialog
+                open={showRequestSourceDialog}
+                onOpenChange={setShowRequestSourceDialog}
+                onSuccess={(newSource) => {
+                    // Map it to a Note shape in memory
+                    const mappedSource: Note = {
+                        id: newSource.id,
+                        title: newSource.title,
+                        content: newSource.description || (newSource.author ? `by ${newSource.author}` : ''),
+                        type: 'source',
+                        user_id: user?.id || 'system',
+                        created_at: newSource.created_at,
+                        updated_at: newSource.created_at,
+                        is_public: true,
+                        tags: ['system-source', newSource.type],
+                        citation: newSource.author,
+                        page_number: null,
+                        embedding: null
+                    }
+                    
+                    setPublicNotes(prev => [mappedSource, ...prev])
+                    handleSelectNote(mappedSource)
+                    setSlideOverNote(mappedSource)
                 }}
             />
         </div>

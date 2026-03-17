@@ -92,6 +92,7 @@ export default function GraphPage() {
         const { data: tagsData } = await supabase
             .from('note_tags')
             .select('note_id, tag')
+            .returns<any[]>()
 
         if (notes && connections) {
             // Process Tags

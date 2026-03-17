@@ -40,8 +40,8 @@ export default function NotificationsPage() {
     }, [user])
 
     const handleMarkAsRead = async (id: string) => {
-        const { error } = await supabase
-            .from('notifications')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase.from('notifications') as any)
             .update({ read: true })
             .eq('id', id)
 
@@ -56,8 +56,8 @@ export default function NotificationsPage() {
         const unreadIds = notifications.filter(n => !n.read).map(n => n.id)
         if (unreadIds.length === 0) return
 
-        const { error } = await supabase
-            .from('notifications')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase.from('notifications') as any)
             .update({ read: true })
             .in('id', unreadIds)
 

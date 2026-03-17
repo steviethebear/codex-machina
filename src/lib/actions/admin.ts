@@ -50,7 +50,8 @@ export async function getStudentProfile(studentId: string) {
         .order('created_at', { ascending: false })
 
     return {
-        profile: { ...profile, unlocks: unlocks || [] },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        profile: { ...(profile as any), unlocks: unlocks || [] },
         notes: notes || [],
         points: points || [],
         reflections: reflections || []
@@ -141,7 +142,7 @@ export async function inviteStudent(email: string) {
 
 export async function updateStudentProfile(userId: string, data: { codex_name?: string, class_section?: string, teacher?: string }) {
     const supabase = await createClient()
-    const { error } = await supabase.from('users').update(data).eq('id', userId)
+    const { error } = await (supabase.from('users') as any).update(data).eq('id', userId)
 
     if (error) throw error
 
@@ -166,7 +167,9 @@ export async function reindexAllConnections(studentId: string) {
     let processedNotes = 0
 
     // 2. Process each note
-    for (const note of notes) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const safeNotes = (notes as any[]) || []
+    for (const note of safeNotes) {
         if (note.content) {
             const linksCount = await syncConnections(note.id, note.content, note.user_id)
             totalLinks += linksCount
@@ -191,7 +194,9 @@ export async function rebuildGlobalConnections() {
     let processedNotes = 0
 
     // 2. Process each note
-    for (const note of notes) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const safeNotes = (notes as any[]) || []
+    for (const note of safeNotes) {
         if (note.content) {
             const linksCount = await syncConnections(note.id, note.content, note.user_id)
             totalLinks += linksCount
@@ -253,7 +258,9 @@ export async function getClassAssessment(section?: string, teacher?: string, dat
     const studentMap = new Map<string, any>()
 
     // Init Map
-    students.forEach(s => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const safeStudents = (students as any[]) || []
+    safeStudents.forEach(s => {
         studentMap.set(s.id, {
             ...s,
             stats: {
@@ -286,7 +293,9 @@ export async function getClassAssessment(section?: string, teacher?: string, dat
     }
 
     // Iterate Notes
-    notes.forEach(note => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const safeNotes = (notes as any[]) || []
+    safeNotes.forEach(note => {
         const student = studentMap.get(note.user_id)
         if (!student) return
 
@@ -399,7 +408,7 @@ export async function saveEvaluation(studentId: string, content: string, score: 
     // Identify teacher? For now just use current admin user
     const { data: { user } } = await supabase.auth.getUser()
 
-    const { error } = await supabase.from('evaluations').insert({
+    const { error } = await (supabase.from('evaluations') as any).insert({
         student_id: studentId,
         teacher_id: user?.id,
         content,
@@ -413,7 +422,7 @@ export async function saveEvaluation(studentId: string, content: string, score: 
 
 export async function deleteEvaluation(evaluationId: string) {
     const supabase = await createClient()
-    await supabase.from('evaluations').delete().eq('id', evaluationId)
+    await (supabase.from('evaluations') as any).delete().eq('id', evaluationId)
     // We don't have the studentId here easily to revalidate path 
     // unless we fetch. Client can refresh.
 }

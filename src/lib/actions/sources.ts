@@ -30,11 +30,11 @@ export async function createSource(data: {
         .eq('id', user.id)
         .single()
 
-    const isAdmin = dbUser?.is_admin || false
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isAdmin = (dbUser as any)?.is_admin || false
     const status = isAdmin ? 'approved' : 'pending'
 
-    const { data: newSource, error } = await supabase
-        .from('texts')
+    const { data: newSource, error } = await (supabase.from('texts') as any)
         .insert({
             title: data.title,
             author: data.author,
@@ -81,10 +81,10 @@ export async function updateSource(id: string, data: {
         .eq('id', user.id)
         .single()
 
-    if (!dbUser?.is_admin) throw new Error("Unauthorized")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(dbUser as any)?.is_admin) throw new Error("Unauthorized")
 
-    const { error } = await supabase
-        .from('texts')
+    const { error } = await (supabase.from('texts') as any)
         .update({
             title: data.title,
             author: data.author,
@@ -158,7 +158,8 @@ export async function getPendingSources() {
 
     // Check admin
     const { data: dbUser } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
-    if (!dbUser?.is_admin) throw new Error("Unauthorized: Admin access required")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(dbUser as any)?.is_admin) throw new Error("Unauthorized: Admin access required")
 
     const { data, error } = await supabase
         .from('texts')
@@ -188,10 +189,10 @@ export async function approveSource(sourceId: string) {
 
     // Check admin
     const { data: dbUser } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
-    if (!dbUser?.is_admin) throw new Error("Unauthorized: Admin access required")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(dbUser as any)?.is_admin) throw new Error("Unauthorized: Admin access required")
 
-    const { error } = await supabase
-        .from('texts')
+    const { error } = await (supabase.from('texts') as any)
         .update({
             status: 'approved',
             reviewed_by: user.id,
@@ -220,10 +221,10 @@ export async function rejectSource(sourceId: string, note?: string) {
 
     // Check admin
     const { data: dbUser } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
-    if (!dbUser?.is_admin) throw new Error("Unauthorized: Admin access required")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(dbUser as any)?.is_admin) throw new Error("Unauthorized: Admin access required")
 
-    const { error } = await supabase
-        .from('texts')
+    const { error } = await (supabase.from('texts') as any)
         .update({
             status: 'rejected',
             rejection_note: note || null,

@@ -72,6 +72,7 @@ export default function DashboardPage() {
                 .select('id, title, type, created_at, content')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
+                .returns<any[]>()
 
             if (notes) {
                 const totalNotes = notes.length
@@ -102,6 +103,7 @@ export default function DashboardPage() {
                     .from('connections')
                     .select('source_note_id, target_note_id, created_at')
                     .eq('user_id', user.id)
+                    .returns<any[]>()
 
                 const validConnections = connections || []
                 // Use parsed count for the metric

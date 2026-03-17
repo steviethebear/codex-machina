@@ -17,15 +17,16 @@ export async function checkUnlocks(userId: string) {
         .select('feature')
         .eq('user_id', userId)
 
-    const unlockedFeatures = new Set(existingUnlocks?.map(u => u.feature) || [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const unlockedFeatures = new Set(existingUnlocks?.map((u: any) => u.feature) || [])
 
     // 2. Fetch User Stats (Heuristics)
     // We need: Note Count, First/Last Note Date, Connection Count
     // This is efficient enough to query directly for a single user.
 
     // Notes & Dates
-    const { data: notes } = await supabase
-        .from('notes')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: notes } = await (supabase.from('notes') as any)
         .select('created_at, id')
         .eq('author_id', userId)
         .eq('hidden', false)
@@ -91,7 +92,7 @@ export async function checkUnlocks(userId: string) {
         }
 
         for (const feature of newUnlocks) {
-            await supabase.from('unlocks').insert({
+            await (supabase.from('unlocks') as any).insert({
                 user_id: userId,
                 feature,
                 check_metadata: metadata
@@ -126,8 +127,9 @@ function getFeatureName(key: string): string {
  */
 export async function getUnlocks(userId: string) {
     const supabase = await createClient()
-    const { data } = await supabase.from('unlocks').select('feature').eq('user_id', userId)
-    return data?.map(u => u.feature) || []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase.from('unlocks') as any).select('feature').eq('user_id', userId)
+    return data?.map((u: any) => u.feature) || []
 }
 
 /**
@@ -140,13 +142,13 @@ export async function toggleUnlock(userId: string, feature: string, shouldUnlock
     // Actually policy checks for role=admin on insert/delete.
 
     if (shouldUnlock) {
-        await supabase.from('unlocks').upsert({
+        await (supabase.from('unlocks') as any).upsert({
             user_id: userId,
             feature,
             check_metadata: { trigger: 'admin_override' }
         })
     } else {
-        await supabase.from('unlocks').delete()
+        await (supabase.from('unlocks') as any).delete()
             .eq('user_id', userId)
             .eq('feature', feature)
     }
@@ -181,7 +183,7 @@ export async function unlockFeatureForGroup(groupBy: 'section' | 'teacher', grou
     }))
 
     // 3. Upsert
-    const { error } = await supabase.from('unlocks').upsert(unlocks, { onConflict: 'user_id, feature' })
+    const { error } = await (supabase.from('unlocks') as any).upsert(unlocks, { onConflict: 'user_id, feature' })
 
     if (error) throw error
 

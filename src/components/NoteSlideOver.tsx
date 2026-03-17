@@ -34,19 +34,21 @@ export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNav
             // Check Texts
             const { data: textData } = await supabase.from('texts').select('*').eq('title', title).single()
             if (textData) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const td = textData as any
                 const mapped: any = {
-                    ...textData, // Include ALL source fields (author, year, url, etc.)
-                    id: textData.id,
-                    title: textData.title,
-                    content: textData.description || `by ${textData.author}`,
+                    ...td, // Include ALL source fields (author, year, url, etc.)
+                    id: td.id,
+                    title: td.title,
+                    content: td.description || `by ${td.author}`,
                     type: 'source', // Force type for detection
-                    textType: textData.type, // Preserve original type if needed
+                    textType: td.type, // Preserve original type if needed
                     user_id: 'system',
-                    created_at: textData.created_at,
-                    updated_at: textData.created_at,
+                    created_at: td.created_at,
+                    updated_at: td.created_at,
                     is_public: true,
-                    tags: ['system-source', textData.type],
-                    citation: textData.author,
+                    tags: ['system-source', td.type],
+                    citation: td.author,
                     page_number: null,
                     embedding: null
                 }
@@ -89,6 +91,9 @@ export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNav
                         </ScrollArea>
 
                         <div className="p-2 border-t bg-background flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => onClose()}>
+                                Close Preview
+                            </Button>
                             <Button variant="outline" size="sm" onClick={async () => {
                                 // IN-PLACE BRANCHING
                                 if (onNavigate) {
@@ -118,7 +123,7 @@ export function NoteSlideOver({ note, open, onClose, onOpenNote, onUpdate, onNav
                                 Write about this
                             </Button>
                             {onOpenNote && (
-                                <Button variant="ghost" size="sm" onClick={() => { onOpenNote(note); onClose(); }}>
+                                <Button variant="default" size="sm" onClick={() => { onOpenNote(note); onClose(); }}>
                                     <ExternalLink className="h-4 w-4 mr-2" />
                                     Open Full Page
                                 </Button>
