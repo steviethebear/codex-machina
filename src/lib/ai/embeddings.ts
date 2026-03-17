@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '')
@@ -18,8 +19,10 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
     }
 }
 
-export async function updateNoteEmbedding(noteId: string) {
-    const supabase = await createClient()
+export async function updateNoteEmbedding(noteId: string, asAdmin: boolean = false) {
+    const supabase = asAdmin 
+        ? createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+        : await createClient()
 
     // 1. Fetch Note Content
     const { data: note, error: fetchError } = await (supabase as any)

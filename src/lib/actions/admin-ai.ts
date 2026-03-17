@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { updateNoteEmbedding } from '@/lib/ai/embeddings'
 
 export async function generateAllEmbeddings() {
@@ -13,11 +14,13 @@ export async function generateAllEmbeddings() {
     const { data: adminCheck } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
     if (!(adminCheck as any)?.is_admin) throw new Error("Admin access required")
 
-    // Fetch all notes with NO embedding (or just all notes?)
-    // Let's fetch ALL notes to be safe, or check for null if we could.
-    // Supabase JS doesn't easily support "is null" on vector column in filter sometimes? 
-    // Let's just fetch ID and Content of all notes.
-    const { data: notes, error } = await supabase
+    // Use admin client to bypass RLS so we can fetch and update ALL notes
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { data: notes, error } = await supabaseAdmin
         .from('notes')
         .select('id, title, content')
 
@@ -38,8 +41,8 @@ export async function generateAllEmbeddings() {
             // Check if title or content exists
             if (!note.title && !note.content) continue
 
-            // We invoke the helper which handles fetching and updating
-            await updateNoteEmbedding(note.id)
+            // We invoke the helper as admin which bypasses RLS
+            await updateNoteEmbedding(note.id, true)
             successCount++
             // Tiny delay to be nice to API
             await new Promise(r => setTimeout(r, 200))
