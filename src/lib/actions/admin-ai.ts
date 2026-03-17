@@ -20,9 +20,13 @@ export async function generateAllEmbeddings() {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // Fetch up to 50 notes that currently have NO embedding.
+    // This batching approach prevents Vercel Serverless Function 10s timeouts.
     const { data: notes, error } = await supabaseAdmin
         .from('notes')
         .select('id, title, content')
+        .is('embedding', null)
+        .limit(50)
 
     if (error || !notes) {
         console.error("Error fetching notes:", error)
@@ -52,5 +56,6 @@ export async function generateAllEmbeddings() {
         }
     }
 
-    return { success: true, count: successCount, failed: failCount }
+    const hasMore = notes.length === 50
+    return { success: true, count: successCount, failed: failCount, hasMore }
 }

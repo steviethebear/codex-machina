@@ -119,8 +119,10 @@ export default function TeacherDashboard() {
                         </Button>
                         <Button variant="outline" onClick={async () => {
                             toast.promise(generateAllEmbeddings(), {
-                                loading: 'Regenerating embeddings...',
-                                success: (data) => `Generated ${data.count} embeddings (${data.failed} failed)`,
+                                loading: 'Batching missing embeddings...',
+                                success: (data) => data.hasMore 
+                                    ? `Processed ${data.count} notes. Click again to process the next batch!` 
+                                    : `All caught up! Generated ${data.count}.`,
                                 error: 'Failed to generate embeddings'
                             })
                         }}>
