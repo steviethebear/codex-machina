@@ -4,13 +4,17 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '')
-const model = genAI.getGenerativeModel({ model: "text-embedding-004" })
+const model = genAI.getGenerativeModel({ model: "gemini-embedding-2-preview" })
 
 export async function generateEmbedding(text: string): Promise<number[] | null> {
     if (!text || !text.trim()) return null
 
     try {
-        const result = await model.embedContent(text)
+        const result = await model.embedContent({
+            content: { role: 'user', parts: [{ text }] },
+            taskType: 2, // TaskType.RETRIEVAL_DOCUMENT
+            outputDimensionality: 768
+        } as any)
         const embedding = result.embedding
         return embedding.values
     } catch (error) {

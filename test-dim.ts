@@ -15,7 +15,7 @@ const geminiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY!
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 const genAI = new GoogleGenerativeAI(geminiKey)
-const model = genAI.getGenerativeModel({ model: "text-embedding-004" })
+const model = genAI.getGenerativeModel({ model: "gemini-embedding-2-preview" })
 
 async function run() {
     console.log("Fetching a note...")
@@ -37,11 +37,15 @@ async function run() {
     const note = notes[0]
     console.log(`Testing Note ID: ${note.id} Title: ${note.title}`)
 
-    // 1. Generate Fake embedding
+        // 1. Generate Fake embedding
     try {
         console.log("Generating Gemini embedding...")
         const text = `${note.title || ''}\n\n${note.content || ''}`
-        const result = await model.embedContent(text)
+        const result = await model.embedContent({
+            content: { role: 'user', parts: [{ text }] },
+            taskType: 2, // TaskType.RETRIEVAL_DOCUMENT
+            outputDimensionality: 768
+        } as any)
         const embedding = result.embedding.values
         console.log(`Generated embedding length: ${embedding.length}`) // should be 768
 
