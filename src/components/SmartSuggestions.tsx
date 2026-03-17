@@ -47,7 +47,7 @@ export function SmartSuggestions({ context, currentId, onLink, onOpen }: { conte
                     size="sm" 
                     variant="outline" 
                     onClick={fetchSuggestions} 
-                    disabled={context && context.length < 20}
+                    disabled={!context || context.length < 20}
                     title={(!context || context.length < 20) ? "Type more content to find connections" : ""}
                 >
                     Find Connections
@@ -68,7 +68,7 @@ export function SmartSuggestions({ context, currentId, onLink, onOpen }: { conte
                     variant="ghost" 
                     className="h-6 text-xs px-2 text-primary" 
                     onClick={fetchSuggestions} 
-                    disabled={loading || (context && context.length < 20)}
+                    disabled={loading || !context || context.length < 20}
                 >
                     Refresh
                 </Button>
